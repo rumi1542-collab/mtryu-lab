@@ -208,8 +208,18 @@ button{cursor:pointer}
 .mode.local{background:#5A3F12}
 .cols,.rowx{display:grid;grid-template-columns:72px minmax(0,1fr) 150px 220px;align-items:center;padding:0 16px}
 .cols{font-size:14px;color:var(--muted)}
-.rows{display:flex;flex-direction:column;gap:6px}
-.rowx{height:50px;border-radius:12px;background:#232A70;border:2px solid transparent}
+.rows{display:flex;flex-direction:column;gap:5px}
+.cnt{font-size:20px;color:var(--muted);margin-left:8px}
+.strip{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.findrow{display:flex;gap:8px}
+.findrow input{width:200px;height:40px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:16px;padding:0 12px;font-family:inherit}
+.pbtn{height:40px;min-width:40px;border:0;border-radius:10px;background:var(--line);color:var(--text);font-size:20px;font-family:inherit}
+.pbtn.wide{font-size:16px;padding:0 18px}.pbtn:disabled{opacity:.35}
+.mybtn{height:40px;border:2px solid var(--green);border-radius:10px;background:transparent;color:var(--text);font-size:15px;padding:0 14px;font-family:inherit}
+.mybtn.o{border-color:var(--orange)}
+.pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:auto;padding-top:4px;color:var(--muted);font-size:16px}
+.pnum{min-width:200px;text-align:center}
+.rowx{height:44px;border-radius:12px;background:#232A70;border:2px solid transparent}
 .rowx.me{background:#1E4D3A;border-color:var(--green)}
 .rowx.me.o{background:#5A3A1C;border-color:var(--orange)}
 .rowx .rk{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:19px;background:var(--line)}
@@ -248,7 +258,7 @@ const CONFIG = {
   schools:   ['선운중학교'],                // 처음에 보여줄 학교    (늘리려면 게임 첫 화면의 '관리자'에서 추가해요)
   apiUrl:    '/api/scores',               // 순위 저장 서버 주소 (서버가 없으면 이 컴퓨터에만 저장돼요)
   configUrl: '/api/config',               // 학년도·학교 목록 서버 주소
-  topN:      10                           // 순위표에 보여줄 등수
+  pageSize:  10                           // 순위표 한 쪽에 보여줄 인원
 };
 /* ===================================================================== */
 
@@ -348,24 +358,37 @@ const Store = {
       return await r.json();
     } finally { clearTimeout(t); }
   },
-  async top(y, s) {
+  async page(y, s, offset, limit) {
     try {
-      const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s));
+      const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s) + '&offset=' + offset + '&limit=' + limit);
       if (!j || !Array.isArray(j.top)) throw new Error('bad');
-      Store.mode = 'server'; return j.top;
-    } catch (e) { Store.mode = 'local'; return Store.sortRecs(Store.localList(y, s)).slice(0, CONFIG.topN); }
+      Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
+    } catch (e) {
+      Store.mode = 'local';
+      const all = Store.sortRecs(Store.localList(y, s));
+      return { rows: all.slice(offset, offset + limit), total: all.length };
+    }
+  },
+  async find(y, s, q) {
+    if (Store.mode === 'server') {
+      try {
+        const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s) + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
+        if (j && Array.isArray(j.matches)) return j.matches;
+      } catch (e) {}
+    }
+    return Store.sortRecs(Store.localList(y, s)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
   },
   async save(y, s, rec) {
     try {
       const j = await Store.http('POST', CONFIG.apiUrl, { year: y, school: s, id: rec.id, name: rec.name, rolls: rec.rolls, setup: rec.setup });
       if (!j || !Array.isArray(j.top)) throw new Error('bad');
-      Store.mode = 'server'; return { rank: j.rank, top: j.top };
+      Store.mode = 'server'; return { rank: j.rank, top: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
       Store.mode = 'local';
       const l = Store.localList(y, s); l.push(rec);
       try { localStorage.setItem(Store.key(y, s), JSON.stringify(l)); } catch (er) {}
       const sorted = Store.sortRecs(l);
-      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, top: sorted.slice(0, CONFIG.topN) };
+      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, top: sorted.slice(0, CONFIG.pageSize), total: sorted.length };
     }
   }
 };
@@ -563,7 +586,7 @@ function setupHTML() {
   const schools = LIST.schools.map((s, i) => `
     <button type="button" class="scard${s === state.school ? ' on' : ''}" aria-pressed="${s === state.school}" data-act="school" data-v="${esc(s)}">
       <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${roofs[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
-      <div><div class="nm">${esc(s)}</div><small>TOP ${CONFIG.topN} 기록 보기</small></div>
+      <div><div class="nm">${esc(s)}</div><small>전체 순위 보기</small></div>
       ${s === state.school ? '<svg class="ck" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="#FFD23F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
     </button>`).join('');
   const step = (n, b, t) => `<div class="step"><i>${n}</i><div><b>${b}</b><span>${t}</span></div></div>`;
@@ -762,7 +785,7 @@ async function runGame(id) {
 async function finish(winners, stalemate) {
   const rolls = G.rolls;
   G = null;
-  state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], status: winners.length ? 'saving' : 'none' };
+  state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', status: winners.length ? 'saving' : 'none' };
   show('result');
   paintResult();
   if (!winners.length) { loadBoardOnly(); return; }
@@ -773,11 +796,12 @@ async function finish(winners, stalemate) {
     last = await Store.save(state.year, state.school, rec);
     state.result.rank[p] = last.rank;
   }
-  state.result.top = last.top; state.result.status = Store.mode === 'server' ? 'ok' : 'local';
+  state.result.top = last.top; state.result.total = last.total; state.result.offset = 0; state.result.status = Store.mode === 'server' ? 'ok' : 'local';
   paintResult();
 }
 async function loadBoardOnly() {
-  state.result.top = await Store.top(state.year, state.school);
+  const pg = await Store.page(state.year, state.school, 0, CONFIG.pageSize);
+  state.result.top = pg.rows; state.result.total = pg.total; state.result.offset = 0;
   state.result.status = Store.mode === 'server' ? 'none' : 'nonelocal';
   paintResult();
 }
@@ -818,7 +842,7 @@ function paintResult() {
   }
   let note = '';
   if (R.status === 'saving') note = '<div class="saved warn"><span>순위표에 기록하는 중…</span></div>';
-  else if (R.status === 'ok') note = `<div class="saved"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="flex:none"><circle cx="14" cy="14" r="14" fill="#5BD97F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${state.year}학년도 · ${esc(state.school)} 순위표에 자동으로 기록됐어요${w.length ? ' (' + w.map(p => (R.rank[p] || '?') + '위').join(', ') + ')' : ''}</span></div>`;
+  else if (R.status === 'ok') note = `<div class="saved"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="flex:none"><circle cx="14" cy="14" r="14" fill="#5BD97F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>순위표에 자동으로 기록됐어요${w.length ? ' (' + w.map(p => (R.rank[p] || '?') + '위').join(', ') + ')' : ''}</span></div>`;
   else if (R.status === 'local') note = `<div class="saved warn"><span>이 컴퓨터에만 기록됐어요${w.length ? ' · ' + w.map(p => (R.rank[p] || '?') + '위').join(', ') : ''}</span></div>`;
   else if (R.status === 'none') note = '<div class="saved err"><span>이번 게임은 기록되지 않아요</span></div>';
   else note = '<div class="saved err"><span>이번 게임은 기록되지 않아요 (이 컴퓨터 순위표를 보여줘요)</span></div>';
@@ -840,22 +864,37 @@ function paintResult() {
     return `<div class="rowx${me ? ' me' : ''}${p === 'b' ? ' o' : ''}"><span><span class="rk" style="${bg ? `background:${bg};color:#12163A` : ''}">${rank}</span></span>
       <span class="nm"><span class="t">${esc(r.name)}</span>${me ? '<em>방금 기록</em>' : ''}</span><span class="tn">${r.rolls}번</span><span class="bars">${bars}</span></div>`;
   };
-  const top = R.top || [];
-  let rows = top.map((r, i) => rowHtml(r, i + 1)).join('');
-  if (!top.length) rows = '<div class="empty">아직 기록이 없어요. 첫 번째 기록을 남겨 보세요!</div>';
-  else {   // 10등 밖이면 아래에 따로 보여주기
-    meIds.forEach(m => {
-      const rk = R.rank[m.p];
-      if (rk && rk > top.length && !top.some(t => t.id === m.id)) {
-        const rec = { id: m.id, name: cleanName(state[m.p].name), rolls: R.rolls, setup: state[m.p].counts };
-        rows += `<div class="gap">⋮</div>` + rowHtml(rec, rk);
-      }
-    });
+  const PS = CONFIG.pageSize, total = R.total || 0, offset = R.offset || 0;
+  const pages = Math.max(1, Math.ceil(total / PS)), cur = Math.floor(offset / PS) + 1;
+  let rows;
+  if (R.matches) {
+    rows = R.matches.length ? R.matches.map(r => rowHtml(r, r.rank)).join('') : '<div class="empty">그 이름의 기록이 없어요.</div>';
+  } else {
+    const top = R.top || [];
+    rows = top.length ? top.map((r, i) => rowHtml(r, offset + i + 1)).join('') : '<div class="empty">아직 기록이 없어요. 첫 번째 기록을 남겨 보세요!</div>';
   }
-  board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)}</small><h2 class="jua">TOP ${CONFIG.topN} 기록</h2></div>
+  const mine = w.filter(p => R.rank[p]).map(p => `<button type="button" class="mybtn${p === 'b' ? ' o' : ''}" data-act="gomine" data-p="${p}">${esc(cleanName(state[p].name))} ${R.rank[p]}위 보기</button>`).join('');
+  const pager = R.matches
+    ? `<div class="pager"><span>이름 검색 결과 ${R.matches.length}명${R.matches.length >= 50 ? ' (최대 50명)' : ''}</span><button type="button" class="pbtn wide" data-act="clearfind">전체 순위로</button></div>`
+    : `<div class="pager"><button type="button" class="pbtn" data-act="pg" data-v="first" aria-label="처음 쪽"${cur <= 1 ? ' disabled' : ''}>«</button><button type="button" class="pbtn" data-act="pg" data-v="prev" aria-label="이전 쪽"${cur <= 1 ? ' disabled' : ''}>‹</button><span class="pnum">${cur} / ${pages}쪽 · ${total ? (offset + 1) + '~' + Math.min(offset + PS, total) + '위' : '기록 없음'}</span><button type="button" class="pbtn" data-act="pg" data-v="next" aria-label="다음 쪽"${cur >= pages ? ' disabled' : ''}>›</button><button type="button" class="pbtn" data-act="pg" data-v="last" aria-label="마지막 쪽"${cur >= pages ? ' disabled' : ''}>»</button></div>`;
+  board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)}</small><h2 class="jua">전체 순위 <span class="cnt">${total}명</span></h2></div>
       <span class="mode${Store.mode === 'local' ? ' local' : ''}">${Store.mode === 'local' ? '이 컴퓨터 기록' : '학교 전체 기록'}</span></div>
+    <div class="strip"><form class="findrow" data-form="find" autocomplete="off"><input id="findQ" type="text" maxlength="8" placeholder="내 이름 찾기" value="${esc(R.q || '')}"><button type="submit" class="pbtn wide">찾기</button></form>${mine}</div>
     <div class="cols"><span>순위</span><span>이름</span><span>굴린 횟수</span><span>처음 배치 (1 → 12)</span></div>
-    <div class="rows">${rows}</div>`;
+    <div class="rows">${rows}</div>${pager}`;
+}
+async function loadPage(offset) {
+  const R = state.result; R.matches = null;
+  const pg = await Store.page(state.year, state.school, offset, CONFIG.pageSize);
+  if (state.screen !== 'result') return;
+  R.top = pg.rows; R.total = pg.total; R.offset = offset; paintResult();
+}
+async function runFind(q) {
+  const R = state.result; R.q = q;
+  if (!q) { R.matches = null; return paintResult(); }
+  const m = await Store.find(state.year, state.school, q);
+  if (state.screen !== 'result') return;
+  R.matches = m; paintResult();
 }
 
 /* ---------- 이벤트 ---------- */
@@ -886,6 +925,13 @@ document.addEventListener('click', e => {
   }
   else if (act === 'again') { state.a.counts = new Array(12).fill(0); state.b.counts = new Array(12).fill(0); show('place'); }
   else if (act === 'tosetup') { show('setup'); }
+  else if (act === 'pg') {
+    const R = state.result, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(R.total / PS) - 1) * PS, v = b.dataset.v;
+    const to = v === 'first' ? 0 : v === 'last' ? last : v === 'prev' ? R.offset - PS : R.offset + PS;
+    loadPage(Math.min(Math.max(to, 0), last));
+  }
+  else if (act === 'gomine') { const rk = state.result.rank[b.dataset.p]; if (rk) loadPage(Math.floor((rk - 1) / CONFIG.pageSize) * CONFIG.pageSize); }
+  else if (act === 'clearfind') { state.result.q = ''; loadPage(state.result.offset || 0); }
   else if (act === 'admin') { openLogin(); }
   else if (act === 'loginx') { closeLogin(); }
   else if (act === 'admcancel') { ADM.key = null; show('setup'); }
@@ -901,7 +947,8 @@ document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]'); if (!f) return;
   e.preventDefault();
   const k = f.dataset.form;
-  if (k === 'login') tryLogin(document.getElementById('admPw').value);
+  if (k === 'find') runFind(document.getElementById('findQ').value.trim());
+  else if (k === 'login') tryLogin(document.getElementById('admPw').value);
   else adminAdd(k);
 });
 document.addEventListener('input', e => {

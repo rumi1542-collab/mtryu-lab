@@ -6,13 +6,15 @@
 //   또는 UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN  (Upstash 방식)
 //   RD_ADMIN_KEY   관리자 암호 (관리자 모드 로그인, 학년도·학교 추가, 기록 삭제에 써요)
 //
-// GET    /api/scores?year=2026&school=학교     → { top: [...] }          상위 기록
+// GET    /api/scores?year=&school=&offset=0&limit=10 → { top, total }   순위표 (쪽 나누기)
+// GET    /api/scores?year=&school=&q=이름              → { matches, total } 이름 찾기
 // POST   /api/scores  {year,school,id,name,rolls,setup} → { rank, top }  기록 저장
 // DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 삭제
 
 const { configured, redis, send, getConfig, isAdmin } = require('./_lib');
-const TOP_N = 10;
-const KEEP = 200; // 학교·학년도마다 최대 200개 기록만 보관
+const PAGE_DEFAULT = 10;
+const PAGE_MAX = 100;
+const KEEP = 20000; // 학교·학년도마다 최대 2만 개 기록 (한 줄에 약 150바이트 → 3MB 정도라 부담이 없어요)
 
 function parseMembers(list) {
   return (list || []).map(m => { try { return JSON.parse(m); } catch (e) { return null; } }).filter(Boolean);
@@ -35,8 +37,23 @@ module.exports = async function handler(req, res) {
       const { year, school } = req.query;
       if (!(await validYearSchool(year, school))) return send(res, 400, { error: 'bad-request' });
       const key = 'rd:' + Number(year) + ':' + school;
-      const top = parseMembers(await redis(['ZRANGE', key, 0, TOP_N - 1]));
-      return send(res, 200, { top });
+      const total = Number(await redis(['ZCARD', key])) || 0;
+      // 이름 찾기: 전체에서 이름이 들어간 기록을 순위와 함께 (최대 50명)
+      const q = String(req.query.q || '').trim();
+      if (q) {
+        if (q.length > 8) return send(res, 400, { error: 'bad-query' });
+        const all = parseMembers(await redis(['ZRANGE', key, 0, -1]));
+        const matches = [];
+        for (let i = 0; i < all.length && matches.length < 50; i++) {
+          if (String(all[i].name).includes(q)) matches.push(Object.assign({ rank: i + 1 }, all[i]));
+        }
+        return send(res, 200, { matches, total });
+      }
+      // 쪽 나누기: offset부터 limit개 (기본 첫 10명)
+      const offset = Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), KEEP);
+      const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || PAGE_DEFAULT, 1), PAGE_MAX);
+      const top = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]));
+      return send(res, 200, { top, total, offset });
     }
 
     if (req.method === 'POST') {
@@ -64,8 +81,9 @@ module.exports = async function handler(req, res) {
       await redis(['ZADD', key, score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
-      const top = parseMembers(await redis(['ZRANGE', key, 0, TOP_N - 1]));
-      return send(res, 200, { rank: (rank0 == null ? KEEP : rank0) + 1, top });
+      const top = parseMembers(await redis(['ZRANGE', key, 0, PAGE_DEFAULT - 1]));
+      const total = Number(await redis(['ZCARD', key])) || 0;
+      return send(res, 200, { rank: (rank0 == null ? KEEP : rank0) + 1, top, total });
     }
 
     if (req.method === 'DELETE') {
