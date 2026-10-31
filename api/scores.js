@@ -9,7 +9,8 @@
 // GET    /api/scores?year=&school=&offset=0&limit=10 → { top, total }   순위표 (쪽 나누기)
 // GET    /api/scores?year=&school=&q=이름              → { matches, total } 이름 찾기
 // POST   /api/scores  {year,school,id,name,rolls,setup} → { rank, top }  기록 저장
-// DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 삭제
+// DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 1개 삭제
+// DELETE /api/scores?year=&school=&all=1      (헤더 x-admin-key 필요)    순위 전체 삭제
 
 const { configured, redis, send, getConfig, isAdmin } = require('./_lib');
 const PAGE_DEFAULT = 10;
@@ -89,8 +90,15 @@ module.exports = async function handler(req, res) {
     if (req.method === 'DELETE') {
       if (!isAdmin(req)) return send(res, 401, { error: 'unauthorized' });
       const { year, school, id } = req.query;
-      if (!(await validYearSchool(year, school)) || !id) return send(res, 400, { error: 'bad-request' });
+      if (!(await validYearSchool(year, school))) return send(res, 400, { error: 'bad-request' });
       const key = 'rd:' + Number(year) + ':' + school;
+      // all=1 이면 이 학교·학년도의 순위 기록을 모두 지워요
+      if (req.query.all === '1') {
+        const n = Number(await redis(['ZCARD', key])) || 0;
+        await redis(['DEL', key]);
+        return send(res, 200, { removed: n });
+      }
+      if (!id) return send(res, 400, { error: 'bad-request' });
       const all = await redis(['ZRANGE', key, 0, -1]);
       let removed = 0;
       for (const m of all || []) {

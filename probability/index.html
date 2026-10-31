@@ -54,6 +54,9 @@ button{cursor:pointer}
 .amsg.err{color:#FF8A8A}
 .arow{display:flex;gap:12px}
 .arow .ghost{padding:0 32px}
+.acard.danger{border:2px solid #7A2B4A}
+.addrow select{flex:1;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:18px;padding:0 12px;font-family:inherit}
+.dangerbtn{background:#B3265E;color:#fff;white-space:nowrap}
 .sugg{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto}
 .sitem{display:flex;justify-content:space-between;align-items:center;gap:16px;border:0;border-radius:12px;background:#232A70;color:var(--text);padding:12px 18px;font-size:18px;text-align:left}
 .sitem b{font-weight:700}.sitem span{color:var(--muted);font-size:15px}
@@ -161,7 +164,7 @@ button{cursor:pointer}
 .rollhead{display:flex;justify-content:space-between;align-items:baseline}
 .rollhead h1{margin:0;font-size:26px}
 .rollhead span{font-size:14px;color:var(--muted)}
-.dice{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:40px;margin:18px 0 10px;height:124px}
+.dice{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:40px;margin:14px 0 6px;height:124px}
 .dw{position:relative;width:96px;height:96px;perspective:640px}
 .dsh{position:absolute;left:10px;right:10px;bottom:-8px;height:16px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(4px);opacity:.5}
 .tilt{width:96px;height:96px;transform-style:preserve-3d}
@@ -171,9 +174,10 @@ button{cursor:pointer}
 .face{position:absolute;left:0;top:0;width:96px;height:96px;border-radius:14px;background:#F4F6FF;box-shadow:inset 0 0 0 3px #D5DAF3,inset 0 -8px 14px rgba(18,22,58,.12);backface-visibility:hidden}
 .face svg{display:block}
 .eq{text-align:center;font-size:18px;color:#E3E7FF;height:26px}
-.total{text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:84px;line-height:1.05;color:var(--yellow);height:92px}
+.total{text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:68px;line-height:1.05;color:var(--yellow);height:72px}
 .say{text-align:center;font-size:15px;color:#E3E7FF;margin-top:6px;min-height:22px}
-.hist{display:flex;gap:6px;flex-wrap:wrap;min-height:34px}
+.hist{display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start;height:78px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#6B76D6 transparent}
+.hist::-webkit-scrollbar{width:8px}.hist::-webkit-scrollbar-thumb{background:#6B76D6;border-radius:4px}.hist::-webkit-scrollbar-track{background:transparent}
 .hist i{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;
   font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;background:var(--line);color:var(--text)}
 .hist i.last{background:var(--yellow);color:var(--ink)}
@@ -459,7 +463,7 @@ function show(screen) {
   state.screen = screen;
   chrome();
   const root = $('#screen');
-  if (screen === 'admin') root.innerHTML = adminHTML();
+  if (screen === 'admin') { root.innerHTML = adminHTML(); refreshDelCount(); }
   if (screen === 'setup') root.innerHTML = setupHTML();
   if (screen === 'place') { root.innerHTML = placeHTML(); updateReady(); }
   if (screen === 'play') root.innerHTML = playHTML();
@@ -472,6 +476,7 @@ const ADM = { key: null, years: [], schools: [], msg: '', err: false, busy: fals
 function adminHTML() {
   const yrs = ADM.years.map(y => `<span class="chip">${y}학년도<button type="button" data-act="admdel" data-k="y" data-v="${y}" aria-label="${y}학년도 지우기">×</button></span>`).join('');
   const scs = ADM.schools.map(s => `<span class="chip">${esc(s)}<button type="button" data-act="admdel" data-k="s" data-v="${esc(s)}" aria-label="${esc(s)} 지우기">×</button></span>`).join('');
+  const dsel = delSel();
   const where = LIST.mode === 'server' ? '서버에 저장돼요 (모든 컴퓨터에 똑같이 보여요)' : '이 컴퓨터에만 저장돼요 (서버가 연결되지 않았어요)';
   return `<main class="admin">
     <section class="acard"><h2>학년도</h2><div class="chips">${yrs}</div>
@@ -479,6 +484,11 @@ function adminHTML() {
     <section class="acard"><h2>학교</h2><div class="chips">${scs}</div>
       <form class="addrow" data-form="school" autocomplete="off"><input id="admSchool" type="text" maxlength="20" placeholder="${LIST.mode === 'server' ? '학교 이름을 두 글자 이상 쓰면 목록이 떠요' : '예) 가나다중학교'}"><button type="submit" class="ghost sm">추가</button></form>
       <div id="sugg" class="sugg" role="listbox"></div></section>
+    <section class="acard danger"><h2>순위 기록 지우기</h2>
+      <div class="addrow"><select id="delYear" aria-label="학년도">${LIST.years.map(y => `<option value="${y}"${y === dsel.y ? ' selected' : ''}>${y}학년도</option>`).join('')}</select>
+        <select id="delSchool" aria-label="학교">${LIST.schools.map(x => `<option value="${esc(x)}"${x === dsel.s ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
+        <button type="button" class="ghost sm dangerbtn" data-act="admdelall">전체 순위 삭제</button></div>
+      <div class="amsg" id="delCnt"></div></section>
     <section class="afoot"><div class="amsg${ADM.err ? ' err' : ''}" role="status">${esc(ADM.msg) || where}</div>
       <div class="arow"><button type="button" class="ghost" data-act="admcancel">나가기</button><button type="button" class="go" data-act="admsave"${ADM.busy ? ' disabled' : ''}>저장하기</button></div></section>
   </main>`;
@@ -527,6 +537,29 @@ async function adminSave() {
   fixSelection(false); savePrefs(); ADM.key = null; show('setup');
 }
 
+
+function delSel() {
+  const y = LIST.years.includes(ADM.delYear) ? ADM.delYear : LIST.years[0];
+  const s = LIST.schools.includes(ADM.delSchool) ? ADM.delSchool : LIST.schools[0];
+  return { y, s };
+}
+async function refreshDelCount() {
+  const { y, s } = delSel(); let n;
+  if (LIST.mode === 'server') {
+    try { const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&limit=1'); n = j.total; } catch (e) { n = null; }
+  } else n = Store.localList(y, s).length;
+  const c = document.getElementById('delCnt'); if (!c) return;
+  c.textContent = n == null ? '기록 수를 불러오지 못했어요' : '저장된 기록 ' + n + '개' + (n ? ' · 삭제하면 되돌릴 수 없어요' : '');
+}
+async function deleteAllRecords() {
+  const { y, s } = delSel();
+  try {
+    if (LIST.mode === 'server') await Store.http('DELETE', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&all=1', null, { headers: { 'x-admin-key': ADM.key } });
+    else localStorage.removeItem(Store.key(y, s));
+    ADM.msg = y + '학년도 ' + s + ' 순위 기록을 모두 삭제했어요.'; ADM.err = false;
+  } catch (e) { ADM.msg = e.status === 401 ? '암호가 달라요.' : '삭제하지 못했어요. 다시 시도해 주세요.'; ADM.err = true; }
+  show('admin');
+}
 let suggTimer = 0, suggSeq = 0;
 function paintSugg(msg) {
   const box = document.getElementById('sugg'); if (!box) return;
@@ -697,7 +730,7 @@ function playHTML() {
         <div class="total" id="total">&nbsp;</div>
         <div class="say" id="say">&nbsp;</div>
       </div>
-      <div class="card"><div class="cardlbl">최근 굴림</div><div class="hist" id="hist"></div></div>
+      <div class="card"><div class="cardlbl">굴림 기록 <span id="histN"></span></div><div class="hist" id="hist"></div></div>
       <div class="card speed">
         <label for="speed"><span>부서지는 속도</span><b id="speedLbl">${SPEEDS[state.speed].label}</b></label>
         <input id="speed" type="range" min="1" max="4" step="1" value="${state.speed}">
@@ -769,7 +802,9 @@ async function runGame(id) {
       el('info-' + p).textContent = broke ? s + '번 칸 토큰이 부서졌어요' : s + '번 칸엔 토큰이 없어요';
     });
     G.hist.push(s);
-    el('hist').innerHTML = G.hist.slice(-10).map((v, i, arr) => `<i${i === arr.length - 1 ? ' class="last"' : ''}>${v}</i>`).join('');
+    const hb = el('hist');
+    hb.innerHTML = G.hist.map((v, i, arr) => `<i${i === arr.length - 1 ? ' class="last"' : ''}>${v}</i>`).join('');
+    hb.scrollTop = hb.scrollHeight; el('histN').textContent = '· ' + G.hist.length + '번';
 
     /* 끝났는지 */
     const done = ['a', 'b'].filter(p => G.left[p] === 0);
@@ -936,6 +971,11 @@ document.addEventListener('click', e => {
   else if (act === 'loginx') { closeLogin(); }
   else if (act === 'admcancel') { ADM.key = null; show('setup'); }
   else if (act === 'admsave') { adminSave(); }
+  else if (act === 'admdelall') {
+    if (b.dataset.sure) { deleteAllRecords(); return; }
+    b.dataset.sure = '1'; b.textContent = '정말 모두 삭제할까요?';
+    setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '전체 순위 삭제'; } }, 4000);
+  }
   else if (act === 'admpick') { pickSchool(Number(b.dataset.i)); }
   else if (act === 'admdel') {
     if (b.dataset.k === 'y') ADM.years = ADM.years.filter(y => String(y) !== b.dataset.v);
@@ -955,6 +995,8 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset && t.dataset.name) { state[t.dataset.name].name = t.value; updateReady(); savePrefs(); }
   if (t.id === 'admSchool') searchSchools(t.value);
+  if (t.id === 'delYear') { ADM.delYear = Number(t.value); ADM.msg = ''; show('admin'); }
+  if (t.id === 'delSchool') { ADM.delSchool = t.value; ADM.msg = ''; show('admin'); }
   if (t.id === 'speed') { state.speed = Number(t.value); el('speedLbl').textContent = SPEEDS[state.speed].label; savePrefs(); }
 });
 document.addEventListener('keydown', e => {
