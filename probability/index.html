@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>강 건너기 · 확률 실험실</title>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#12163A; --panel:#1D2257; --panel2:#262C6B; --line:#323A8A; --deep:#161B4A;
+  --text:#F4F6FF; --muted:#AEB6F0; --yellow:#FFD23F; --green:#5BD97F; --orange:#FF8A2B; --ink:#12163A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#0C0F2B;overflow:hidden;color:var(--text);
+  font-family:'Noto Sans KR',system-ui,-apple-system,'Malgun Gothic',sans-serif}
+button,input{font-family:inherit}
+button{cursor:pointer}
+.jua{font-family:'Jua','Noto Sans KR','Malgun Gothic',sans-serif;font-weight:400}
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+#stage{width:1600px;height:860px;flex:none;transform-origin:center center;background:var(--bg);
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* 머리글 */
+.hdr{height:72px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:2px solid #232A70}
+.brand{display:flex;align-items:center;gap:14px}
+.brand small{display:block;font-size:13px;color:var(--muted)}
+.brand b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px;font-weight:400;line-height:1.1}
+.nav{display:flex;gap:8px;align-items:center}
+.pill{font-size:14px;padding:6px 14px;border-radius:999px;background:#232A70;color:var(--muted)}
+.pill.on{background:var(--yellow);color:var(--ink);font-weight:700}
+.ctx{width:240px;text-align:right;font-size:15px;color:var(--muted)}
+#screen{flex:1;min-height:0;display:flex}
+
+/* 공통 버튼 */
+.go{display:flex;align-items:center;justify-content:center;border:0;border-radius:16px;background:var(--yellow);color:var(--ink);
+  font-family:'Jua','Noto Sans KR',sans-serif;font-size:30px;padding:0 48px;height:60px;text-decoration:none}
+.go:disabled{background:var(--line);color:var(--muted);cursor:default;font-family:'Noto Sans KR',sans-serif;font-size:18px;font-weight:500}
+.ghost{border:0;border-radius:16px;background:var(--line);color:var(--text);font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;height:56px}
+.linkbtn{background:none;border:0;color:var(--muted);font-size:15px;text-decoration:underline;padding:6px}
+
+/* 관리자 모드 */
+.admin{flex:1;min-height:0;display:flex;flex-direction:column;gap:20px;padding:32px 120px 28px;overflow-y:auto}
+.acard{background:var(--panel);border-radius:20px;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
+.acard h2{margin:0;font-size:22px}
+.chips{display:flex;flex-wrap:wrap;gap:10px;min-height:44px}
+.chip{display:inline-flex;align-items:center;gap:8px;background:#232A70;border-radius:999px;padding:8px 8px 8px 18px;font-size:18px}
+.chip button{width:30px;height:30px;border:0;border-radius:50%;background:var(--line);color:var(--text);font-size:20px;line-height:1}
+.addrow{display:flex;gap:12px}
+.addrow input,.mbox input{flex:1;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:20px;padding:0 16px;font-family:inherit}
+.ghost.sm{height:52px;font-size:20px;padding:0 28px}
+.go.sm{height:52px;font-size:22px;padding:0 32px}
+.afoot{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.amsg{font-size:16px;color:var(--muted)}
+.amsg.err{color:#FF8A8A}
+.arow{display:flex;gap:12px}
+.arow .ghost{padding:0 32px}
+.sugg{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto}
+.sitem{display:flex;justify-content:space-between;align-items:center;gap:16px;border:0;border-radius:12px;background:#232A70;color:var(--text);padding:12px 18px;font-size:18px;text-align:left}
+.sitem b{font-weight:700}.sitem span{color:var(--muted);font-size:15px}
+.snote{color:var(--muted);font-size:15px;padding:4px 2px}
+.modal{position:absolute;inset:0;background:rgba(10,12,40,.82);display:flex;align-items:center;justify-content:center;z-index:50}
+.mbox{width:460px;background:var(--panel);border-radius:20px;padding:32px;display:flex;flex-direction:column;gap:16px}
+.mbox h2{margin:0;font-size:34px}
+.mbox p{margin:0;color:var(--muted);font-size:17px}
+.mbox .amsg{min-height:22px}
+.mbox .arow{justify-content:flex-end}
+
+/* 1. 서버 선택 */
+.setup{flex:1;min-height:0;display:flex;flex-direction:column;gap:24px;padding:32px 64px 28px}
+.hero{display:flex;align-items:center;justify-content:space-between}
+.hero h1{margin:0;font-size:80px;line-height:1}
+.hero p{margin:12px 0 0;font-size:20px;color:var(--muted)}
+.hero-ic{display:flex;gap:24px}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.step{display:flex;align-items:center;gap:16px;background:var(--panel);border-radius:16px;padding:16px 20px}
+.step i{width:40px;height:40px;flex:none;border-radius:50%;background:var(--yellow);color:var(--ink);font-style:normal;
+  font-family:'Jua','Noto Sans KR',sans-serif;font-size:22px;display:flex;align-items:center;justify-content:center}
+.step b{display:block;font-size:18px}
+.step span{display:block;font-size:15px;color:var(--muted);margin-top:2px}
+.pick{flex:1;min-height:0;display:flex;gap:24px}
+.years{width:280px;flex:none;background:var(--panel);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.years .ybtn{flex:none}
+.years h2,.schools h2{margin:0;font-size:18px;font-weight:500;color:var(--muted)}
+.ybtn{height:56px;border-radius:14px;border:2px solid var(--line);background:transparent;color:var(--text);
+  font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;text-align:left;padding:0 20px}
+.ybtn.on{border:3px solid var(--yellow);background:var(--panel2)}
+.schools{flex:1;min-width:0;background:var(--panel);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px}
+.shead{display:flex;align-items:baseline;justify-content:space-between}
+.shead span{font-size:14px;color:var(--muted)}
+.sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0;grid-auto-rows:170px;overflow-y:auto;padding:3px}
+.scard{position:relative;border-radius:16px;border:2px solid var(--line);background:transparent;color:var(--text);padding:20px;
+  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left}
+.scard.on{border:3px solid var(--yellow);background:var(--panel2)}
+.scard .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px}
+.scard small{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.scard .ck{position:absolute;right:14px;top:14px}
+.enter{flex:none;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-radius:20px;padding:16px 24px 16px 32px}
+.enter small{font-size:14px;color:var(--muted)}
+.enter .jua{font-size:30px;line-height:1.2}
+
+/* 2·3. 우물 */
+.field{flex:1;min-height:0;display:flex;gap:16px;padding:24px}
+.well{flex:none;width:560px;background:var(--panel);border:3px solid var(--line);border-radius:24px;padding:13px 16px 16px;display:flex;flex-direction:column;gap:8px}
+.well.a{border-color:var(--green)} .well.b{border-color:var(--orange)}
+.whead{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+.who{display:flex;align-items:center;gap:12px;min-width:0}
+.tag{flex:none;font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;padding:4px 10px;border-radius:999px;background:var(--line);color:var(--text)}
+.name-in{width:180px;height:44px;border-radius:12px;border:2px solid #4A54B0;background:var(--deep);color:var(--text);
+  font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;padding:0 12px}
+.name-in:focus{outline:3px solid var(--yellow);outline-offset:1px}
+.name-big{margin:0;font-size:30px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.cnt{font-size:18px;white-space:nowrap}
+.cnt b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:34px;font-weight:400}
+.well.a .cnt b{color:var(--green)} .well.b .cnt b{color:var(--orange)}
+.grid{display:flex;background:var(--deep);border-radius:14px;overflow:hidden}
+.col{width:44px;display:flex;flex-direction:column;border-left:1px solid #232A70}
+.cell{height:40px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--panel);position:relative}
+.num{height:32px;display:flex;align-items:center;justify-content:center;background:#232A70;font-family:'Jua','Noto Sans KR',sans-serif;font-size:20px}
+.col.rolled{background:rgba(255,210,63,.14)}
+.col.rolled .num{background:var(--yellow);color:var(--ink)}
+.arrows{display:flex}
+.arr{width:44px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.arr button{width:42px;height:44px;border:0;border-radius:10px;display:flex;align-items:center;justify-content:center}
+.arr .up{background:#3A44A8} .arr .dn{background:#2A3180}
+.arr button:disabled{opacity:.35;cursor:default}
+.winfo{height:94px;display:flex;align-items:center;gap:18px;padding:0 8px;font-size:15px;color:var(--muted)}
+.winfo .lg{display:flex;align-items:center;gap:8px}
+.winfo .msg{margin-left:auto;color:var(--text);font-size:16px;text-align:right}
+
+.tok{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative}
+.tok.hit{animation:shake .28s linear infinite;filter:drop-shadow(0 0 7px #FFD23F)}
+@keyframes shake{0%,100%{transform:translateX(0) rotate(0)}20%{transform:translateX(-3px) rotate(-9deg)}40%{transform:translateX(3px) rotate(9deg)}60%{transform:translateX(-3px) rotate(-6deg)}80%{transform:translateX(3px) rotate(6deg)}}
+.shard{transform-box:fill-box;transform-origin:center;animation:fall .6s cubic-bezier(.2,.7,.3,1) both}
+@keyframes fall{from{transform:translate(var(--dx),var(--dy)) rotate(var(--r)) scale(1.7);opacity:.1}to{transform:none;opacity:1}}
+.burst{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none}
+.burst i{position:absolute;left:-3px;top:-3px;width:6px;height:6px;border-radius:50%;background:var(--yellow);animation:spark .55s ease-out forwards}
+@keyframes spark{from{transform:translate(0,0) scale(1.2);opacity:1}to{transform:translate(var(--x),var(--y)) scale(0);opacity:0}}
+
+/* 강 패널 */
+.river{flex:1;min-width:0;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(180deg,#1A5FB4,#14489A);display:flex;flex-direction:column;gap:14px;padding:20px}
+.river>svg.waves{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.card{position:relative;background:rgba(18,22,58,.88);border-radius:16px;padding:16px 18px}
+.card small{display:block;font-size:13px;color:var(--muted)}
+.card h1{margin:2px 0 6px;font-size:26px;line-height:1.2}
+.card p{margin:0;font-size:15px;line-height:1.5;color:#E3E7FF}
+.prog{margin-bottom:12px}
+.prog:last-child{margin-bottom:0}
+.prog .row{display:flex;justify-content:space-between;font-size:15px;margin-bottom:6px;gap:8px}
+.prog .row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:12px;border-radius:6px;background:var(--line);overflow:hidden}
+.bar>div{height:12px;border-radius:6px;transition:width .2s}
+.speed label{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;margin-bottom:8px}
+.speed label b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:20px;font-weight:400;color:var(--yellow)}
+.speed input{width:100%;margin:0;accent-color:var(--yellow)}
+.speed .tick{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+.spacer{flex:1}
+.river .go{position:relative;height:68px;font-size:32px;padding:0}
+.river .go:disabled{font-size:18px}
+
+/* 주사위 */
+.rollhead{display:flex;justify-content:space-between;align-items:baseline}
+.rollhead h1{margin:0;font-size:26px}
+.rollhead span{font-size:14px;color:var(--muted)}
+.dice{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:40px;margin:18px 0 10px;height:124px}
+.dw{position:relative;width:96px;height:96px;perspective:640px}
+.dsh{position:absolute;left:10px;right:10px;bottom:-8px;height:16px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(4px);opacity:.5}
+.tilt{width:96px;height:96px;transform-style:preserve-3d}
+.tilt.t1{transform:rotateX(-16deg) rotateY(14deg) rotateZ(-5deg)}
+.tilt.t2{transform:rotateX(-16deg) rotateY(-14deg) rotateZ(6deg)}
+.cube{position:relative;width:96px;height:96px;transform-style:preserve-3d}
+.face{position:absolute;left:0;top:0;width:96px;height:96px;border-radius:14px;background:#F4F6FF;box-shadow:inset 0 0 0 3px #D5DAF3,inset 0 -8px 14px rgba(18,22,58,.12);backface-visibility:hidden}
+.face svg{display:block}
+.eq{text-align:center;font-size:18px;color:#E3E7FF;height:26px}
+.total{text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:84px;line-height:1.05;color:var(--yellow);height:92px}
+.say{text-align:center;font-size:15px;color:#E3E7FF;margin-top:6px;min-height:22px}
+.hist{display:flex;gap:6px;flex-wrap:wrap;min-height:34px}
+.hist i{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;
+  font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;background:var(--line);color:var(--text)}
+.hist i.last{background:var(--yellow);color:var(--ink)}
+.cardlbl{font-size:14px;color:var(--muted);margin-bottom:10px}
+.row2{display:flex;gap:10px;position:relative}
+.row2 .ghost{flex:1}
+
+/* 4. 결과 */
+.result{flex:1;min-height:0;display:flex;gap:24px;padding:24px 32px}
+.win{flex:none;width:600px;background:var(--panel);border:3px solid var(--green);border-radius:24px;padding:24px 32px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.win.tie{border-color:var(--yellow)}
+.win.o{border-color:var(--orange)}
+.win.none{border-color:var(--line)}
+.win>*{flex-shrink:0}
+.win h1{margin:0;font-size:52px;line-height:1.2;text-align:center;max-width:520px;overflow-wrap:anywhere}
+.win .big{font-family:'Jua','Noto Sans KR',sans-serif;font-size:32px;color:var(--yellow)}
+.win p{margin:0;font-size:20px;color:#E3E7FF;text-align:center;line-height:1.5}
+.saved{width:100%;display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:14px;background:#1E4D3A;font-size:17px;margin-top:4px}
+.saved.warn{background:#5A3F12}
+.saved.err{background:#4A2A3A}
+.minilbl{width:100%;font-size:15px;color:var(--muted)}
+.mini{display:flex;background:var(--deep);border-radius:12px;overflow:hidden;align-self:center}
+.mini .mc{width:40px;display:flex;flex-direction:column;border-left:1px solid #232A70}
+.mini .mc>*{flex-shrink:0}
+.mini .mcell{display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--panel)}
+.mini .mnum{height:26px;display:flex;align-items:center;justify-content:center;background:#232A70;font-family:'Jua','Noto Sans KR',sans-serif;font-size:15px}
+.board{flex:1;min-width:0;background:var(--panel);border-radius:24px;padding:24px 28px;display:flex;flex-direction:column;gap:12px}
+.bhead{display:flex;align-items:center;justify-content:space-between}
+.bhead small{display:block;font-size:14px;color:var(--muted)}
+.bhead h2{margin:0;font-size:36px;line-height:1.15}
+.mode{font-size:13px;padding:5px 12px;border-radius:999px;background:var(--line);color:#E3E7FF}
+.mode.local{background:#5A3F12}
+.cols,.rowx{display:grid;grid-template-columns:72px minmax(0,1fr) 150px 220px;align-items:center;padding:0 16px}
+.cols{font-size:14px;color:var(--muted)}
+.rows{display:flex;flex-direction:column;gap:6px}
+.rowx{height:50px;border-radius:12px;background:#232A70;border:2px solid transparent}
+.rowx.me{background:#1E4D3A;border-color:var(--green)}
+.rowx.me.o{background:#5A3A1C;border-color:var(--orange)}
+.rowx .rk{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:19px;background:var(--line)}
+.rowx .nm{display:flex;align-items:center;gap:10px;font-size:19px;font-weight:500;min-width:0}
+.rowx .nm span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rowx .nm em{font-style:normal;font-size:12px;padding:3px 10px;border-radius:999px;background:var(--green);color:var(--ink);font-weight:700;flex:none}
+.rowx.o .nm em{background:var(--orange)}
+.rowx .tn{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px}
+.rowx .bars{display:flex;align-items:flex-end;gap:3px;height:32px}
+.rowx .bars span{display:block;width:12px;border-radius:2px}
+.gap{text-align:center;color:var(--muted);font-size:18px;line-height:14px;height:14px}
+.empty{padding:36px;text-align:center;color:var(--muted);font-size:18px}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <header class="hdr">
+      <div class="brand">
+        <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect x="2" y="2" width="32" height="32" rx="9" fill="#FFD23F"/><circle cx="11" cy="11" r="3" fill="#12163A"/><circle cx="18" cy="18" r="3" fill="#12163A"/><circle cx="25" cy="25" r="3" fill="#12163A"/></svg>
+        <div><small>확률 실험실</small><b>강 건너기</b></div>
+      </div>
+      <nav class="nav" id="nav" aria-label="진행 단계"></nav>
+      <div class="ctx" id="ctx"></div>
+    </header>
+    <div id="screen"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   선생님 설정  ← 여기만 고치면 돼요
+   ===================================================================== */
+const CONFIG = {
+  years:     [2026],                      // 처음에 보여줄 학년도  (늘리려면 게임 첫 화면의 '관리자'에서 추가해요)
+  schools:   ['선운중학교'],                // 처음에 보여줄 학교    (늘리려면 게임 첫 화면의 '관리자'에서 추가해요)
+  apiUrl:    '/api/scores',               // 순위 저장 서버 주소 (서버가 없으면 이 컴퓨터에만 저장돼요)
+  configUrl: '/api/config',               // 학년도·학교 목록 서버 주소
+  topN:      10                           // 순위표에 보여줄 등수
+};
+/* ===================================================================== */
+
+(function () {
+'use strict';
+
+/* ---------- 도구 ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum = a => a.reduce((x, y) => x + y, 0);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand6 = () => 1 + Math.floor(Math.random() * 6);
+const rid = () => Math.random().toString(36).slice(2, 10);
+
+const SPEEDS = [null,
+  { label: '느리게',      roll: 1500, hit: 1100, gap: 900 },
+  { label: '보통',        roll: 900,  hit: 700,  gap: 500 },
+  { label: '빠르게',      roll: 500,  hit: 400,  gap: 220 },
+  { label: '아주 빠르게', roll: 260,  hit: 200,  gap: 60  }
+];
+
+/* ---------- 아이콘 ---------- */
+const COLOR = { a: '#5BD97F', b: '#FF8A2B' };
+const CUC = '<path d="M16 9 L16.4 4.2" fill="none" stroke="#8BC34A" stroke-width="3.2" stroke-linecap="round"/><path d="M16.4 4.2 C18 3.2 20 3.6 20.6 5 C19 5.6 17.4 5.4 16.4 4.2Z" fill="#3DDC84"/><path d="M16 9 C16 9 9.6 9.6 9.6 14 L9.6 24.5 C9.6 28 12.4 30.4 16 30.4 C19.6 30.4 22.4 28 22.4 24.5 L22.4 14 C22.4 9.6 16 9 16 9Z" fill="#4CC76E"/><path d="M16 9 C16 9 22.4 9.6 22.4 14 L22.4 24.5 C22.4 28 19.6 30.4 16 30.4 C18.6 28.8 19 25 19 22 L19 13 C19 10.4 17.4 9.3 16 9Z" fill="#2F9E52"/><path d="M13.2 14 V22" stroke="#FFFFFF" stroke-opacity="0.45" stroke-width="1.8" stroke-linecap="round"/><circle cx="15.2" cy="16.5" r="0.9" fill="#1E7A3C"/><circle cx="17.2" cy="21" r="0.9" fill="#1E7A3C"/><circle cx="14.8" cy="25.5" r="0.9" fill="#1E7A3C"/><path d="M13.5 8.8 C14.5 8 17.5 8 18.5 8.8 L16 10.2Z" fill="#7BD88F"/>';
+const CAR = '<path d="M7 12 Q16 5 25 12 L16 30 Z" fill="#FF8A2B"/><path d="M16 9 C13 6 13 3 15 1.5 C16.5 3.5 16.5 6 16 9Z" fill="#3DDC84"/><path d="M16 9 C19 6 19 3 17 1.5 C15.5 3.5 15.5 6 16 9Z" fill="#2FBF71"/><path d="M11 15 H14.5 M17.5 19.5 H20.5 M14.5 23 H17" stroke="#C25A0A" stroke-width="1.6" stroke-linecap="round"/>';
+const icon = (p, s) => `<svg width="${s}" height="${s}" viewBox="0 0 32 32" aria-hidden="true">${p === 'a' ? CUC : CAR}</svg>`;
+function brokenSvg(p, s) {
+  const c = COLOR[p];
+  return `<svg width="${s}" height="${s}" viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="17" r="12" fill="none" stroke="${c}" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <path class="shard" style="--dx:-9px;--dy:-12px;--r:-50deg" d="M7 20 L14 15 L13 25 Z" fill="${c}" fill-opacity="0.55"/>
+    <path class="shard" style="--dx:11px;--dy:-9px;--r:60deg" d="M18 12 L25 16 L19 21 Z" fill="${c}" fill-opacity="0.55"/>
+    <path class="shard" style="--dx:2px;--dy:-14px;--r:35deg" d="M16 24 L23 22 L21 28 Z" fill="${c}" fill-opacity="0.4"/></svg>`;
+}
+/* 주사위(3D 상자) : 마주 보는 면의 합이 7이 되도록 1-6, 3-4, 2-5를 배치 */
+const PIPS = { 1: [[48, 48]], 2: [[30, 30], [66, 66]], 3: [[30, 30], [48, 48], [66, 66]],
+  4: [[30, 30], [66, 30], [30, 66], [66, 66]], 5: [[30, 30], [66, 30], [48, 48], [30, 66], [66, 66]],
+  6: [[30, 30], [66, 30], [30, 48], [66, 48], [30, 66], [66, 66]] };
+const pipSvg = n => `<svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">${PIPS[n].map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="8.5" fill="#12163A"/>`).join('')}</svg>`;
+const FACE_T = { 1: 'rotateY(0deg) translateZ(48px)', 6: 'rotateY(180deg) translateZ(48px)', 3: 'rotateY(90deg) translateZ(48px)',
+  4: 'rotateY(-90deg) translateZ(48px)', 2: 'rotateX(90deg) translateZ(48px)', 5: 'rotateX(-90deg) translateZ(48px)' };
+const FACE_TO_FRONT = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 2: [-90, 0], 5: [90, 0] };   // [rotateX, rotateY]
+const rot = (x, y, z) => `rotateX(${x}deg) rotateY(${y}deg) rotateZ(${z}deg)`;
+const cubeHTML = (i, n) => `<div class="dw" id="dw${i}" role="img" aria-label="주사위 ${i}"><div class="dsh" id="dsh${i}"></div>
+  <div class="tilt t${i}"><div class="cube" id="cube${i}" style="transform:${rot(FACE_TO_FRONT[n][0], FACE_TO_FRONT[n][1], 0)}">${[1, 2, 3, 4, 5, 6].map(f => `<div class="face" style="transform:${FACE_T[f]}">${pipSvg(f)}</div>`).join('')}</div></div></div>`;
+/* 위에서 던져 → 튕기고 → 굴러서 멈춰요 (결과 숫자가 앞면으로 오도록 끝 각도를 맞춰요) */
+function throwDie(i, n, ms) {
+  const wrap = el('dw' + i), cube = el('cube' + i), sh = el('dsh' + i);
+  if (!wrap || !cube || !sh) return Promise.resolve();
+  const dir = i === 1 ? -1 : 1, dx = 150 * dir;
+  const spin = () => (Math.random() < 0.5 ? -1 : 1) * 360 * (1 + Math.floor(Math.random() * 2));
+  const [ex, ey] = FACE_TO_FRONT[n];
+  const endT = rot(ex + spin(), ey + spin(), 0);
+  const startT = rot(Math.round(Math.random() * 360), Math.round(Math.random() * 360), Math.round((Math.random() - 0.5) * 120));
+  cube.style.transform = endT;                // 끝 모양을 미리 정해 두면, 애니메이션이 끝난 뒤에도 그대로 남아요
+  const down = 'cubic-bezier(.45,0,1,1)', up = 'cubic-bezier(0,0,.4,1)';
+  const anims = [
+    cube.animate([{ transform: startT }, { transform: endT }], { duration: ms, easing: 'cubic-bezier(.12,.55,.25,1)' }),
+    wrap.animate([
+      { transform: `translate(${dx}px,-120px) scale(1.2)`, offset: 0, easing: down },
+      { transform: `translate(${dx * 0.22}px,0px) scale(1)`, offset: 0.36, easing: up },
+      { transform: `translate(${dx * 0.08}px,-44px) scale(1.03)`, offset: 0.52, easing: down },
+      { transform: 'translate(0px,0px) scale(1)', offset: 0.66, easing: up },
+      { transform: 'translate(0px,-15px) scale(1.01)', offset: 0.78, easing: down },
+      { transform: 'translate(0px,0px) scale(1)', offset: 0.88 },
+      { transform: 'translate(0px,0px) scale(1)', offset: 1 }
+    ], { duration: ms }),
+    sh.animate([
+      { transform: 'translateY(120px) scaleX(.5)', opacity: 0.12, offset: 0 },
+      { transform: 'translateY(0px) scaleX(1)', opacity: 0.55, offset: 0.36 },
+      { transform: 'translateY(44px) scaleX(.75)', opacity: 0.25, offset: 0.52 },
+      { transform: 'translateY(0px) scaleX(1)', opacity: 0.55, offset: 0.66 },
+      { transform: 'translateY(15px) scaleX(.9)', opacity: 0.4, offset: 0.78 },
+      { transform: 'translateY(0px) scaleX(1)', opacity: 0.5, offset: 0.88 },
+      { transform: 'translateY(0px) scaleX(1)', opacity: 0.5, offset: 1 }
+    ], { duration: ms })
+  ];
+  return Promise.all(anims.map(a => a.finished.catch(() => {})));
+}
+const chev = up => `<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true"><path d="${up ? 'M3 10.5 L8 5.5 L13 10.5' : 'M3 5.5 L8 10.5 L13 5.5'}" fill="none" stroke="#F4F6FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const WAVES = `<svg class="waves" aria-hidden="true" viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="3" stroke-linecap="round">${[60,160,260,360,460,560,660].map(y => `<path d="M-20 ${y} Q30 ${y-24} 80 ${y} T180 ${y} T280 ${y} T380 ${y} T480 ${y}"/>`).join('')}</g></svg>`;
+
+/* ---------- 저장 (서버 → 안 되면 이 컴퓨터) ---------- */
+const Store = {
+  mode: 'server',
+  key: (y, s) => 'rd_scores:' + y + ':' + s,
+  localList(y, s) { try { return JSON.parse(localStorage.getItem(Store.key(y, s)) || '[]'); } catch (e) { return []; } },
+  sortRecs(l) { return l.slice().sort((p, q) => p.rolls - q.rolls || p.ts - q.ts); },
+  async http(method, url, body, opt) {
+    opt = opt || {};
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), opt.timeout || 5000);
+    try {
+      const headers = Object.assign(body ? { 'Content-Type': 'application/json' } : {}, opt.headers || {});
+      const r = await fetch(url, { method, signal: ctl.signal, headers, body: body ? JSON.stringify(body) : undefined });
+      if (!r.ok) { const er = new Error('http ' + r.status); er.status = r.status; throw er; }
+      return await r.json();
+    } finally { clearTimeout(t); }
+  },
+  async top(y, s) {
+    try {
+      const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s));
+      if (!j || !Array.isArray(j.top)) throw new Error('bad');
+      Store.mode = 'server'; return j.top;
+    } catch (e) { Store.mode = 'local'; return Store.sortRecs(Store.localList(y, s)).slice(0, CONFIG.topN); }
+  },
+  async save(y, s, rec) {
+    try {
+      const j = await Store.http('POST', CONFIG.apiUrl, { year: y, school: s, id: rec.id, name: rec.name, rolls: rec.rolls, setup: rec.setup });
+      if (!j || !Array.isArray(j.top)) throw new Error('bad');
+      Store.mode = 'server'; return { rank: j.rank, top: j.top };
+    } catch (e) {
+      Store.mode = 'local';
+      const l = Store.localList(y, s); l.push(rec);
+      try { localStorage.setItem(Store.key(y, s), JSON.stringify(l)); } catch (er) {}
+      const sorted = Store.sortRecs(l);
+      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, top: sorted.slice(0, CONFIG.topN) };
+    }
+  }
+};
+
+/* ---------- 학년도·학교 목록 (관리자 모드에서 바꿔요) ---------- */
+const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), mode: 'local' };
+function okList(l) {
+  return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
+    && l.years.length >= 1 && l.years.length <= 12 && l.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
+    && l.schools.length >= 1 && l.schools.length <= 30 && l.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20);
+}
+function applyList(l) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); }
+function readLocalList() { try { const l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) applyList(l); } catch (e) {} }
+function writeLocalList() { try { localStorage.setItem('rd_list', JSON.stringify({ years: LIST.years, schools: LIST.schools })); } catch (e) {} }
+async function loadList() {
+  readLocalList();
+  try {
+    const j = await Store.http('GET', CONFIG.configUrl, null, { timeout: 3000 });
+    if (!okList(j)) throw new Error('bad');
+    applyList(j); LIST.mode = 'server'; writeLocalList();
+  } catch (e) { LIST.mode = 'local'; }
+}
+/* 간단한 해시 (서버가 없을 때 이 컴퓨터용 관리자 암호 확인에만 써요) */
+function hash53(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
+
+/* ---------- 상태 ---------- */
+const prefs = (() => { try { return JSON.parse(localStorage.getItem('rd_prefs') || '{}'); } catch (e) { return {}; } })();
+const state = {
+  screen: 'setup',
+  year: LIST.years[0],
+  school: LIST.schools[0],
+  speed: [1, 2, 3, 4].includes(prefs.speed) ? prefs.speed : 2,
+  a: { name: prefs.aName || '', counts: new Array(12).fill(0) },
+  b: { name: prefs.bName || '', counts: new Array(12).fill(0) },
+  result: null
+};
+let G = null;   // 진행 중인 게임
+function savePrefs() {
+  try { localStorage.setItem('rd_prefs', JSON.stringify({ year: state.year, school: state.school, speed: state.speed, aName: state.a.name, bName: state.b.name })); } catch (e) {}
+}
+const cleanName = s => String(s || '').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 8);
+/* 목록이 바뀐 뒤에도 고른 학년도·학교가 목록 안에 있게 맞춰요 */
+function fixSelection(usePrefs) {
+  if (usePrefs && LIST.years.includes(prefs.year)) state.year = prefs.year;
+  else if (!LIST.years.includes(state.year)) state.year = LIST.years[0];
+  if (usePrefs && LIST.schools.includes(prefs.school)) state.school = prefs.school;
+  else if (!LIST.schools.includes(state.school)) state.school = LIST.schools[0];
+}
+
+/* ---------- 틀 ---------- */
+const STEPS = ['서버 선택', '토큰 배치', '게임', '결과'];
+const stepIndex = { setup: 0, place: 1, play: 2, result: 3 };
+function chrome() {
+  $('#nav').innerHTML = state.screen === 'admin'
+    ? '<span class="pill on">관리자 모드</span>'
+    : STEPS.map((t, i) => `<span class="pill${i === stepIndex[state.screen] ? ' on' : ''}">${i + 1} ${t}</span>`).join('');
+  $('#ctx').innerHTML = state.screen === 'setup' ? '<button type="button" class="linkbtn" data-act="admin">관리자</button>'
+    : state.screen === 'admin' ? '' : esc(state.year + '학년도 · ' + state.school);
+}
+function show(screen) {
+  if (G) { G.id = -1; G = null; }
+  state.screen = screen;
+  chrome();
+  const root = $('#screen');
+  if (screen === 'admin') root.innerHTML = adminHTML();
+  if (screen === 'setup') root.innerHTML = setupHTML();
+  if (screen === 'place') { root.innerHTML = placeHTML(); updateReady(); }
+  if (screen === 'play') root.innerHTML = playHTML();
+  if (screen === 'result') root.innerHTML = resultHTML();
+}
+
+
+/* ---------- 관리자 모드 ---------- */
+const ADM = { key: null, years: [], schools: [], msg: '', err: false, busy: false, sugg: [] };
+function adminHTML() {
+  const yrs = ADM.years.map(y => `<span class="chip">${y}학년도<button type="button" data-act="admdel" data-k="y" data-v="${y}" aria-label="${y}학년도 지우기">×</button></span>`).join('');
+  const scs = ADM.schools.map(s => `<span class="chip">${esc(s)}<button type="button" data-act="admdel" data-k="s" data-v="${esc(s)}" aria-label="${esc(s)} 지우기">×</button></span>`).join('');
+  const where = LIST.mode === 'server' ? '서버에 저장돼요 (모든 컴퓨터에 똑같이 보여요)' : '이 컴퓨터에만 저장돼요 (서버가 연결되지 않았어요)';
+  return `<main class="admin">
+    <section class="acard"><h2>학년도</h2><div class="chips">${yrs}</div>
+      <form class="addrow" data-form="year"><input id="admYear" type="number" min="2000" max="2100" placeholder="예) 2027" inputmode="numeric"><button type="submit" class="ghost sm">추가</button></form></section>
+    <section class="acard"><h2>학교</h2><div class="chips">${scs}</div>
+      <form class="addrow" data-form="school" autocomplete="off"><input id="admSchool" type="text" maxlength="20" placeholder="${LIST.mode === 'server' ? '학교 이름을 두 글자 이상 쓰면 목록이 떠요' : '예) 가나다중학교'}"><button type="submit" class="ghost sm">추가</button></form>
+      <div id="sugg" class="sugg" role="listbox"></div></section>
+    <section class="afoot"><div class="amsg${ADM.err ? ' err' : ''}" role="status">${esc(ADM.msg) || where}</div>
+      <div class="arow"><button type="button" class="ghost" data-act="admcancel">나가기</button><button type="button" class="go" data-act="admsave"${ADM.busy ? ' disabled' : ''}>저장하기</button></div></section>
+  </main>`;
+}
+function openLogin() {
+  closeLogin();
+  const m = document.createElement('div');
+  m.id = 'modal'; m.className = 'modal';
+  const first = LIST.mode !== 'server' && !localStorage.getItem('rd_adminhash');
+  m.innerHTML = `<form class="mbox" data-form="login"><h2 class="jua">관리자 모드</h2>
+    <p>${first ? '이 컴퓨터에서 쓸 관리자 암호를 처음 정해요.' : '관리자 암호를 입력하세요.'}</p>
+    <input id="admPw" type="password" autocomplete="off" placeholder="암호"><div class="amsg err" id="loginErr"></div>
+    <div class="arow"><button type="button" class="ghost" data-act="loginx">취소</button><button type="submit" class="go sm">들어가기</button></div></form>`;
+  document.getElementById('stage').appendChild(m);
+  setTimeout(() => { const i = document.getElementById('admPw'); if (i) i.focus(); }, 30);
+}
+function closeLogin() { const m = document.getElementById('modal'); if (m) m.remove(); }
+async function tryLogin(pw) {
+  const err = t => { const e = document.getElementById('loginErr'); if (e) e.textContent = t; };
+  if (!pw) return err('암호를 입력해 주세요.');
+  if (LIST.mode === 'server') {
+    try {
+      const j = await Store.http('GET', CONFIG.configUrl, null, { headers: { 'x-admin-key': pw } });
+      if (!j.admin) throw new Error('no');
+      ADM.key = pw; ADM.years = j.years.slice(); ADM.schools = j.schools.slice();
+    } catch (e) { return err(e.status === 401 ? '암호가 달라요.' : '서버에 연결할 수 없어요.'); }
+  } else {
+    const h = hash53('rd|' + pw), saved = localStorage.getItem('rd_adminhash');
+    if (!saved) { try { localStorage.setItem('rd_adminhash', h); } catch (e) {} }
+    else if (saved !== h) return err('암호가 달라요.');
+    ADM.key = pw; ADM.years = LIST.years.slice(); ADM.schools = LIST.schools.slice();
+  }
+  ADM.msg = ''; ADM.err = false; closeLogin(); show('admin');
+}
+async function adminSave() {
+  if (!ADM.years.length || !ADM.schools.length) { ADM.msg = '학년도와 학교가 각각 하나 이상 있어야 해요.'; ADM.err = true; return show('admin'); }
+  const years = ADM.years.slice().sort((a, b) => b - a), schools = ADM.schools.slice();
+  if (LIST.mode === 'server') {
+    ADM.busy = true; show('admin');
+    try {
+      const j = await Store.http('PUT', CONFIG.configUrl, { years, schools }, { headers: { 'x-admin-key': ADM.key } });
+      applyList(j); writeLocalList();
+    } catch (e) { ADM.busy = false; ADM.msg = e.status === 401 ? '암호가 달라요.' : '저장하지 못했어요. 다시 시도해 주세요.'; ADM.err = true; return show('admin'); }
+    ADM.busy = false;
+  } else { applyList({ years, schools }); writeLocalList(); }
+  fixSelection(false); savePrefs(); ADM.key = null; show('setup');
+}
+
+let suggTimer = 0, suggSeq = 0;
+function paintSugg(msg) {
+  const box = document.getElementById('sugg'); if (!box) return;
+  if (msg) { box.innerHTML = `<div class="snote">${esc(msg)}</div>`; return; }
+  box.innerHTML = ADM.sugg.map((x, i) => `<button type="button" class="sitem" data-act="admpick" data-i="${i}"><b>${esc(x.name)}</b><span>${esc(x.region)}${x.kind ? ' · ' + esc(x.kind) : ''}</span></button>`).join('');
+}
+function searchSchools(q) {
+  clearTimeout(suggTimer); ADM.sugg = [];
+  if (LIST.mode !== 'server' || q.trim().length < 2) return paintSugg('');
+  const my = ++suggSeq;
+  suggTimer = setTimeout(async () => {
+    try {
+      const j = await Store.http('GET', '/api/schools?q=' + encodeURIComponent(q.trim()), null, { headers: { 'x-admin-key': ADM.key }, timeout: 7000 });
+      if (my !== suggSeq) return;
+      ADM.sugg = j.schools.slice(0, 15);
+      paintSugg(ADM.sugg.length ? '' : '검색 결과가 없어요. 이름을 그대로 써서 추가할 수도 있어요.');
+    } catch (e) {
+      if (my !== suggSeq) return;
+      paintSugg(e.status === 503 ? '학교 검색은 아직 설정되지 않았어요 (NEIS_KEY). 이름을 직접 써서 추가해 주세요.' : '학교 검색에 실패했어요. 이름을 직접 써서 추가해 주세요.');
+    }
+  }, 300);
+}
+function pickSchool(i) {
+  const x = ADM.sugg[i]; if (!x) return;
+  let name = x.name;
+  if (ADM.schools.includes(name)) {            // 같은 이름 학교가 이미 있으면 지역을 붙여 구분해요
+    const alt = x.name + '(' + x.region + ')';
+    if (alt.length <= 20) name = alt;
+  }
+  if (ADM.schools.includes(name)) { ADM.msg = '이미 있는 학교예요.'; ADM.err = true; return show('admin'); }
+  if (ADM.schools.length >= 30) { ADM.msg = '학교는 30개까지 만들 수 있어요.'; ADM.err = true; return show('admin'); }
+  ADM.schools.push(name); ADM.msg = ''; ADM.err = false; ADM.sugg = []; show('admin');
+}
+function adminAdd(kind) {
+  const inp = document.getElementById(kind === 'year' ? 'admYear' : 'admSchool');
+  const v = inp.value.trim(); ADM.err = true; ADM.sugg = [];
+  if (kind === 'year') {
+    const y = Number(v);
+    if (!Number.isInteger(y) || y < 2000 || y > 2100) ADM.msg = '2000~2100 사이의 학년도를 숫자로 써 주세요.';
+    else if (ADM.years.includes(y)) ADM.msg = '이미 있는 학년도예요.';
+    else if (ADM.years.length >= 12) ADM.msg = '학년도는 12개까지 만들 수 있어요.';
+    else { ADM.years.push(y); ADM.years.sort((a, b) => b - a); ADM.msg = ''; ADM.err = false; }
+  } else {
+    if (!v || /[<>\u0000-\u001f]/.test(v)) ADM.msg = '학교 이름을 써 주세요.';
+    else if (ADM.schools.includes(v)) ADM.msg = '이미 있는 학교예요.';
+    else if (ADM.schools.length >= 30) ADM.msg = '학교는 30개까지 만들 수 있어요.';
+    else { ADM.schools.push(v); ADM.msg = ''; ADM.err = false; }
+  }
+  show('admin');
+  const n = document.getElementById(kind === 'year' ? 'admYear' : 'admSchool'); if (n) n.focus();
+}
+
+/* ---------- 1. 서버 선택 ---------- */
+function setupHTML() {
+  const roofs = ['#FFD23F', '#7BE0FF', '#FF8A8A'];
+  const years = LIST.years.map(y => `<button type="button" class="ybtn${y === state.year ? ' on' : ''}" aria-pressed="${y === state.year}" data-act="year" data-v="${y}">${y}학년도</button>`).join('');
+  const schools = LIST.schools.map((s, i) => `
+    <button type="button" class="scard${s === state.school ? ' on' : ''}" aria-pressed="${s === state.school}" data-act="school" data-v="${esc(s)}">
+      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${roofs[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
+      <div><div class="nm">${esc(s)}</div><small>TOP ${CONFIG.topN} 기록 보기</small></div>
+      ${s === state.school ? '<svg class="ck" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="#FFD23F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+    </button>`).join('');
+  const step = (n, b, t) => `<div class="step"><i>${n}</i><div><b>${b}</b><span>${t}</span></div></div>`;
+  return `<main class="setup">
+    <section class="hero">
+      <div><h1 class="jua">강 건너기</h1><p>Roller Derby · 주사위 두 개의 합으로 토큰을 부수는 확률 게임</p></div>
+      <div class="hero-ic" aria-hidden="true">${icon('a', 96)}${icon('b', 96)}</div>
+    </section>
+    <section class="steps" aria-label="게임 방법">
+      ${step(1, '토큰 배치', '이름을 쓰고 1~12 칸에 토큰 12개를 놓아요')}
+      ${step(2, '주사위 굴리기', '두 주사위의 합이 나온 칸의 토큰이 부서져요')}
+      ${step(3, '먼저 모두 부수면 승리', '굴린 횟수가 적을수록 순위가 높아요')}
+    </section>
+    <section class="pick">
+      <div class="years"><h2>학년도</h2>${years}</div>
+      <div class="schools"><div class="shead"><h2>학교 서버 선택</h2><span>선생님이 만들어 둔 학교 중에서 골라요</span></div><div class="sgrid">${schools}</div></div>
+    </section>
+    <section class="enter">
+      <div><small>선택한 서버</small><div class="jua">${state.year}학년도 · ${esc(state.school)}</div></div>
+      <button type="button" class="go" data-act="enter">입장하기</button>
+    </section>
+  </main>`;
+}
+
+/* ---------- 2. 토큰 배치 ---------- */
+function gridHTML(p, counts, opts) {
+  let cols = '';
+  counts.forEach((c, i) => {
+    let cells = '';
+    for (let r = 0; r < 12; r++) {
+      const k = 11 - r;
+      if (k < c) cells += `<div class="cell">${opts.play ? `<div class="tok" id="t-${p}-${i}-${k}">${icon(p, 32)}</div>` : `<div class="tok">${icon(p, 32)}</div>`}</div>`;
+      else cells += '<div class="cell"></div>';
+    }
+    cols += `<div class="col" id="col-${p}-${i + 1}"><div>${cells}</div><div class="num">${i + 1}</div></div>`;
+  });
+  return `<div class="grid">${cols}</div>`;
+}
+function wellPlace(p) {
+  const P = state[p], total = sum(P.counts);
+  const arrows = P.counts.map((c, i) => `<div class="arr">
+      <button type="button" class="up" data-act="inc" data-p="${p}" data-i="${i}" aria-label="${p === 'a' ? '1P' : '2P'} ${i + 1}번 칸에 토큰 더하기"${total >= 12 ? ' disabled' : ''}>${chev(true)}</button>
+      <button type="button" class="dn" data-act="dec" data-p="${p}" data-i="${i}" aria-label="${p === 'a' ? '1P' : '2P'} ${i + 1}번 칸에서 토큰 빼기"${c <= 0 ? ' disabled' : ''}>${chev(false)}</button></div>`).join('');
+  return `<section class="well ${p}" aria-label="${p === 'a' ? '1P' : '2P'} 토큰 배치">
+    <div class="whead">
+      <div class="who">${icon(p, 36)}<span class="tag">${p === 'a' ? '1P' : '2P'}</span>
+        <input class="name-in" type="text" maxlength="8" autocomplete="off" aria-label="${p === 'a' ? '1P' : '2P'} 이름" placeholder="이름 입력" value="${esc(P.name)}" data-name="${p}"></div>
+      <div class="cnt"><b>${total}</b> / 12개</div>
+    </div>
+    ${gridHTML(p, P.counts, {})}
+    <div class="arrows">${arrows}</div>
+  </section>`;
+}
+function placeHTML() {
+  const ta = sum(state.a.counts), tb = sum(state.b.counts);
+  return `<main class="field">
+    ${wellPlace('a')}
+    <aside class="river">${WAVES}
+      <div class="card"><small>2단계</small><h1 class="jua">이름을 쓰고 토큰을 놓아요</h1>
+        <p>위 화살표로 토큰을 더하고, 아래 화살표로 빼요. 한 칸에 여러 개를 놓아도 돼요. 입력한 이름은 순위표에 기록돼요.</p></div>
+      <div class="card">
+        <div class="prog"><div class="row"><span id="lbl-a"></span><span>${ta} / 12</span></div><div class="bar"><div style="width:${Math.round(ta / 12 * 100)}%;background:var(--green)"></div></div></div>
+        <div class="prog"><div class="row"><span id="lbl-b"></span><span>${tb} / 12</span></div><div class="bar"><div style="width:${Math.round(tb / 12 * 100)}%;background:var(--orange)"></div></div></div>
+      </div>
+      <div class="card speed">
+        <label for="speed"><span>부서지는 속도</span><b id="speedLbl">${SPEEDS[state.speed].label}</b></label>
+        <input id="speed" type="range" min="1" max="4" step="1" value="${state.speed}">
+        <div class="tick"><span>느리게</span><span>보통</span><span>빠르게</span><span>아주 빠르게</span></div>
+      </div>
+      <div class="spacer"></div>
+      <button type="button" class="go" id="start" data-act="start" disabled>게임 시작</button>
+    </aside>
+    ${wellPlace('b')}
+  </main>`;
+}
+function updateReady() {
+  const a = state.a, b = state.b;
+  const la = $('#lbl-a'), lb = $('#lbl-b'); if (la) la.textContent = cleanName(a.name) || '1P'; if (lb) lb.textContent = cleanName(b.name) || '2P';
+  const namesOk = cleanName(a.name) !== '' && cleanName(b.name) !== '';
+  const tokOk = sum(a.counts) === 12 && sum(b.counts) === 12;
+  const btn = $('#start'); if (!btn) return;
+  btn.disabled = !(namesOk && tokOk);
+  btn.textContent = btn.disabled ? (namesOk ? '토큰을 12개씩 모두 놓아 주세요' : (tokOk ? '이름을 입력해 주세요' : '이름을 쓰고 토큰 12개씩 놓아 주세요')) : '게임 시작';
+}
+
+/* ---------- 3. 게임 ---------- */
+function wellPlay(p) {
+  const P = state[p];
+  return `<section class="well ${p}" aria-label="${p === 'a' ? '1P' : '2P'} 현황">
+    <div class="whead"><div class="who">${icon(p, 36)}<span class="tag">${p === 'a' ? '1P' : '2P'}</span><h2 class="name-big jua">${esc(cleanName(P.name))}</h2></div>
+      <div class="cnt">남은 토큰 <b id="left-${p}">${sum(P.counts)}</b> / 12</div></div>
+    ${gridHTML(p, P.counts, { play: true })}
+    <div class="winfo">
+      <span class="lg">${icon(p, 22)}남은 토큰</span>
+      <span class="lg">${brokenSvg(p, 22).replace(/class="shard"/g, '')}부서진 토큰</span>
+      <span class="msg" id="info-${p}">&nbsp;</span>
+    </div>
+  </section>`;
+}
+function playHTML() {
+  const html = `<main class="field">
+    ${wellPlay('a')}
+    <aside class="river">${WAVES}
+      <div class="card">
+        <div class="rollhead"><h1 class="jua" id="rollNo">준비!</h1><span id="rollSt">&nbsp;</span></div>
+        <div class="dice">${cubeHTML(1, 3)}${cubeHTML(2, 4)}</div>
+        <div class="eq" id="eq">&nbsp;</div>
+        <div class="total" id="total">&nbsp;</div>
+        <div class="say" id="say">&nbsp;</div>
+      </div>
+      <div class="card"><div class="cardlbl">최근 굴림</div><div class="hist" id="hist"></div></div>
+      <div class="card speed">
+        <label for="speed"><span>부서지는 속도</span><b id="speedLbl">${SPEEDS[state.speed].label}</b></label>
+        <input id="speed" type="range" min="1" max="4" step="1" value="${state.speed}">
+        <div class="tick"><span>느리게</span><span>보통</span><span>빠르게</span><span>아주 빠르게</span></div>
+      </div>
+      <div class="spacer"></div>
+      <div class="row2"><button type="button" class="ghost" id="pause" data-act="pause">일시정지</button><button type="button" class="ghost" id="quit" data-act="quit">그만하기</button></div>
+    </aside>
+    ${wellPlay('b')}
+  </main>`;
+  setTimeout(startGame, 0);
+  return html;
+}
+const el = id => document.getElementById(id);
+
+function startGame() {
+  const st = { a: state.a.counts.map(c => new Array(c).fill(1)), b: state.b.counts.map(c => new Array(c).fill(1)) };
+  G = { id: Date.now() + Math.random(), paused: false, rolls: 0, st, left: { a: 12, b: 12 }, hist: [] };
+  runGame(G.id);
+}
+const alive = () => !!G;
+async function gate(id) { while (G && G.id === id && G.paused) await sleep(80); return !!G && G.id === id; }
+async function wait(id, ms) { await sleep(ms); return gate(id); }
+
+async function runGame(id) {
+  if (!(await wait(id, 600))) return;
+  while (G && G.id === id) {
+    const sp = SPEEDS[state.speed];
+    G.rolls++;
+    el('rollNo').textContent = G.rolls + '번째 굴림';
+    el('rollSt').textContent = '주사위 굴리는 중';
+    el('eq').innerHTML = '&nbsp;'; el('total').textContent = '…'; el('say').innerHTML = '&nbsp;';
+    document.querySelectorAll('.col.rolled').forEach(c => c.classList.remove('rolled'));
+    ['a', 'b'].forEach(p => { el('info-' + p).innerHTML = '&nbsp;'; });
+
+    /* 주사위 굴리기: 위에서 던져 튕기고 굴러서 멈춰요 */
+    const x = rand6(), y = rand6(), s = x + y;
+    await Promise.all([throwDie(1, x, sp.roll), throwDie(2, y, sp.roll)]);
+    if (!G || G.id !== id) return;
+    if (!(await gate(id))) return;
+    el('eq').textContent = x + ' + ' + y + ' =';
+    el('total').textContent = s;
+    el('rollSt').innerHTML = '&nbsp;';
+    document.querySelectorAll('.col[id$="-' + s + '"]').forEach(c => c.classList.add('rolled'));
+
+    /* 맨 위 토큰 찾기 */
+    const hits = [];
+    ['a', 'b'].forEach(p => {
+      const arr = G.st[p][s - 1];
+      let k = arr.lastIndexOf(1);
+      if (k >= 0) hits.push({ p, i: s - 1, k });
+    });
+    hits.forEach(h => el('t-' + h.p + '-' + h.i + '-' + h.k).classList.add('hit'));
+    el('say').textContent = hits.length ? s + '번 칸의 맨 위 토큰이 부서져요' : s + '번 칸에는 부술 토큰이 없어요';
+    if (!(await wait(id, sp.hit))) return;
+
+    /* 부수기 */
+    hits.forEach(h => {
+      G.st[h.p][h.i][h.k] = 0; G.left[h.p]--;
+      const t = el('t-' + h.p + '-' + h.i + '-' + h.k);
+      t.classList.remove('hit');
+      let parts = '';
+      for (let n = 0; n < 7; n++) { const ang = n / 7 * Math.PI * 2; parts += `<i style="--x:${Math.round(Math.cos(ang) * 22)}px;--y:${Math.round(Math.sin(ang) * 22)}px"></i>`; }
+      t.innerHTML = brokenSvg(h.p, 32) + `<span class="burst">${parts}</span>`;
+      el('left-' + h.p).textContent = G.left[h.p];
+    });
+    ['a', 'b'].forEach(p => {
+      const broke = hits.some(h => h.p === p);
+      el('info-' + p).textContent = broke ? s + '번 칸 토큰이 부서졌어요' : s + '번 칸엔 토큰이 없어요';
+    });
+    G.hist.push(s);
+    el('hist').innerHTML = G.hist.slice(-10).map((v, i, arr) => `<i${i === arr.length - 1 ? ' class="last"' : ''}>${v}</i>`).join('');
+
+    /* 끝났는지 */
+    const done = ['a', 'b'].filter(p => G.left[p] === 0);
+    if (done.length) { await wait(id, 700); if (G && G.id === id) finish(done); return; }
+    const reach = p => G.left[p] - G.st[p][0].filter(v => v === 1).length;   // 1번 칸 토큰은 부술 수 없어요
+    if (reach('a') === 0 && reach('b') === 0) { await wait(id, 900); if (G && G.id === id) finish([], true); return; }
+
+    if (!(await wait(id, sp.gap))) return;
+  }
+}
+
+/* ---------- 4. 결과 ---------- */
+async function finish(winners, stalemate) {
+  const rolls = G.rolls;
+  G = null;
+  state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], status: winners.length ? 'saving' : 'none' };
+  show('result');
+  paintResult();
+  if (!winners.length) { loadBoardOnly(); return; }
+  let last = null;
+  for (const p of winners) {
+    const rec = { id: rid(), name: cleanName(state[p].name), rolls, setup: state[p].counts.slice(), ts: Date.now() };
+    state.result.ids[p] = rec.id;
+    last = await Store.save(state.year, state.school, rec);
+    state.result.rank[p] = last.rank;
+  }
+  state.result.top = last.top; state.result.status = Store.mode === 'server' ? 'ok' : 'local';
+  paintResult();
+}
+async function loadBoardOnly() {
+  state.result.top = await Store.top(state.year, state.school);
+  state.result.status = Store.mode === 'server' ? 'none' : 'nonelocal';
+  paintResult();
+}
+function miniWell(p, counts, budget) {
+  const rows = Math.max(3, Math.max.apply(null, counts));
+  const h = Math.max(10, Math.min(28, Math.floor(budget / rows)));
+  const ic = Math.max(8, h - 5);
+  const cols = counts.map((c, i) => {
+    let cells = '';
+    for (let r = 0; r < rows; r++) cells += `<div class="mcell" style="height:${h}px">${(rows - 1 - r) < c ? icon(p, ic) : ''}</div>`;
+    return `<div class="mc"><div>${cells}</div><div class="mnum">${i + 1}</div></div>`;
+  }).join('');
+  return `<div class="mini" role="img" aria-label="처음 배치">${cols}</div>`;
+}
+function resultHTML() {
+  const R = state.result;
+  return `<main class="result"><section class="win" id="winCard"></section><section class="board" id="board"></section></main>`;
+}
+function paintResult() {
+  if (state.screen !== 'result') return;
+  const R = state.result, w = R.winners;
+  const card = el('winCard'), board = el('board'); if (!card || !board) return;
+  let cls = '', title = '', sub = '', trophy = '';
+  const cup = col => `<svg width="104" height="104" viewBox="0 0 120 120" aria-hidden="true"><path d="M34 20 H86 V46 C86 66 74 78 60 78 C46 78 34 66 34 46 Z" fill="#FFD23F"/><path d="M34 28 H18 C18 46 26 54 38 56" fill="none" stroke="#FFD23F" stroke-width="6" stroke-linecap="round"/><path d="M86 28 H102 C102 46 94 54 82 56" fill="none" stroke="#FFD23F" stroke-width="6" stroke-linecap="round"/><rect x="54" y="78" width="12" height="16" fill="#FFD23F"/><rect x="38" y="94" width="44" height="10" rx="4" fill="#FFD23F"/>${col}</svg>`;
+  if (w.length === 1) {
+    const p = w[0]; cls = p === 'b' ? 'o' : '';
+    trophy = cup(p === 'a' ? `<svg x="44" y="26" width="32" height="32" viewBox="0 0 32 32">${CUC}</svg>` : '<path d="M52 36 Q60 29 68 36 L60 56 Z" fill="#FF8A2B"/><path d="M60 34 C58 31 58 29 59.4 27.6 C60.4 29.2 60.4 31.4 60 34Z" fill="#3DDC84"/>');
+    title = esc(cleanName(state[p].name)) + ' 승리!';
+    sub = `${p === 'a' ? '1P' : '2P'} · 주사위를 <span class="big">${R.rolls}</span>번 굴려서 토큰을 모두 부쉈어요`;
+  } else if (w.length === 2) {
+    cls = 'tie'; trophy = cup('');
+    title = '무승부!';
+    sub = `${esc(cleanName(state.a.name))}, ${esc(cleanName(state.b.name))} 두 사람이 같은 <span class="big">${R.rolls}</span>번째 굴림에 모두 부쉈어요`;
+  } else {
+    cls = 'none'; trophy = `<svg width="104" height="104" viewBox="0 0 104 104" aria-hidden="true"><circle cx="52" cy="52" r="44" fill="none" stroke="#AEB6F0" stroke-width="6"/><path d="M52 28 V56 M52 68 V72" stroke="#AEB6F0" stroke-width="8" stroke-linecap="round"/></svg>`;
+    title = '아무도 끝낼 수 없어요';
+    sub = '두 사람 모두 <b>1번 칸</b>에 토큰이 남아 있어요.<br>주사위 두 개의 합은 2부터 나와서 1번 칸은 부술 수 없어요!';
+  }
+  let note = '';
+  if (R.status === 'saving') note = '<div class="saved warn"><span>순위표에 기록하는 중…</span></div>';
+  else if (R.status === 'ok') note = `<div class="saved"><svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true" style="flex:none"><circle cx="14" cy="14" r="14" fill="#5BD97F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>${state.year}학년도 · ${esc(state.school)} 순위표에 자동으로 기록됐어요${w.length ? ' (' + w.map(p => (R.rank[p] || '?') + '위').join(', ') + ')' : ''}</span></div>`;
+  else if (R.status === 'local') note = `<div class="saved warn"><span>이 컴퓨터에만 기록됐어요${w.length ? ' · ' + w.map(p => (R.rank[p] || '?') + '위').join(', ') : ''}</span></div>`;
+  else if (R.status === 'none') note = '<div class="saved err"><span>이번 게임은 기록되지 않아요</span></div>';
+  else note = '<div class="saved err"><span>이번 게임은 기록되지 않아요 (이 컴퓨터 순위표를 보여줘요)</span></div>';
+
+  const setups = (w.length ? w : []).map(p => `<div class="minilbl">${w.length === 2 ? esc(cleanName(state[p].name)) + ' 처음 배치' : '처음 배치 (함께 기록돼요)'}</div>${miniWell(p, state[p].counts, w.length === 2 ? 60 : 112)}`).join('');
+  card.className = 'win ' + cls;
+  card.innerHTML = `${trophy}<h1 class="jua">${title}</h1><p>${sub}</p>${note}${setups}<div class="spacer"></div>
+    <button type="button" class="go" style="width:100%;height:64px;font-size:28px" data-act="again">다시 하기</button>
+    <button type="button" class="linkbtn" data-act="tosetup">학교 선택으로 돌아가기</button>`;
+
+  /* 순위표 */
+  const meIds = Object.keys(R.ids).map(p => ({ p, id: R.ids[p] }));
+  const idToP = {}; meIds.forEach(m => { idToP[m.id] = m.p; });
+  const medal = ['#FFD23F', '#D9DEF5', '#E59A5B'];
+  const rowHtml = (r, rank) => {
+    const p = idToP[r.id]; const me = !!p;
+    const bars = (r.setup || []).map(c => `<span style="height:${c === 0 ? 3 : Math.min(c, 6) * 5}px;background:${c === 0 ? '#4A54B0' : (me ? COLOR[p] : '#AEB6F0')}"></span>`).join('');
+    const bg = rank <= 3 ? medal[rank - 1] : null;
+    return `<div class="rowx${me ? ' me' : ''}${p === 'b' ? ' o' : ''}"><span><span class="rk" style="${bg ? `background:${bg};color:#12163A` : ''}">${rank}</span></span>
+      <span class="nm"><span class="t">${esc(r.name)}</span>${me ? '<em>방금 기록</em>' : ''}</span><span class="tn">${r.rolls}번</span><span class="bars">${bars}</span></div>`;
+  };
+  const top = R.top || [];
+  let rows = top.map((r, i) => rowHtml(r, i + 1)).join('');
+  if (!top.length) rows = '<div class="empty">아직 기록이 없어요. 첫 번째 기록을 남겨 보세요!</div>';
+  else {   // 10등 밖이면 아래에 따로 보여주기
+    meIds.forEach(m => {
+      const rk = R.rank[m.p];
+      if (rk && rk > top.length && !top.some(t => t.id === m.id)) {
+        const rec = { id: m.id, name: cleanName(state[m.p].name), rolls: R.rolls, setup: state[m.p].counts };
+        rows += `<div class="gap">⋮</div>` + rowHtml(rec, rk);
+      }
+    });
+  }
+  board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)}</small><h2 class="jua">TOP ${CONFIG.topN} 기록</h2></div>
+      <span class="mode${Store.mode === 'local' ? ' local' : ''}">${Store.mode === 'local' ? '이 컴퓨터 기록' : '학교 전체 기록'}</span></div>
+    <div class="cols"><span>순위</span><span>이름</span><span>굴린 횟수</span><span>처음 배치 (1 → 12)</span></div>
+    <div class="rows">${rows}</div>`;
+}
+
+/* ---------- 이벤트 ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const act = b.dataset.act;
+  if (act === 'year') { state.year = Number(b.dataset.v); savePrefs(); show('setup'); }
+  else if (act === 'school') { state.school = b.dataset.v; savePrefs(); show('setup'); }
+  else if (act === 'enter') { show('place'); }
+  else if (act === 'inc' || act === 'dec') {
+    const P = state[b.dataset.p], i = Number(b.dataset.i), d = act === 'inc' ? 1 : -1;
+    if (d > 0 && sum(P.counts) >= 12) return;
+    if (P.counts[i] + d < 0) return;
+    P.counts[i] += d;
+    const keep = [$('[data-name="a"]').value, $('[data-name="b"]').value];
+    state.a.name = keep[0]; state.b.name = keep[1];
+    $('#screen').innerHTML = placeHTML(); updateReady();
+  }
+  else if (act === 'start') {
+    state.a.name = cleanName($('[data-name="a"]').value); state.b.name = cleanName($('[data-name="b"]').value);
+    savePrefs(); show('play');
+  }
+  else if (act === 'pause') { if (!G) return; G.paused = !G.paused; b.textContent = G.paused ? '계속하기' : '일시정지'; }
+  else if (act === 'quit') {
+    if (b.dataset.sure) { show('place'); return; }
+    b.dataset.sure = '1'; b.textContent = '정말 그만할까요?';
+    setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '그만하기'; } }, 3000);
+  }
+  else if (act === 'again') { state.a.counts = new Array(12).fill(0); state.b.counts = new Array(12).fill(0); show('place'); }
+  else if (act === 'tosetup') { show('setup'); }
+  else if (act === 'admin') { openLogin(); }
+  else if (act === 'loginx') { closeLogin(); }
+  else if (act === 'admcancel') { ADM.key = null; show('setup'); }
+  else if (act === 'admsave') { adminSave(); }
+  else if (act === 'admpick') { pickSchool(Number(b.dataset.i)); }
+  else if (act === 'admdel') {
+    if (b.dataset.k === 'y') ADM.years = ADM.years.filter(y => String(y) !== b.dataset.v);
+    else ADM.schools = ADM.schools.filter(x => x !== b.dataset.v);
+    ADM.msg = ''; ADM.err = false; show('admin');
+  }
+});
+document.addEventListener('submit', e => {
+  const f = e.target.closest('[data-form]'); if (!f) return;
+  e.preventDefault();
+  const k = f.dataset.form;
+  if (k === 'login') tryLogin(document.getElementById('admPw').value);
+  else adminAdd(k);
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.name) { state[t.dataset.name].name = t.value; updateReady(); savePrefs(); }
+  if (t.id === 'admSchool') searchSchools(t.value);
+  if (t.id === 'speed') { state.speed = Number(t.value); el('speedLbl').textContent = SPEEDS[state.speed].label; savePrefs(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.name) { const s = $('#start'); if (s && !s.disabled) s.click(); }
+});
+
+/* ---------- 화면 크기에 맞추기 ---------- */
+function fit() {
+  const s = Math.min(window.innerWidth / 1600, window.innerHeight / 860);
+  $('#stage').style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fit); fit();
+
+/* 개발·점검용 (학생 화면에는 영향 없음) */
+window.__rd = { state, get game() { return G; }, SPEEDS, Store, throwDie };
+
+show('setup');
+loadList().then(() => { fixSelection(true); if (state.screen === 'setup') show('setup'); });
+})();
+</script>
+</body>
+</html>
