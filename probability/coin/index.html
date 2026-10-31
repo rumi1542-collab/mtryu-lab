@@ -180,6 +180,7 @@ svg .lab{fill:var(--text);font-weight:700}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
+<script src="/me-sync.js"></script>
 <script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
 </head>
 <body>
@@ -402,7 +403,7 @@ function derive(g, p) {
 }
 
 /* ---------- 학년도·학교 목록 (강 건너기와 같은 목록) ---------- */
-const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice() };
+const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), regions: {} };
 function okList(l) {
   return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
     && l.years.length >= 1 && l.years.length <= 12 && l.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
@@ -412,7 +413,7 @@ async function loadList() {
   try { const l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); } } catch (e) {}
   try {
     const j = await Store.http('GET', CONFIG.configUrl, null, { timeout: 3000 });
-    if (okList(j)) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); }
+    if (okList(j)) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); LIST.regions = j.regions || {}; }
   } catch (e) {}
 }
 
@@ -959,10 +960,27 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'fq') { const b = document.querySelector('[data-act=b-find]'); if (b) b.click(); }
 });
 
+/* 메인 페이지에서 새로 저장한 내 정보(학교·이름)를 한 번만 채워 줘요 (me-sync.js) */
+async function syncMe() {
+  try {
+    const r = await MtryuMeSync.apply('cn_mesig', LIST.schools, LIST.regions, CONFIG.configUrl);
+    if (!r) return;
+    if (r.list && okList(r.list)) { LIST.years = r.list.years.slice(); LIST.schools = r.list.schools.slice(); LIST.regions = r.list.regions || {}; }
+    const nm = cleanName(r.me.name), cur = readJSON('cn_prefs'), put = {};
+    if (r.label) { S.school = r.label; prefs.school = r.label; put.school = r.label; }
+    if (nm) { S.name = nm; put.name = nm; }
+    try { localStorage.setItem('cn_prefs', JSON.stringify(Object.assign(cur, put))); } catch (e) {}   // 학년도 등 다른 저장값은 그대로 둬요
+    MtryuMeSync.done('cn_mesig', r);
+  } catch (e) {}
+}
+
 /* ---------- 시작 ---------- */
 (async function init() {
   render();
-  await loadList(); fixSelection();
+  await loadList(); await syncMe();
+  if (LIST.years.includes(prefs.year)) S.year = prefs.year;           // 지난번에 고른 학년도·학교로 시작해요
+  if (LIST.schools.includes(prefs.school)) S.school = prefs.school;
+  fixSelection();
   if (S.screen === 'home') render();
 })();
 

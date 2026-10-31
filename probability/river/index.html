@@ -252,6 +252,7 @@ button{cursor:pointer}
 .gap{text-align:center;color:var(--muted);font-size:18px;line-height:14px;height:14px}
 .empty{padding:36px;text-align:center;color:var(--muted);font-size:18px}
 </style>
+<script src="/me-sync.js"></script>
 <script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
 </head>
 <body>
@@ -1201,7 +1202,20 @@ window.addEventListener('labbar:navigate', e => {
 window.__rd = { state, get game() { return G; }, SPEEDS, Store, throwDie };
 
 show('setup');
-loadList().then(() => { fixSelection(true); if (state.screen === 'setup') show('setup'); });
+/* 메인 페이지에서 새로 저장한 내 정보(학교·이름)를 한 번만 채워 줘요 (me-sync.js) */
+async function syncMe() {
+  try {
+    const r = await MtryuMeSync.apply('rd_mesig', LIST.schools, LIST.regions, CONFIG.configUrl);
+    if (!r) return false;
+    if (r.list && okList(r.list)) { applyList(r.list); LIST.regions = r.list.regions || {}; writeLocalList(); }
+    if (r.label) prefs.school = r.label;
+    const nm = cleanName(r.me.name);
+    if (nm) { prefs.aName = nm; state.a.name = nm; }
+    MtryuMeSync.done('rd_mesig', r);
+    return true;
+  } catch (e) { return false; }
+}
+loadList().then(async () => { const applied = await syncMe(); fixSelection(true); if (applied) savePrefs(); if (state.screen === 'setup') show('setup'); });
 })();
 </script>
 </body>
