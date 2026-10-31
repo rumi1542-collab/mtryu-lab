@@ -36,6 +36,8 @@ button{cursor:pointer}
   font-family:'Jua','Noto Sans KR',sans-serif;font-size:30px;padding:0 48px;height:60px;text-decoration:none}
 .go:disabled{background:var(--line);color:var(--muted);cursor:default;font-family:'Noto Sans KR',sans-serif;font-size:18px;font-weight:500}
 .ghost{border:0;border-radius:16px;background:var(--line);color:var(--text);font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;height:56px}
+.exitbtn{position:relative;flex:none;height:34px;border:0;border-radius:10px;background:rgba(0,0,0,.22);color:#E3E7FF;font-size:15px;font-weight:500}
+.exitbtn:hover{background:rgba(0,0,0,.34)}
 .linkbtn{background:none;border:0;color:var(--muted);font-size:15px;text-decoration:underline;padding:6px}
 
 /* 관리자 모드 */
@@ -54,6 +56,14 @@ button{cursor:pointer}
 .amsg.err{color:#FF8A8A}
 .arow{display:flex;gap:12px}
 .arow .ghost{padding:0 32px}
+.recbox{display:flex;flex-direction:column;gap:10px}
+.rectool{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.reclist{display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;padding-right:4px}
+.recrow{display:grid;grid-template-columns:28px 52px minmax(0,1fr) 80px 110px;align-items:center;gap:8px;min-height:40px;padding:0 12px;border-radius:10px;background:#232A70;font-size:16px;cursor:pointer}
+.recrow.on{background:#5A1F46;outline:2px solid #B3265E}
+.recrow input{width:18px;height:18px;accent-color:#FF6B8B}
+.rrk{color:var(--muted)}.rnm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}.rts{color:var(--muted);font-size:13px;text-align:right}
+.recfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:15px}.recfoot .err{color:#FF8A8A}
 .acard.danger{border:2px solid #7A2B4A}
 .addrow select{flex:1;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:18px;padding:0 12px;font-family:inherit}
 .dangerbtn{background:#B3265E;color:#fff;white-space:nowrap}
@@ -93,11 +103,13 @@ button{cursor:pointer}
 .snone{grid-column:1/-1;color:var(--muted);font-size:17px;padding:16px 4px}
 .shead span{font-size:14px;color:var(--muted)}
 .sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0;grid-auto-rows:150px;overflow-y:auto;padding:3px}
-.scard{position:relative;border-radius:16px;border:2px solid var(--line);background:transparent;color:var(--text);padding:20px;
-  display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left}
+.scard{position:relative;border-radius:16px;border:2px solid var(--line);background:transparent;color:var(--text);display:flex;min-width:0}
+.selbtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left;padding:18px 18px 54px;border:0;background:none;color:inherit;border-radius:14px}
 .scard.on{border:3px solid var(--yellow);background:var(--panel2)}
 .scard .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all}
 .scard small{display:block;font-size:14px;color:var(--muted);margin-top:2px}
+.rankbtn{position:absolute;right:12px;bottom:12px;height:34px;padding:0 14px;border:0;border-radius:999px;background:var(--line);color:var(--text);font-size:14px;font-weight:700}
+.rankbtn:hover{background:#4A54B0}
 .scard .ck{position:absolute;right:14px;top:14px}
 .enter{flex:none;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-radius:20px;padding:16px 24px 16px 32px}
 .enter small{font-size:14px;color:var(--muted)}
@@ -112,6 +124,7 @@ button{cursor:pointer}
 .tag{flex:none;font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;padding:4px 10px;border-radius:999px;background:var(--line);color:var(--text)}
 .name-in{width:180px;height:44px;border-radius:12px;border:2px solid #4A54B0;background:var(--deep);color:var(--text);
   font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;padding:0 12px}
+.name-in.bad{border-color:#FF6B6B;background:#3A1A2E}
 .name-in:focus{outline:3px solid var(--yellow);outline-offset:1px}
 .name-big{margin:0;font-size:30px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
 .cnt{font-size:18px;white-space:nowrap}
@@ -142,7 +155,7 @@ button{cursor:pointer}
 @keyframes spark{from{transform:translate(0,0) scale(1.2);opacity:1}to{transform:translate(var(--x),var(--y)) scale(0);opacity:0}}
 
 /* 강 패널 */
-.river{flex:1;min-width:0;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(180deg,#1A5FB4,#14489A);display:flex;flex-direction:column;gap:14px;padding:20px}
+.river{flex:1;min-width:0;position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(180deg,#1A5FB4,#14489A);display:flex;flex-direction:column;gap:10px;padding:16px 20px}
 .river>svg.waves{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 .card{position:relative;background:rgba(18,22,58,.88);border-radius:16px;padding:16px 18px}
 .card small{display:block;font-size:13px;color:var(--muted)}
@@ -166,7 +179,7 @@ button{cursor:pointer}
 .rollhead{display:flex;justify-content:space-between;align-items:baseline}
 .rollhead h1{margin:0;font-size:26px}
 .rollhead span{font-size:14px;color:var(--muted)}
-.dice{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:40px;margin:14px 0 6px;height:124px}
+.dice{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:40px;margin:12px 0 4px;height:116px}
 .dw{position:relative;width:96px;height:96px;perspective:640px}
 .dsh{position:absolute;left:10px;right:10px;bottom:-8px;height:16px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(4px);opacity:.5}
 .tilt{width:96px;height:96px;transform-style:preserve-3d}
@@ -175,10 +188,10 @@ button{cursor:pointer}
 .cube{position:relative;width:96px;height:96px;transform-style:preserve-3d}
 .face{position:absolute;left:0;top:0;width:96px;height:96px;border-radius:14px;background:#F4F6FF;box-shadow:inset 0 0 0 3px #D5DAF3,inset 0 -8px 14px rgba(18,22,58,.12);backface-visibility:hidden}
 .face svg{display:block}
-.eq{text-align:center;font-size:18px;color:#E3E7FF;height:26px}
-.total{text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:68px;line-height:1.05;color:var(--yellow);height:72px}
+.eq{text-align:center;font-size:18px;color:#E3E7FF;height:24px}
+.total{text-align:center;font-family:'Jua','Noto Sans KR',sans-serif;font-size:58px;line-height:1.05;color:var(--yellow);height:62px}
 .say{text-align:center;font-size:15px;color:#E3E7FF;margin-top:6px;min-height:22px}
-.hist{display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start;height:78px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#6B76D6 transparent}
+.hist{display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start;height:74px;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#6B76D6 transparent}
 .hist::-webkit-scrollbar{width:8px}.hist::-webkit-scrollbar-thumb{background:#6B76D6;border-radius:4px}.hist::-webkit-scrollbar-track{background:transparent}
 .hist i{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;
   font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;background:var(--line);color:var(--text)}
@@ -443,7 +456,13 @@ let G = null;   // 진행 중인 게임
 function savePrefs() {
   try { localStorage.setItem('rd_prefs', JSON.stringify({ year: state.year, school: state.school, speed: state.speed, aName: state.a.name, bName: state.b.name })); } catch (e) {}
 }
-const cleanName = s => String(s || '').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 8);
+const BAD_WORDS = ['시발','씨발','씨바','시바','쉬발','시팔','씨팔','십팔','씹','병신','븅신','ㅂㅅ','ㅄ','ㅅㅂ','ㅆㅂ','지랄','ㅈㄹ','좆','존나','졸라','개새끼','새끼','섹스','보지','자지','창녀','걸레','꺼져','닥쳐','미친','ㅁㅊ','엿먹','애미','느금','니미','쌍놈','쌍년','썅','뒤져','fuck','shit','bitch','asshole','dick','pussy','porn','sex','nigg','cunt'];
+// 한글·영문 글자만 남기고(숫자·기호·띄어쓰기로 돌려 쓴 것도 잡아요) 금지어가 들어 있는지 봐요
+function badName(s) {
+  const n = String(s || '').toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z]/g, '');
+  return BAD_WORDS.some(w => n.includes(w));
+}
+const cleanName = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);   // 띄어쓰기 없이, 최대 8글자
 /* 목록이 바뀐 뒤에도 고른 학년도·학교가 목록 안에 있게 맞춰요 */
 function fixSelection(usePrefs) {
   if (usePrefs && LIST.years.includes(prefs.year)) state.year = prefs.year;
@@ -467,7 +486,7 @@ function show(screen) {
   state.screen = screen;
   chrome();
   const root = $('#screen');
-  if (screen === 'admin') { root.innerHTML = adminHTML(); refreshDelCount(); }
+  if (screen === 'admin') { root.innerHTML = adminHTML(); refreshDelCount(); paintRecs(); }
   if (screen === 'setup') root.innerHTML = setupHTML();
   if (screen === 'place') { root.innerHTML = placeHTML(); updateReady(); }
   if (screen === 'play') root.innerHTML = playHTML();
@@ -492,7 +511,8 @@ function adminHTML() {
       <div class="addrow"><select id="delYear" aria-label="학년도">${LIST.years.map(y => `<option value="${y}"${y === dsel.y ? ' selected' : ''}>${y}학년도</option>`).join('')}</select>
         <select id="delSchool" aria-label="학교">${LIST.schools.map(x => `<option value="${esc(x)}"${x === dsel.s ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
         <button type="button" class="ghost sm dangerbtn" data-act="admdelall">전체 순위 삭제</button></div>
-      <div class="amsg" id="delCnt"></div></section>
+      <div class="amsg" id="delCnt"></div>
+      <div id="recbox" class="recbox"></div></section>
     <section class="afoot"><div class="amsg${ADM.err ? ' err' : ''}" role="status">${esc(ADM.msg) || where}</div>
       <div class="arow"><button type="button" class="ghost" data-act="admcancel">나가기</button><button type="button" class="go" data-act="admsave"${ADM.busy ? ' disabled' : ''}>저장하기</button></div></section>
   </main>`;
@@ -541,6 +561,63 @@ async function adminSave() {
   fixSelection(false); savePrefs(); ADM.key = null; show('setup');
 }
 
+
+/* ---------- 관리자: 기록 한 건씩 보고, 골라서 지우기 ---------- */
+const REC = { open: false, offset: 0, rows: [], total: 0, q: '', matches: null, sel: new Set(), msg: '' };
+const REC_PS = 20;
+async function recFetch(offset) {
+  const { y, s } = delSel();
+  if (LIST.mode === 'server') {
+    const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&offset=' + offset + '&limit=' + REC_PS);
+    return { rows: j.top.map((r, i) => Object.assign({ rank: offset + i + 1 }, r)), total: j.total };
+  }
+  const all = Store.sortRecs(Store.localList(y, s));
+  return { rows: all.slice(offset, offset + REC_PS).map((r, i) => Object.assign({ rank: offset + i + 1 }, r)), total: all.length };
+}
+async function recFind(q) {
+  const { y, s } = delSel();
+  if (LIST.mode === 'server') {
+    const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
+    return j.matches;
+  }
+  return Store.sortRecs(Store.localList(y, s)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+}
+function paintRecs() {
+  const box = document.getElementById('recbox'); if (!box) return;
+  if (!REC.open) { box.innerHTML = '<button type="button" class="ghost sm" data-act="recopen">기록 목록 보기 · 골라서 삭제</button>'; return; }
+  const rows = REC.matches || REC.rows;
+  const body = rows.length ? rows.map(r => `<label class="recrow${REC.sel.has(r.id) ? ' on' : ''}"><input type="checkbox" data-rid="${esc(r.id)}"${REC.sel.has(r.id) ? ' checked' : ''}><span class="rrk">${r.rank}</span><span class="rnm">${esc(r.name)}</span><span class="rtn">${r.rolls}번</span><span class="rts">${r.ts ? new Date(r.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</span></label>`).join('') : '<div class="snote">기록이 없어요.</div>';
+  const pages = Math.max(1, Math.ceil(REC.total / REC_PS)), cur = Math.floor(REC.offset / REC_PS) + 1;
+  const pager = REC.matches ? `<span>이름 검색 결과 ${REC.matches.length}건</span><button type="button" class="pbtn wide" data-act="recclear">전체 목록으로</button>`
+    : `<button type="button" class="pbtn" data-act="recpg" data-v="prev"${cur <= 1 ? ' disabled' : ''}>‹</button><span>${cur} / ${pages}쪽 · 총 ${REC.total}건</span><button type="button" class="pbtn" data-act="recpg" data-v="next"${cur >= pages ? ' disabled' : ''}>›</button>`;
+  box.innerHTML = `<div class="rectool"><form class="findrow" data-form="recfind" autocomplete="off"><input id="recQ" type="text" maxlength="8" placeholder="이름으로 찾기" value="${esc(REC.q)}"><button type="submit" class="pbtn wide">찾기</button></form>
+      <button type="button" class="pbtn wide" data-act="recall">이 쪽 모두 선택</button><button type="button" class="pbtn wide" data-act="recnone">선택 해제</button>
+      <button type="button" class="pbtn wide" data-act="recx">닫기</button></div>
+    <div class="reclist">${body}</div><div class="pager">${pager}</div>
+    <div class="recfoot"><span id="recmsg" class="${REC.msg && /못했/.test(REC.msg) ? 'err' : ''}">${esc(REC.msg)}</span><button type="button" class="ghost sm dangerbtn" id="recdel" data-act="recdel"${REC.sel.size ? '' : ' disabled'}>선택한 ${REC.sel.size}건 삭제</button></div>`;
+}
+async function recLoad(offset) {
+  REC.msg = ''; REC.matches = null;
+  try { const r = await recFetch(offset); REC.rows = r.rows; REC.total = r.total; REC.offset = offset; }
+  catch (e) { REC.rows = []; REC.total = 0; REC.msg = '기록을 불러오지 못했어요.'; }
+  paintRecs();
+}
+async function recDelete() {
+  const { y, s } = delSel(), ids = Array.from(REC.sel); if (!ids.length) return;
+  try {
+    if (LIST.mode === 'server') {
+      for (let i = 0; i < ids.length; i += 100) {
+        await Store.http('DELETE', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&ids=' + encodeURIComponent(ids.slice(i, i + 100).join(',')), null, { headers: { 'x-admin-key': ADM.key }, timeout: 10000 });
+      }
+    } else {
+      const keep = Store.localList(y, s).filter(r => !REC.sel.has(r.id));
+      localStorage.setItem(Store.key(y, s), JSON.stringify(keep));
+    }
+    const n = ids.length; REC.sel = new Set(); refreshDelCount();
+    await recLoad(Math.max(0, Math.min(REC.offset, Math.floor((Math.max(REC.total - n, 1) - 1) / REC_PS) * REC_PS)));
+    REC.msg = n + '건을 삭제했어요.'; paintRecs();
+  } catch (e) { REC.msg = e.status === 401 ? '암호가 달라요.' : '삭제하지 못했어요. 다시 시도해 주세요.'; paintRecs(); }
+}
 
 function delSel() {
   const y = LIST.years.includes(ADM.delYear) ? ADM.delYear : LIST.years[0];
@@ -624,11 +701,14 @@ function schoolCards() {
   const list = LIST.schools.slice().sort((a, b) => a.localeCompare(b, 'ko')).filter(n => !q || n.includes(q));
   if (!list.length) return '<div class="snone">등록된 학교 중에 없어요. 두 글자 이상 쓰면 아래에서 찾아 추가할 수 있어요.</div>';
   return list.map((sc, i) => `
-    <button type="button" class="scard${sc === state.school ? ' on' : ''}" aria-pressed="${sc === state.school}" data-act="school" data-v="${esc(sc)}">
-      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${ROOFS[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
-      <div><div class="nm">${esc(sc)}</div><small>${LIST.regions[sc] ? esc(LIST.regions[sc]) + ' · ' : ''}전체 순위 보기</small></div>
+    <div class="scard${sc === state.school ? ' on' : ''}">
+      <button type="button" class="selbtn" aria-pressed="${sc === state.school}" data-act="school" data-v="${esc(sc)}">
+        <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${ROOFS[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
+        <div><div class="nm">${esc(sc)}</div><small>${LIST.regions[sc] ? esc(LIST.regions[sc]) : '&nbsp;'}</small></div>
+      </button>
       ${sc === state.school ? '<svg class="ck" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="#FFD23F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-    </button>`).join('');
+      <button type="button" class="rankbtn" data-act="ranks" data-v="${esc(sc)}" aria-label="${esc(sc)} 순위 보기">🏆 순위 보기</button>
+    </div>`).join('');
 }
 function paintSsugg(msg) {
   const box = document.getElementById('ssugg'); if (!box) return;
@@ -711,7 +791,7 @@ function wellPlace(p) {
   return `<section class="well ${p}" aria-label="${p === 'a' ? '1P' : '2P'} 토큰 배치">
     <div class="whead">
       <div class="who">${icon(p, 36)}<span class="tag">${p === 'a' ? '1P' : '2P'}</span>
-        <input class="name-in" type="text" maxlength="8" autocomplete="off" aria-label="${p === 'a' ? '1P' : '2P'} 이름" placeholder="이름 입력" value="${esc(P.name)}" data-name="${p}"></div>
+        <input class="name-in" type="text" maxlength="8" autocomplete="off" aria-label="${p === 'a' ? '1P' : '2P'} 이름" placeholder="이름(띄어쓰기 없이)" value="${esc(P.name)}" data-name="${p}"></div>
       <div class="cnt"><b>${total}</b> / 12개</div>
     </div>
     ${gridHTML(p, P.counts, {})}
@@ -724,7 +804,7 @@ function placeHTML() {
     ${wellPlace('a')}
     <aside class="river">${WAVES}
       <div class="card"><small>2단계</small><h1 class="jua">이름을 쓰고 토큰을 놓아요</h1>
-        <p>위 화살표로 토큰을 더하고, 아래 화살표로 빼요. 한 칸에 여러 개를 놓아도 돼요. 입력한 이름은 순위표에 기록돼요.</p></div>
+        <p>위 화살표로 토큰을 더하고, 아래 화살표로 빼요. 한 칸에 여러 개를 놓아도 돼요. 이름은 띄어쓰기 없이, 바른 말로 써 주세요. 순위표에 기록돼요.</p></div>
       <div class="card">
         <div class="prog"><div class="row"><span id="lbl-a"></span><span>${ta} / 12</span></div><div class="bar"><div style="width:${Math.round(ta / 12 * 100)}%;background:var(--green)"></div></div></div>
         <div class="prog"><div class="row"><span id="lbl-b"></span><span>${tb} / 12</span></div><div class="bar"><div style="width:${Math.round(tb / 12 * 100)}%;background:var(--orange)"></div></div></div>
@@ -736,6 +816,7 @@ function placeHTML() {
       </div>
       <div class="spacer"></div>
       <button type="button" class="go" id="start" data-act="start" disabled>게임 시작</button>
+      <button type="button" class="exitbtn" data-act="tosetup">← 서버 선택으로 돌아가기</button>
     </aside>
     ${wellPlace('b')}
   </main>`;
@@ -743,11 +824,14 @@ function placeHTML() {
 function updateReady() {
   const a = state.a, b = state.b;
   const la = $('#lbl-a'), lb = $('#lbl-b'); if (la) la.textContent = cleanName(a.name) || '1P'; if (lb) lb.textContent = cleanName(b.name) || '2P';
-  const namesOk = cleanName(a.name) !== '' && cleanName(b.name) !== '';
+  const badA = badName(a.name), badB = badName(b.name);
+  const ia = $('[data-name="a"]'), ib = $('[data-name="b"]');
+  if (ia) ia.classList.toggle('bad', badA); if (ib) ib.classList.toggle('bad', badB);
+  const namesOk = cleanName(a.name) !== '' && cleanName(b.name) !== '' && !badA && !badB;
   const tokOk = sum(a.counts) === 12 && sum(b.counts) === 12;
   const btn = $('#start'); if (!btn) return;
   btn.disabled = !(namesOk && tokOk);
-  btn.textContent = btn.disabled ? (namesOk ? '토큰을 12개씩 모두 놓아 주세요' : (tokOk ? '이름을 입력해 주세요' : '이름을 쓰고 토큰 12개씩 놓아 주세요')) : '게임 시작';
+  btn.textContent = (badA || badB) ? '사용할 수 없는 이름이에요. 바꿔 주세요' : btn.disabled ? (namesOk ? '토큰을 12개씩 모두 놓아 주세요' : (tokOk ? '이름을 입력해 주세요' : '이름을 쓰고 토큰 12개씩 놓아 주세요')) : '게임 시작';
 }
 
 /* ---------- 3. 게임 ---------- */
@@ -783,6 +867,7 @@ function playHTML() {
       </div>
       <div class="spacer"></div>
       <div class="row2"><button type="button" class="ghost" id="pause" data-act="pause">일시정지</button><button type="button" class="ghost" id="quit" data-act="quit">그만하기</button></div>
+      <button type="button" class="exitbtn" id="toserver" data-act="toserver">← 서버 선택으로 나가기</button>
     </aside>
     ${wellPlay('b')}
   </main>`;
@@ -929,6 +1014,12 @@ function paintResult() {
 
   const setups = (w.length ? w : []).map(p => `<div class="minilbl">${w.length === 2 ? esc(cleanName(state[p].name)) + ' 처음 배치' : '처음 배치 (함께 기록돼요)'}</div>${miniWell(p, state[p].counts, w.length === 2 ? 60 : 112)}`).join('');
   card.className = 'win ' + cls;
+  if (R.view) {   // 학교 선택 화면에서 '순위 보기'로 들어온 경우
+    card.className = 'win';
+    card.innerHTML = `${cup('')}<h1 class="jua">순위 보기</h1><p>${state.year}학년도<br>${esc(state.school)}</p><div class="spacer"></div>
+      <button type="button" class="go" style="width:100%;height:64px;font-size:28px" data-act="enter">이 학교로 게임하기</button>
+      <button type="button" class="linkbtn" data-act="tosetup">← 학교 선택으로 돌아가기</button>`;
+  } else
   card.innerHTML = `${trophy}<h1 class="jua">${title}</h1><p>${sub}</p>${note}${setups}<div class="spacer"></div>
     <button type="button" class="go" style="width:100%;height:64px;font-size:28px" data-act="again">다시 하기</button>
     <button type="button" class="linkbtn" data-act="tosetup">학교 선택으로 돌아가기</button>`;
@@ -1005,7 +1096,17 @@ document.addEventListener('click', e => {
     setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '그만하기'; } }, 3000);
   }
   else if (act === 'again') { state.a.counts = new Array(12).fill(0); state.b.counts = new Array(12).fill(0); show('place'); }
+  else if (act === 'ranks') {
+    state.school = b.dataset.v; savePrefs();
+    state.result = { winners: [], rolls: 0, stalemate: false, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', status: 'none', view: true };
+    show('result'); loadBoardOnly();
+  }
   else if (act === 'tosetup') { show('setup'); }
+  else if (act === 'toserver') {
+    if (b.dataset.sure) { show('setup'); return; }
+    b.dataset.sure = '1'; b.textContent = '정말 나갈까요? 게임이 끝나요';
+    setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '← 서버 선택으로 나가기'; } }, 3000);
+  }
   else if (act === 'pg') {
     const R = state.result, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(R.total / PS) - 1) * PS, v = b.dataset.v;
     const to = v === 'first' ? 0 : v === 'last' ? last : v === 'prev' ? R.offset - PS : R.offset + PS;
@@ -1023,6 +1124,17 @@ document.addEventListener('click', e => {
     setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '전체 순위 삭제'; } }, 4000);
   }
   else if (act === 'sadd') { addSchoolPublic(Number(b.dataset.i)); }
+  else if (act === 'recopen') { REC.open = true; REC.sel = new Set(); REC.q = ''; recLoad(0); }
+  else if (act === 'recx') { REC.open = false; REC.sel = new Set(); paintRecs(); }
+  else if (act === 'recpg') { recLoad(Math.max(0, REC.offset + (b.dataset.v === 'next' ? REC_PS : -REC_PS))); }
+  else if (act === 'recclear') { REC.q = ''; recLoad(REC.offset); }
+  else if (act === 'recall') { (REC.matches || REC.rows).forEach(r => REC.sel.add(r.id)); paintRecs(); }
+  else if (act === 'recnone') { REC.sel = new Set(); paintRecs(); }
+  else if (act === 'recdel') {
+    if (b.dataset.sure) { recDelete(); return; }
+    b.dataset.sure = '1'; b.textContent = '정말 ' + REC.sel.size + '건을 삭제할까요?';
+    setTimeout(() => { if (b.isConnected && b.dataset.sure) { delete b.dataset.sure; b.textContent = '선택한 ' + REC.sel.size + '건 삭제'; } }, 4000);
+  }
   else if (act === 'admpick') { pickSchool(Number(b.dataset.i)); }
   else if (act === 'admdel') {
     if (b.dataset.k === 'y') ADM.years = ADM.years.filter(y => String(y) !== b.dataset.v);
@@ -1030,24 +1142,46 @@ document.addEventListener('click', e => {
     ADM.msg = ''; ADM.err = false; show('admin');
   }
 });
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.rid !== undefined) {
+    if (t.checked) REC.sel.add(t.dataset.rid); else REC.sel.delete(t.dataset.rid);
+    const row = t.closest('.recrow'); if (row) row.classList.toggle('on', t.checked);
+    const d = document.getElementById('recdel'); if (d) { d.disabled = !REC.sel.size; d.textContent = '선택한 ' + REC.sel.size + '건 삭제'; delete d.dataset.sure; }
+  }
+});
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]'); if (!f) return;
   e.preventDefault();
   const k = f.dataset.form;
-  if (k === 'find') runFind(document.getElementById('findQ').value.trim());
+  if (k === 'recfind') {
+    const q = document.getElementById('recQ').value.trim(); REC.q = q; REC.msg = '';
+    if (!q) { REC.matches = null; paintRecs(); return; }
+    recFind(q).then(m => { REC.matches = m; paintRecs(); }).catch(() => { REC.msg = '찾지 못했어요. 다시 시도해 주세요.'; paintRecs(); });
+  }
+  else if (k === 'find') runFind(document.getElementById('findQ').value.trim());
   else if (k === 'login') tryLogin(document.getElementById('admPw').value);
   else adminAdd(k);
 });
 document.addEventListener('input', e => {
   const t = e.target;
-  if (t.dataset && t.dataset.name) { state[t.dataset.name].name = t.value; updateReady(); savePrefs(); }
+  if (t.dataset && t.dataset.name) {
+    if (!e.isComposing && /\s/.test(t.value)) t.value = t.value.replace(/\s+/g, '');   // 붙여 넣은 띄어쓰기도 지워요
+    state[t.dataset.name].name = t.value; updateReady(); savePrefs();
+  }
   if (t.id === 'schoolQ') { SQ.q = t.value; el('sgrid').innerHTML = schoolCards(); searchPublic(t.value); }
   if (t.id === 'admSchool') searchSchools(t.value);
+  if (t.id === 'delYear' || t.id === 'delSchool') { REC.open = false; REC.sel = new Set(); }
   if (t.id === 'delYear') { ADM.delYear = Number(t.value); ADM.msg = ''; show('admin'); }
   if (t.id === 'delSchool') { ADM.delSchool = t.value; ADM.msg = ''; show('admin'); }
   if (t.id === 'speed') { state.speed = Number(t.value); el('speedLbl').textContent = SPEEDS[state.speed].label; savePrefs(); }
 });
+document.addEventListener('compositionend', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.name && /\s/.test(t.value)) { t.value = t.value.replace(/\s+/g, ''); state[t.dataset.name].name = t.value; updateReady(); }
+});
 document.addEventListener('keydown', e => {
+  if ((e.key === ' ' || e.code === 'Space') && e.target.dataset && e.target.dataset.name) { e.preventDefault(); return; }   // 이름에는 띄어쓰기를 넣지 않아요
   if (e.key === 'Enter' && e.target.dataset && e.target.dataset.name) { const s = $('#start'); if (s && !s.disabled) s.click(); }
 });
 

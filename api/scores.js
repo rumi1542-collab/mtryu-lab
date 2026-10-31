@@ -10,9 +10,11 @@
 // GET    /api/scores?year=&school=&q=이름              → { matches, total } 이름 찾기
 // POST   /api/scores  {year,school,id,name,rolls,setup} → { rank, top }  기록 저장
 // DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 1개 삭제
+// DELETE /api/scores?year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)    여러 건 삭제
 // DELETE /api/scores?year=&school=&all=1      (헤더 x-admin-key 필요)    순위 전체 삭제
 
 const { configured, redis, send, getConfig, isAdmin } = require('./_lib');
+const { badName } = require('./_names');
 const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 20000; // 학교·학년도마다 최대 2만 개 기록 (한 줄에 약 150바이트 → 3MB 정도라 부담이 없어요)
@@ -62,11 +64,11 @@ module.exports = async function handler(req, res) {
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }
       if (!b || !(await validYearSchool(b.year, b.school))) return send(res, 400, { error: 'bad-request' });
 
-      const name = String(b.name || '').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, 8);
+      const name = String(b.name || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);   // 띄어쓰기 없이
       const rolls = Number(b.rolls);
       const id = String(b.id || '');
       const setup = b.setup;
-      if (!name) return send(res, 400, { error: 'bad-name' });
+      if (!name || badName(name)) return send(res, 400, { error: 'bad-name' });
       if (!/^[a-z0-9]{4,16}$/.test(id)) return send(res, 400, { error: 'bad-id' });
       // 토큰 12개를 모두 부수려면 최소 12번은 굴려야 해요
       if (!Number.isInteger(rolls) || rolls < 12 || rolls > 2000) return send(res, 400, { error: 'bad-rolls' });
@@ -97,6 +99,14 @@ module.exports = async function handler(req, res) {
         const n = Number(await redis(['ZCARD', key])) || 0;
         await redis(['DEL', key]);
         return send(res, 200, { removed: n });
+      }
+      // ids=a,b,c 로 여러 건을 한 번에 지울 수 있어요 (한 번에 100건까지)
+      const idList = String(req.query.ids || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 100);
+      if (idList.length) {
+        const want = new Set(idList), all = await redis(['ZRANGE', key, 0, -1]);
+        const hit = (all || []).filter(m => { try { return want.has(JSON.parse(m).id); } catch (e) { return false; } });
+        if (hit.length) await redis(['ZREM', key].concat(hit));
+        return send(res, 200, { removed: hit.length });
       }
       if (!id) return send(res, 400, { error: 'bad-request' });
       const all = await redis(['ZRANGE', key, 0, -1]);
