@@ -70,7 +70,8 @@ async function neisSearch(q) {
     const block = Array.isArray(j.schoolInfo) ? j.schoolInfo.find(x => x && x.row) : null;
     return (block ? block.row : []).map(x => ({
       name: x.SCHUL_NM, region: String(x.ATPT_OFCDC_SC_NM || '').replace(/교육청$/, ''),
-      kind: x.SCHUL_KND_SC_NM || '', addr: x.ORG_RDNMA || ''
+      kind: x.SCHUL_KND_SC_NM || '', addr: x.ORG_RDNMA || '',
+      code: x.SD_SCHUL_CODE || '', edu: x.ATPT_OFCDC_SC_CODE || ''   // 나이스 학교 코드 (기록을 모아 볼 때 동명 학교를 구분해요)
     })).filter(x => x.name);
   } finally { clearTimeout(t); }
 }

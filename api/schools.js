@@ -1,5 +1,5 @@
 // 학교 이름 검색 API (나이스 교육정보 개방포털 '학교기본정보' 사용)
-// GET /api/schools?q=선운  → { schools: [{ name, region, kind, addr }] }
+// GET /api/schools?q=선운  → { schools: [{ name, region, kind, addr, code, edu }] }
 // 누구나 쓸 수 있지만, 같은 IP에서 분당 120번, 서버 전체로 하루 5000번까지만 나이스를 호출해요.
 // 환경 변수: NEIS_KEY (open.neis.go.kr 에서 발급받은 인증키), RD_ADMIN_KEY
 const { configured, send, isAdmin, rateLimit, neisBudget, neisSearch } = require('./_lib');
@@ -14,7 +14,10 @@ module.exports = async function handler(req, res) {
     if (!isAdmin(req)) {
       if (!(await rateLimit(req, 'search', 120, 60)) || !(await neisBudget(5000))) return send(res, 429, { error: 'too-many' });
     }
-    return send(res, 200, { schools: await neisSearch(q) });
+    const schools = await neisSearch(q);
+    // 학교 정보는 거의 안 바뀌어서 같은 검색어는 하루 동안 Vercel이 대신 답해요 (교실에서 한꺼번에 검색해도 횟수 제한에 덜 걸려요)
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+    return res.status(200).json({ schools });
   } catch (e) {
     return send(res, 502, { error: 'neis-failed' });
   }
