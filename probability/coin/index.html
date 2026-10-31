@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>동전 실험실 · 확률 실험실</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#12163A">
+<meta name="description" content="동전 하나로 배우는 확률 — 패턴, 큰 수의 법칙, 진짜 무작위의 모양">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#12163A; --panel:#1D2257; --panel2:#262C6B; --line:#323A8A; --deep:#161B4A; --edge:#232A70;
+  --text:#F4F6FF; --muted:#AEB6F0; --yellow:#FFD23F; --green:#5BD97F; --orange:#FF8A2B;
+  --pink:#FF6FAE; --blue:#8C9BFF; --ink:#12163A; --bad:#FF8A8A;
+}
+*{box-sizing:border-box}
+html{background:#0C0F2B}
+body{margin:0;background:#0C0F2B;color:var(--text);font-family:'Noto Sans KR',system-ui,-apple-system,'Malgun Gothic',sans-serif;font-size:16px;line-height:1.5}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.jua{font-family:'Jua','Noto Sans KR','Malgun Gothic',sans-serif;font-weight:400}
+.app{min-height:calc(100vh - var(--labbar-h,0px));background:var(--bg)}
+.wrap{max-width:1200px;margin:0 auto;padding-block:0 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* 머리글 */
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:14px 0;border-bottom:2px solid var(--edge);margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand small{display:block;font-size:13px;color:var(--muted)}
+.brand b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px;font-weight:400;line-height:1.1}
+.ctx{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:15px;color:var(--muted)}
+
+/* 버튼 */
+.go{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:14px;background:var(--yellow);color:var(--ink);font-family:'Jua','Noto Sans KR',sans-serif;font-size:22px;padding:0 28px;min-height:52px;text-decoration:none}
+.go:hover{filter:brightness(1.06)}
+.go:disabled{background:var(--line);color:var(--muted);cursor:default;font-family:'Noto Sans KR',sans-serif;font-size:16px;font-weight:500;filter:none}
+.go.sm{min-height:44px;font-size:18px;padding:0 20px}
+.go.big{min-height:64px;font-size:28px;padding:0 40px}
+.ghost{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:14px;background:var(--line);color:var(--text);font-family:'Jua','Noto Sans KR',sans-serif;font-size:18px;min-height:44px;padding:0 18px;text-decoration:none}
+.ghost:hover{background:#3C45A0}
+.ghost:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;color:var(--muted);font-size:15px;text-decoration:underline;padding:6px}
+.pick{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:3px solid var(--line);border-radius:18px;background:var(--panel2);color:var(--text);font-family:'Jua','Noto Sans KR',sans-serif;font-size:32px;min-width:150px;min-height:84px;padding:0 24px}
+.pick.h{border-color:var(--yellow)}
+.pick.t{border-color:var(--blue)}
+.pick:hover:not(:disabled){background:#313983}
+.pick:disabled{opacity:.5;cursor:default}
+.pick.on{background:var(--yellow);color:var(--ink);border-color:var(--yellow)}
+
+/* 판 */
+.panel{background:var(--panel);border-radius:20px;padding:22px 24px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel h2,.panel h3{margin:0;font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400}
+.panel h2{font-size:26px}
+.panel h3{font-size:21px}
+.hint{margin:0;font-size:15px;color:var(--muted);line-height:1.55}
+.hint b,.panel b{color:var(--text)}
+.msg{font-size:16px;color:var(--muted);min-height:24px}
+.msg.err{color:var(--bad)}
+.msg.ok{color:var(--green)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row.c{justify-content:center}
+.two{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:18px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+
+/* 시작 화면 */
+.intro h1{margin:0 0 6px;font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;font-size:clamp(30px,5vw,44px);line-height:1.2}
+.intro p{margin:0;color:var(--muted);max-width:640px}
+.who{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 24px}
+.who label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.who select{height:46px;border-radius:12px;border:2px solid var(--line);background:var(--deep);padding:0 12px;min-width:160px;font-size:17px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.card{background:var(--panel);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card .no{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:var(--yellow);color:var(--ink);font-family:'Jua',sans-serif;font-size:22px}
+.card h3{margin:0;font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;font-size:24px}
+.card .tag{font-size:13px;font-weight:700;color:var(--yellow);letter-spacing:.02em}
+.card p{margin:0;color:var(--muted);font-size:15px;flex:1}
+.card .row{margin-top:6px}
+.foot{margin-top:28px;font-size:14px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.foot a{color:var(--muted)}
+
+/* 동전 */
+.stage{perspective:700px;display:flex;justify-content:center;padding:10px 0 6px}
+.coin{width:190px;height:190px;position:relative;transform-style:preserve-3d}
+.face{position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#3A4150;background:radial-gradient(circle at 34% 28%,#FAFBFD 0,#D5DAE3 45%,#A9B1BF 100%);border:6px solid #8A93A3;box-shadow:inset 0 0 0 4px rgba(255,255,255,.6),inset 0 0 16px rgba(40,48,70,.35)}
+.face::after{content:'';position:absolute;inset:7px;border-radius:50%;border:2px dotted rgba(58,65,80,.45);pointer-events:none}
+.face svg.art{width:108px;height:108px;display:block;margin-top:-4px}
+.face .cap{font-family:'Jua','Noto Sans KR',sans-serif;font-size:36px;line-height:1;margin-top:-2px}
+.face.b{transform:rotateX(180deg)}
+.chip,.cc{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:700;line-height:1;width:100%;aspect-ratio:1;max-width:42px;font-size:15px}
+.cc.h{background:var(--yellow);color:var(--ink)}
+.cc.t{background:transparent;border:2px solid var(--blue);color:var(--blue)}
+.cc.x{box-shadow:0 0 0 3px var(--bad)}
+.cc.s{width:24px;max-width:24px;font-size:11px}
+.cc.s.t{border-width:1.5px}
+.seq{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;justify-items:center}
+.seq.mini{display:flex;flex-wrap:wrap;gap:3px}
+.cols{display:flex;flex-wrap:wrap;gap:8px}
+.col{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:42px}
+.col .m{font-size:13px;font-weight:700;height:16px}
+.col .m.ok{color:var(--green)}
+.col .m.no{color:var(--bad)}
+.rowlab{font-size:13px;color:var(--muted)}
+.bigscore{font-family:'Jua',sans-serif;font-size:54px;line-height:1;color:var(--yellow)}
+.stat{display:flex;gap:10px;flex-wrap:wrap}
+.stat div{background:var(--deep);border-radius:12px;padding:8px 14px;font-size:14px;color:var(--muted)}
+.stat b{display:block;font-size:22px;color:var(--text);font-family:'Jua',sans-serif;font-weight:400}
+
+/* 슬라이더·입력 */
+.field{display:flex;flex-direction:column;gap:6px}
+.field .lab{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:15px;color:var(--muted)}
+.field .lab b{color:var(--yellow);font-family:'Jua',sans-serif;font-weight:400;font-size:20px}
+input[type=range]{width:100%;accent-color:var(--yellow);height:22px;margin:0}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+@media (max-width:760px){.steps{grid-template-columns:minmax(0,1fr)}}
+.steps .panel{padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.steps h3{margin:0;font-size:18px}
+.steps .hint{margin:0;font-size:13px}
+.steps input[type=number]{width:84px;height:36px;font-size:16px}
+.sumbar{display:flex;flex-direction:row;justify-content:flex-start;flex-wrap:wrap;gap:6px 22px;align-items:center;margin-bottom:14px;font-size:16px}
+.sumbar b{color:var(--yellow);font-family:'Jua',sans-serif;font-weight:400;font-size:20px}
+.wopts{display:flex;flex-direction:column;gap:6px}
+.wopts label{cursor:pointer}
+.wopts input{position:absolute;opacity:0;pointer-events:none}
+.wopts span{display:block;padding:7px 14px;border-radius:12px;background:var(--deep);border:2px solid transparent;color:var(--muted);font-family:'Jua',sans-serif;font-size:19px;text-align:center}
+.wopts input:checked+span{border-color:var(--yellow);color:var(--yellow);background:rgba(255,210,63,.1)}
+.wopts input:focus-visible+span{outline:3px solid var(--yellow);outline-offset:2px}
+.explain{background:var(--deep);border-radius:12px;padding:10px 14px;line-height:1.75}
+.two.solo{grid-template-columns:minmax(0,1fr)}
+input[type=text],input[type=number]{height:46px;border-radius:12px;border:2px solid var(--line);background:var(--deep);padding:0 14px;font-size:18px;min-width:0}
+input[type=number]{width:110px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg label{cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:inline-block;padding:8px 14px;border-radius:999px;background:var(--deep);color:var(--muted);font-size:14px}
+.seg input:checked+span{background:var(--yellow);color:var(--ink);font-weight:700}
+.seg input:focus-visible+span{outline:3px solid var(--yellow);outline-offset:2px}
+
+/* 그래프 */
+.chartbox{background:var(--deep);border-radius:16px;padding:10px 10px 4px;min-width:0}
+.chartbox svg{display:block;width:100%;height:auto}
+svg text{font-family:'Noto Sans KR',sans-serif;fill:var(--muted);font-size:13px}
+svg .lab{fill:var(--text);font-weight:700}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);padding:6px 6px 8px}
+.legend i{display:inline-block;width:18px;height:4px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* 표 */
+.tablewrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;min-width:560px}
+.tbl th{font-size:13px;font-weight:500;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+.tbl td{padding:10px;border-bottom:1px solid var(--edge);vertical-align:middle}
+.tbl td.rk{font-family:'Jua',sans-serif;font-size:22px;color:var(--yellow);width:56px}
+.tbl tr.me td{background:rgba(255,210,63,.1)}
+.tbl .big{font-family:'Jua',sans-serif;font-size:20px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{border:0;border-radius:999px;background:var(--deep);color:var(--muted);padding:9px 16px;font-size:15px}
+.tab.on{background:var(--yellow);color:var(--ink);font-weight:700}
+.pager{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.bars{display:flex;flex-direction:column;gap:6px}
+.bar{display:grid;grid-template-columns:48px minmax(0,1fr) 120px;gap:10px;align-items:center;font-size:14px;color:var(--muted)}
+.bar .track{position:relative;height:18px;background:var(--deep);border-radius:6px}
+.bar .fill{position:absolute;inset:0 auto 0 0;background:var(--yellow);border-radius:6px}
+.bar .th{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--pink);border-radius:2px}
+
+/* 내기 점 격자 */
+.dots{display:grid;grid-template-columns:repeat(50,minmax(0,1fr));gap:2px}
+.dots i{aspect-ratio:1;border-radius:2px;background:#2A3070}
+.dots i.ok{background:var(--green)}
+.dots i.no{background:#3B4390}
+.betgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.bet{background:var(--deep);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;border:3px solid transparent;min-width:0}
+.bet.win{border-color:var(--green)}
+.bet .ab{font-family:'Jua',sans-serif;font-size:28px;color:var(--yellow);line-height:1}
+.bet p{margin:0;font-size:17px}
+
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="crane" viewBox="0 0 100 100">
+  <g fill="currentColor">
+    <path d="M30 60C33 49 49 44 62 50C67 53 66 59 60 63C50 71 36 71 30 60Z"/>
+    <path d="M46 50C36 34 20 26 4 12C9 10 14 11 19 13C34 17 50 30 60 47Z"/>
+    <path d="M44 58C33 52 20 55 6 49C14 62 30 68 48 66Z"/>
+    <path d="M33 57L14 56L15 63L33 64Z"/>
+    <circle cx="70" cy="22" r="4.6"/>
+    <path d="M73 20L93 25L73 26.5Z"/>
+  </g>
+  <g fill="none" stroke="currentColor" stroke-linecap="round">
+    <path d="M60 53C73 51 77 38 70 25" stroke-width="5"/>
+    <path d="M36 67L13 87" stroke-width="2.6"/>
+    <path d="M41 68L24 93" stroke-width="2.6"/>
+  </g>
+</symbol></defs></svg>
+<div class="app">
+  <div class="wrap">
+    <header class="hdr">
+      <div class="brand">
+        <svg width="42" height="42" viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="19" fill="#C9CFD9" stroke="#8A93A3" stroke-width="2.5"/><circle cx="21" cy="21" r="15" fill="none" stroke="#fff" stroke-opacity=".6" stroke-dasharray="1.5 2.5"/><svg x="7" y="7" width="28" height="28" viewBox="0 0 100 100" style="color:#3A4150"><use href="#crane"/></svg></svg>
+        <div><small>확률 실험실</small><b>동전 실험실</b></div>
+      </div>
+      <div class="ctx" id="ctx"></div>
+    </header>
+    <main id="screen" aria-live="polite"></main>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   선생님 설정  ← 여기만 고치면 돼요
+   ===================================================================== */
+const CONFIG = {
+  years:     [2026],              // 처음에 보여줄 학년도 (강 건너기의 관리자 모드에서 바꾼 목록을 그대로 써요)
+  schools:   ['선운중학교'],        // 처음에 보여줄 학교
+  apiUrl:    '/api/coin',         // 순위 저장 서버 주소 (서버가 없으면 이 컴퓨터에만 저장돼요)
+  configUrl: '/api/config',       // 학년도·학교 목록 서버 주소 (강 건너기와 같아요)
+  pageSize:  10                   // 순위표 한 쪽에 보여줄 인원
+};
+/* ===================================================================== */
+
+(function () {
+'use strict';
+
+/* ---------- 도구 ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const frame = () => new Promise(r => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(() => r()) : setTimeout(r, 16)));
+const rid = () => Math.random().toString(36).slice(2, 10);
+const REDUCED = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+
+/* 진짜 동전: 브라우저의 암호용 난수를 써요 (Math.random보다 예측하기 어려워요) */
+function randBits(n) {
+  const o = new Uint8Array(n);
+  try {
+    const a = new Uint8Array(Math.ceil(n / 8));
+    crypto.getRandomValues(a);
+    for (let i = 0; i < n; i++) o[i] = (a[i >> 3] >> (i & 7)) & 1;
+  } catch (e) { for (let i = 0; i < n; i++) o[i] = Math.random() < 0.5 ? 1 : 0; }
+  return o;
+}
+function bitsToHex(b) {
+  let s = '';
+  for (let i = 0; i < b.length; i += 4) s += (((b[i] << 3) | ((b[i + 1] || 0) << 2) | ((b[i + 2] || 0) << 1) | (b[i + 3] || 0))).toString(16);
+  return s;
+}
+function hexToBits(h) {
+  const o = new Uint8Array(h.length * 4);
+  for (let i = 0; i < h.length; i++) { const v = parseInt(h[i], 16) || 0; o[4 * i] = (v >> 3) & 1; o[4 * i + 1] = (v >> 2) & 1; o[4 * i + 2] = (v >> 1) & 1; o[4 * i + 3] = v & 1; }
+  return o;
+}
+
+/* ---------- 계산 (api/_coinlib.js와 같은 식이에요. 둘을 같이 고쳐 주세요) ---------- */
+const MAXRUN = 30;                               // 연속 맞추기 최대 횟수
+const FLIPS = 1000;                              // 상대도수 줄타기에서 던지는 횟수
+const SPOT_ROUNDS = 8, SPOT_LEN = 40, MINE_LEN = 50;
+const ODD = 0.025;                               // 내가 만든 배열 판정: 진짜 동전이라면 이 정도로 드문 모양이면 의심해요
+const runPoints = n => (n <= 0 ? 0 : 200 * Math.pow(2, n - 1));
+
+/* 던진 횟수 n에서 앞면 비율이 0.5±w% 밖이었던 마지막 때 + 1  (끝까지 못 들어오면 1001) */
+function settleTime(bits, w) {
+  let heads = 0, last = 0;
+  for (let i = 0; i < bits.length; i++) {
+    heads += bits[i];
+    const n = i + 1;
+    if (Math.abs(2 * heads - n) * 100 > 2 * w * n) last = n;
+  }
+  return last + 1;
+}
+
+const LN = [0]; for (let i = 1; i <= 1000; i++) LN[i] = LN[i - 1] + Math.log(i);
+function pmf(n, k) { return Math.exp(LN[n] - LN[k] - LN[n - k] - n * Math.LN2); }
+function probRange(n, lo, hi) { let s = 0; for (let k = lo; k <= hi; k++) s += pmf(n, k); return Math.min(1, s); }
+const BET = [
+  { small: { n: 10,  lo: 7,  hi: 10, t: '동전 10번 던져 앞면이 7번 이상' },        big: { n: 1000, lo: 700, hi: 1000, t: '동전 1000번 던져 앞면이 700번 이상' },  note: '둘 다 앞면이 70% 이상 나오는 내기예요.' },
+  { small: { n: 20,  lo: 12, hi: 20, t: '동전 20번 던져 앞면이 12번 이상' },       big: { n: 200,  lo: 120, hi: 200, t: '동전 200번 던져 앞면이 120번 이상' },   note: '둘 다 앞면이 60% 이상 나오는 내기예요.' },
+  { small: { n: 10,  lo: 5,  hi: 5,  t: '동전 10번 던져 앞면이 정확히 5번' },      big: { n: 1000, lo: 500, hi: 500,  t: '동전 1000번 던져 앞면이 정확히 500번' }, note: '둘 다 앞면이 딱 절반이 되는 내기예요.' },
+  { small: { n: 10,  lo: 4,  hi: 6,  t: '동전 10번 던져 앞면이 4~6번' },           big: { n: 1000, lo: 400, hi: 600,  t: '동전 1000번 던져 앞면이 400~600번' },    note: '둘 다 앞면 비율이 40%~60% 사이인 내기예요.' },
+  { small: { n: 100, lo: 45, hi: 55, t: '동전 100번 던져 앞면이 45~55번' },        big: { n: 1000, lo: 450, hi: 550,  t: '동전 1000번 던져 앞면이 450~550번' },    note: '둘 다 앞면 비율이 45%~55% 사이인 내기예요.' },
+  { small: { n: 4,   lo: 3,  hi: 4,  t: '동전 4번 던져 앞면이 3번 이상' },         big: { n: 40,   lo: 30, hi: 40,  t: '동전 40번 던져 앞면이 30번 이상' },      note: '둘 다 앞면이 75% 이상 나오는 내기예요.' }
+];
+const BET_MAX = BET.length * 20;
+function betRound(r) {                             // r = { i, f(true면 A가 적게 던지는 쪽), p('A'|'B'), e(0~100) }
+  const R = BET[r.i], a = r.f ? R.small : R.big, b = r.f ? R.big : R.small;
+  const pA = probRange(a.n, a.lo, a.hi), pB = probRange(b.n, b.lo, b.hi);
+  const ok = (r.p === 'A') === (pA > pB);
+  const e = Math.abs(r.e - pA * 100);
+  const pts = (ok ? 10 : 0) + Math.round(10 * Math.max(0, 1 - e / 30));
+  return { pA, pB, ok, pts, a, b };
+}
+function fmtP(p) {
+  const x = p * 100;
+  if (x <= 0) return '0%';
+  if (x < 0.01) return '0.01% 미만';
+  if (x > 99.99) return '99.99% 이상';
+  return (x < 1 ? x.toFixed(2) : x.toFixed(1)) + '%';
+}
+
+/* 배열의 모양을 재는 값 */
+function seqStats(a) {
+  let heads = 0, maxRun = 1, run = 1, sw = 0;
+  for (let i = 0; i < a.length; i++) {
+    heads += a[i];
+    if (i > 0) { if (a[i] === a[i - 1]) { run++; if (run > maxRun) maxRun = run; } else { run = 1; sw++; } }
+  }
+  return { heads, maxRun, sw };
+}
+/* 사람이 '랜덤처럼' 지어낸 배열 흉내: 자주 바꾸고, 같은 면이 길게 이어지지 않게, 앞뒤 개수를 맞추려 해요 */
+function genFake(len, ps, cap) {
+  const a = [Math.random() < 0.5 ? 1 : 0];
+  for (let i = 1; i < len; i++) {
+    const last = a[i - 1];
+    let run = 1; for (let j = i - 2; j >= 0 && a[j] === last; j--) run++;
+    let nxt = Math.random() < ps ? 1 - last : last;
+    if (run >= cap) nxt = 1 - last;
+    let ones = 0; for (let j = 0; j < i; j++) ones += a[j];
+    const diff = ones - (i - ones);
+    if (Math.abs(diff) >= 4) { const major = diff > 0 ? 1 : 0; if (nxt === major && Math.random() < 0.8) nxt = 1 - major; }
+    a.push(nxt);
+  }
+  return a;
+}
+
+/* ---------- 저장 (서버 → 안 되면 이 컴퓨터) ---------- */
+const Store = {
+  mode: 'unknown',
+  key: (g, y, s) => 'cn_scores:' + g + ':' + y + ':' + s,
+  localList(g, y, s) { try { return JSON.parse(localStorage.getItem(Store.key(g, y, s)) || '[]'); } catch (e) { return []; } },
+  sortVal(g, r) { return g === 'run' ? -r.n : g.startsWith('tune') ? r.diff : g === 'spot' ? -r.correct : -r.score; },
+  sortRecs(g, l) { return l.slice().sort((p, q) => Store.sortVal(g, p) - Store.sortVal(g, q) || p.ts - q.ts); },
+  async http(method, url, body, opt) {
+    opt = opt || {};
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), opt.timeout || 5000);
+    try {
+      const headers = Object.assign(body ? { 'Content-Type': 'application/json' } : {}, opt.headers || {});
+      const r = await fetch(url, { method, signal: ctl.signal, headers, body: body ? JSON.stringify(body) : undefined });
+      if (!r.ok) { const er = new Error('http ' + r.status); er.status = r.status; throw er; }
+      return await r.json();
+    } finally { clearTimeout(t); }
+  },
+  q(g, y, s) { return CONFIG.apiUrl + '?game=' + g + '&year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s); },
+  async page(g, y, s, offset, limit) {
+    try {
+      const j = await Store.http('GET', Store.q(g, y, s) + '&offset=' + offset + '&limit=' + limit);
+      if (!j || !Array.isArray(j.top)) throw new Error('bad');
+      Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
+    } catch (e) {
+      Store.mode = 'local';
+      const all = Store.sortRecs(g, Store.localList(g, y, s));
+      return { rows: all.slice(offset, offset + limit), total: all.length };
+    }
+  },
+  async find(g, y, s, q) {
+    if (Store.mode === 'server') {
+      try {
+        const j = await Store.http('GET', Store.q(g, y, s) + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
+        if (j && Array.isArray(j.matches)) return j.matches;
+      } catch (e) {}
+    }
+    return Store.sortRecs(g, Store.localList(g, y, s)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+  },
+  async dist(y, s) {
+    if (Store.mode !== 'local') {
+      try {
+        const j = await Store.http('GET', Store.q('run', y, s) + '&dist=1', null, { timeout: 8000 });
+        if (j && Array.isArray(j.counts)) return { counts: j.counts, total: j.total || 0 };
+      } catch (e) {}
+    }
+    const counts = new Array(MAXRUN + 1).fill(0), l = Store.localList('run', y, s);
+    l.forEach(r => { if (r.n >= 0 && r.n <= MAXRUN) counts[r.n]++; });
+    return { counts, total: l.length };
+  },
+  async save(g, y, s, rec) {
+    try {
+      const j = await Store.http('POST', CONFIG.apiUrl, Object.assign({ game: g, year: y, school: s }, rec));
+      if (!j || typeof j.rank !== 'number') throw new Error('bad');
+      Store.mode = 'server'; return { rank: j.rank, total: j.total };
+    } catch (e) {
+      if (e && e.status === 400) throw e;      // 서버가 거절한 기록 (이름·값 문제)
+      Store.mode = 'local';
+      const full = Object.assign({}, rec, derive(g, rec));
+      const l = Store.localList(g, y, s); l.push(full);
+      try { localStorage.setItem(Store.key(g, y, s), JSON.stringify(l)); } catch (er) {}
+      const sorted = Store.sortRecs(g, l);
+      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, total: sorted.length };
+    }
+  }
+};
+/* 저장할 때 서버가 계산해서 붙이는 값을, 이 컴퓨터에 저장할 때도 똑같이 붙여요 */
+function derive(g, p) {
+  if (g === 'run') { let n = 0; while (n < p.seq.length && p.seq[n] === p.guess[n]) n++; return { n }; }
+  if (g.startsWith('tune')) { const f = settleTime(hexToBits(p.bits), p.w); return { first: f, diff: Math.abs(p.pred - f) }; }
+  if (g === 'bet') { let score = 0, hits = 0; p.rounds.forEach(r => { const b = betRound(r); score += b.pts; if (b.ok) hits++; }); return { score, hits }; }
+  return {};
+}
+
+/* ---------- 학년도·학교 목록 (강 건너기와 같은 목록) ---------- */
+const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice() };
+function okList(l) {
+  return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
+    && l.years.length >= 1 && l.years.length <= 12 && l.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
+    && l.schools.length >= 1 && l.schools.length <= 200 && l.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20);
+}
+async function loadList() {
+  try { const l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); } } catch (e) {}
+  try {
+    const j = await Store.http('GET', CONFIG.configUrl, null, { timeout: 3000 });
+    if (okList(j)) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); }
+  } catch (e) {}
+}
+
+/* ---------- 상태 ---------- */
+const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
+const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
+const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2 };
+let G = null;           // 진행 중인 게임
+let token = 0;          // 화면을 옮기면 진행 중이던 애니메이션을 멈추는 표식
+function checkName() {
+  const el = $('#myname'), raw = el ? el.value : S.name, name = cleanName(raw);
+  let err = '';
+  if (!name) err = '이름을 먼저 써 주세요. 이름으로 순위에 올라가요.';
+  else if (badName(name)) err = '쓸 수 없는 말이 들어 있어요. 다른 이름을 써 주세요.';
+  if (err) {
+    if (S.screen !== 'home') { S.screen = 'home'; render(); }
+    const e = $('#nameerr'), i = $('#myname'); if (e) e.textContent = err; if (i) { i.focus(); }
+    return false;
+  }
+  S.name = name; savePrefs(); return true;
+}
+function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed })); } catch (e) {} }
+function fixSelection() {
+  if (!LIST.years.includes(S.year)) S.year = LIST.years.includes(prefs.year) ? prefs.year : LIST.years[0];
+  if (!LIST.schools.includes(S.school)) S.school = LIST.schools.includes(prefs.school) ? prefs.school : LIST.schools[0];
+}
+const BAD_WORDS = ['시발','씨발','씨바','시바','쉬발','시팔','씨팔','십팔','씹','병신','븅신','ㅂㅅ','ㅄ','ㅅㅂ','ㅆㅂ','지랄','ㅈㄹ','좆','존나','졸라','개새끼','새끼','섹스','보지','자지','창녀','걸레','꺼져','닥쳐','미친','ㅁㅊ','엿먹','애미','느금','니미','쌍놈','쌍년','썅','뒤져','fuck','shit','bitch','asshole','dick','pussy','porn','sex','nigg','cunt'];
+function badName(s) { const n = String(s || '').toLowerCase().replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-z]/g, ''); return BAD_WORDS.some(w => n.includes(w)); }
+const cleanName = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
+
+const GAMES = {
+  run:  { no: 1, title: '연속 맞추기',      tag: '패턴이 있을까?',        desc: '앞일까 뒤일까? 연속으로 맞힐 때마다 점수가 2배가 돼요. 동전에 패턴이 있는지 시험해 봐요.' },
+  tune: { no: 2, title: '상대도수 줄타기',  tag: '상대도수의 변화',      desc: '앞면의 비율이 언제부터 0.5 근처에 머물까요? 먼저 예측하고, 1000번 던져서 확인해요.' },
+  spot: { no: 3, title: '동전 조작 탐정',   tag: '진짜 무작위의 모양',    desc: '두 배열 중 하나는 사람이 지어낸 거예요. 진짜 동전 던지기를 찾아내는 탐정이 되어 봐요.' },
+  bet:  { no: 4, title: '내기 시뮬레이터',  tag: '적게 던지기 vs 많이 던지기', desc: '10번 던지기와 1000번 던지기, 어느 쪽 내기가 더 자주 성공할까요? 예상하고 1000번씩 시험해요.' }
+};
+const GKEYS = ['run', 'tune', 'spot', 'bet'];
+
+/* ---------- 작은 조각 ---------- */
+const chip = (v, cls) => `<span class="cc ${v ? 'h' : 't'}${cls ? ' ' + cls : ''}">${v ? '앞' : '뒤'}</span>`;
+const strChips = (str, missLast) => '<div class="seq mini">' + Array.from(str).map((c, i) => chip(c === 'H', 's' + (missLast && i === str.length - 1 ? ' x' : ''))).join('') + '</div>';
+const CRANE_ART = '<svg class="art" viewBox="0 0 100 100" aria-hidden="true"><use href="#crane"/></svg>';
+const NUM_ART = '<svg class="art" viewBox="0 0 100 100" aria-hidden="true"><text x="50" y="66" text-anchor="middle" textLength="92" lengthAdjust="spacingAndGlyphs" style="font-family:Jua,sans-serif;font-size:58px;fill:currentColor">500</text></svg>';
+const coinHTML = (tail, id) => `<div class="stage"><div class="coin" id="${id || 'coin'}" style="transform:rotateX(${tail ? 180 : 0}deg)"><div class="face f">${CRANE_ART}<span class="cap">앞</span></div><div class="face b">${NUM_ART}<span class="cap">뒤</span></div></div></div>`;
+async function flipCoin(el, tail, ms) {
+  if (!el || REDUCED || !el.animate) { if (el) el.style.transform = 'rotateX(' + (tail ? 180 : 0) + 'deg)'; return; }
+  const end = 1440 + (tail ? 180 : 0);
+  const a = el.animate([
+    { transform: 'translateY(0) rotateX(0deg)' },
+    { transform: 'translateY(-70px) rotateX(' + (end / 2) + 'deg)', offset: 0.5 },
+    { transform: 'translateY(0) rotateX(' + end + 'deg)' }
+  ], { duration: ms || 800, easing: 'ease-in-out' });
+  try { await a.finished; } catch (e) {}
+  el.style.transform = 'rotateX(' + (tail ? 180 : 0) + 'deg)';
+}
+function recBox() {
+  const v = G && G.recView;
+  return `<div class="panel" id="recbox" style="background:var(--deep)"><h3>순위에 올리기</h3>
+    <div class="msg${v && v.cls ? ' ' + v.cls : ''}" id="rmsg">${v ? v.html : '기록을 올리는 중…'}</div>
+    <button type="button" class="go sm" data-act="record" id="recbtn" style="display:${v && v.retry ? '' : 'none'}">다시 저장하기</button></div>`;
+}
+/* 게임이 끝나면 저절로 순위에 올려요 */
+async function autoRecord() {
+  const g = G; if (!g || g.recorded || g.saving) return;
+  let game = g.game, payload;
+  if (game === 'run') payload = { seq: g.flips.join(''), guess: g.guess.join('') };
+  else if (game === 'tune') { payload = tunePayload(); game = 'tune' + g.w; }
+  else if (game === 'spot') payload = { correct: g.correct };
+  else if (game === 'bet') payload = { rounds: g.rounds };
+  else return;
+  const setRec = (cls, html, retry) => {
+    g.recView = { cls, html, retry };
+    if (G !== g) return;
+    const m = $('#rmsg'), b = $('#recbtn');
+    if (m) { m.className = 'msg' + (cls ? ' ' + cls : ''); m.innerHTML = html; }
+    if (b) b.style.display = retry ? '' : 'none';
+  };
+  const name = cleanName(S.name);
+  if (!name || badName(name)) { setRec('err', '이름이 올바르지 않아서 올리지 못했어요. 처음 화면에서 이름을 다시 써 주세요.', false); return; }
+  g.saving = true; setRec('', '기록을 올리는 중…', false);
+  try {
+    const id = rid();
+    const r = await Store.save(game, S.year, S.school, Object.assign({ id, name, ts: Date.now() }, payload));
+    g.recorded = true; g.saving = false; g.lastId = id;
+    setRec('ok', `<b>${esc(name)}</b> 님의 기록이 자동으로 올라갔어요! <b>${r.rank}위</b> (${esc(S.school)}${g.game === 'tune' ? ' · 범위 ' + wText(g.w) : ''} 기록 ${r.total}개 중) · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터에만 저장'}` +
+      ` <button type="button" class="linkbtn" data-act="board" data-g="${g.game}">순위표 보기</button>`, false);
+  } catch (e) {
+    g.saving = false;
+    setRec('err', e && e.status === 400 ? '서버가 이 기록을 받지 않았어요. 처음 화면에서 이름을 바꿔 보세요.' : '순위에 올리지 못했어요. 인터넷을 확인하고 다시 눌러 주세요.', true);
+  }
+}
+
+/* ---------- 화면 틀 ---------- */
+function ctx() {
+  $('#ctx').innerHTML = S.screen === 'home' ? '' :
+    `<span>${esc(S.year)}학년도 · ${esc(S.school)}${S.name ? ' · ' + esc(S.name) : ''}</span><button type="button" class="ghost" data-act="home" style="min-height:38px;font-size:16px">← 처음으로</button>`;
+}
+function render() {
+  token++;
+  ctx();
+  const root = $('#screen');
+  if (S.screen === 'home') { G = null; root.innerHTML = homeHTML(); probeMode(); }
+  else if (S.screen === 'run') root.innerHTML = runHTML();
+  else if (S.screen === 'tune') { root.innerHTML = tuneHTML(); paintTune(); }
+  else if (S.screen === 'spot') { root.innerHTML = spotHTML(); }
+  else if (S.screen === 'bet') root.innerHTML = betHTML();
+  else if (S.screen === 'board') { root.innerHTML = boardShell(); loadBoard(0); }
+  window.scrollTo(0, 0);
+}
+function go(screen) { S.screen = screen; render(); }
+
+/* ================= 시작 화면 ================= */
+function homeHTML() {
+  const yrs = LIST.years.map(y => `<option value="${y}"${y === S.year ? ' selected' : ''}>${y}학년도</option>`).join('');
+  const sch = LIST.schools.map(s => `<option value="${esc(s)}"${s === S.school ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  const cards = GKEYS.map(k => {
+    const g = GAMES[k];
+    return `<section class="card"><span class="no" aria-hidden="true">${g.no}</span><span class="tag">${esc(g.tag)}</span><h3>${esc(g.title)}</h3><p>${esc(g.desc)}</p>
+      <div class="row"><button type="button" class="go sm" data-act="start" data-g="${k}">시작하기</button><button type="button" class="ghost" data-act="board" data-g="${k}">순위 보기</button></div></section>`;
+  }).join('');
+  return `<div class="intro"><h1>동전 하나로 배우는 확률</h1>
+    <p>동전을 한 번 던지면 앞이 나올지 뒤가 나올지 아무도 몰라요. 그런데 많이 던지면 규칙이 보여요. 1번부터 4번까지 순서대로 해 보세요.</p></div>
+    <div class="who"><label>이름<input type="text" id="myname" maxlength="8" placeholder="띄어쓰기 없이 8글자" value="${esc(S.name)}" autocomplete="off" style="width:170px"></label><label>학년도<select id="selYear">${yrs}</select></label><label>학교<select id="selSchool">${sch}</select></label>
+      <span class="hint" id="modeNote" style="padding-bottom:10px"></span></div>
+    <div class="msg err" id="nameerr" role="alert" style="min-height:0"></div>
+    <p class="hint" style="margin:-6px 0 0">이름을 쓰고 시작하면, 게임이 끝날 때 기록이 <b>자동으로 순위에 올라가요</b>. (순위 보기는 이름 없이도 돼요.)</p>
+    <div class="cards">${cards}</div>
+    <div class="foot"><span>학교·학년도는 강 건너기의 관리자 모드에서 늘릴 수 있어요.</span><a href="/probability/river/">강 건너기(주사위 두 개) 하러 가기 →</a></div>`;
+}
+async function probeMode() {
+  const t = token;
+  await Store.page('run', S.year, S.school, 0, 1);
+  if (t !== token || S.screen !== 'home') return;
+  const n = $('#modeNote'); if (n) n.textContent = Store.mode === 'server' ? '기록은 학교 전체 순위표에 저장돼요.' : '지금은 이 컴퓨터에만 기록이 저장돼요.';
+}
+
+/* ================= 1. 연속 맞추기 ================= */
+function startRun() { G = { game: 'run', n: 0, flips: [], guess: [], busy: false, over: false, recorded: false }; go('run'); }
+function runHTML() {
+  const g = G, n = g.n, tail = g.flips.length ? g.flips[g.flips.length - 1] === 'T' : false;
+  const now = runPoints(n), next = runPoints(n + 1);
+  const last = g.flips.length ? (g.flips[g.flips.length - 1] === g.guess[g.guess.length - 1]) : null;
+  const banner = last === null ? '앞일까요, 뒤일까요? 먼저 골라 보세요.' : last ? `맞았어요! 지금 ${now.toLocaleString('ko-KR')}점` : '아쉬워요. 여기서 끝났어요.';
+  const cols = g.flips.map((f, i) => {
+    const ok = g.guess[i] === f;
+    return `<div class="col"><span class="rowlab">${i + 1}</span>${chip(g.guess[i] === 'H')}${chip(f === 'H', ok ? '' : 'x')}<span class="m ${ok ? 'ok' : 'no'}">${ok ? '맞음' : '틀림'}</span></div>`;
+  }).join('');
+  const hc = g.flips.filter(f => f === 'H').length;
+  let mr = 1, cur = 1; for (let i = 1; i < g.flips.length; i++) { cur = g.flips[i] === g.flips[i - 1] ? cur + 1 : 1; if (cur > mr) mr = cur; } if (!g.flips.length) mr = 0;
+  const play = g.over ? '' : `<div class="row c"><button type="button" class="pick h" data-act="guess" data-v="H" ${g.busy ? 'disabled' : ''}>앞</button><button type="button" class="pick t" data-act="guess" data-v="T" ${g.busy ? 'disabled' : ''}>뒤</button></div>
+      <p class="hint" style="text-align:center">${n === 0 ? '첫 번째를 맞히면 <b>200점</b>, 그다음부터는 맞힐 때마다 <b>2배</b>! 한 번 틀리면 끝나요.' : `다음에 맞히면 <b>${next.toLocaleString('ko-KR')}점</b>이 돼요.`}</p>`;
+  const end = !g.over ? '' : `<div class="panel" style="background:var(--deep)">
+      <div class="row" style="gap:24px"><div><div class="rowlab">최종 점수</div><div class="bigscore" id="final">${now.toLocaleString('ko-KR')}점</div></div>
+      <div class="stat"><div>맞힌 횟수<b>${n}번</b></div><div>던진 횟수<b>${g.flips.length}번</b></div><div>앞면 / 뒷면<b>${hc} / ${g.flips.length - hc}</b></div><div>가장 긴 연속<b>${mr}번</b></div></div></div>
+      <p class="hint">${g.maxed ? `${MAXRUN}번 연속으로 맞혔어요! 확률로는 약 10억 분의 1이에요.` : '한 번 맞힐 확률은 언제나 <b>1/2</b>이에요. 앞에서 무엇이 나왔든 다음 결과와는 관계가 없어요. 위의 배열에서 내가 찾은 패턴이 정말 맞았는지 살펴보세요.'}</p>
+      ${recBox()}
+      <div class="row"><button type="button" class="go" data-act="again">다시 도전</button><button type="button" class="ghost" data-act="board" data-g="run">순위표 보기</button></div></div>`;
+  return `<div class="two"><div class="panel"><h2>1. 연속 맞추기</h2>
+      <div class="row" style="justify-content:space-between"><div class="rowlab">지금 점수</div><div class="bigscore" style="font-size:38px">${now.toLocaleString('ko-KR')}점</div></div>
+      ${coinHTML(tail)}<div class="msg" style="text-align:center;font-size:18px;color:var(--text)" id="runmsg">${banner}</div>${play}${end}</div>
+    <div class="panel"><h3>내 예측과 실제 결과</h3><div class="cols" aria-label="예측과 결과">${cols || '<span class="hint">아직 던지지 않았어요. 위 줄이 내 예측, 아래 줄이 실제 동전이에요.</span>'}</div>
+      ${g.flips.length ? '<p class="hint">위 줄: 내가 고른 것 · 아래 줄: 실제로 나온 것</p>' : ''}</div></div>`;
+}
+async function runGuess(v) {
+  const g = G; if (!g || g.busy || g.over) return;
+  g.busy = true;
+  $('#screen').querySelectorAll('[data-act=guess]').forEach(b => b.disabled = true);
+  const flip = randBits(1)[0] === 1 ? 'H' : 'T', t = token;
+  await flipCoin($('#coin'), flip === 'T', 800);
+  if (G !== g || t !== token) return;
+  g.guess.push(v); g.flips.push(flip);
+  if (v === flip) { g.n++; if (g.n >= MAXRUN) { g.over = true; g.maxed = true; } } else g.over = true;
+  g.busy = false;
+  const y = window.scrollY;
+  $('#screen').innerHTML = runHTML();
+  window.scrollTo(0, y);
+  if (g.over) autoRecord();
+}
+
+/* ================= 2. 상대도수 줄타기 ================= */
+const CH = { W: 900, H: 420, l: 58, r: 18, t: 16, b: 46, y0: 0, y1: 1 };
+function setChartSize() { const nr = (window.innerWidth || 1200) < 700; CH.W = nr ? 440 : 900; CH.H = nr ? 380 : 420; CH.l = nr ? 44 : 58; CH.step = nr ? 250 : 200; CH.narrow = nr; }
+const cx = n => CH.l + (n / FLIPS) * (CH.W - CH.l - CH.r);
+const cy = p => CH.t + (CH.y1 - p) / (CH.y1 - CH.y0) * (CH.H - CH.t - CH.b);
+function startTune(keep) {
+  const o = keep && G && G.game === 'tune' ? G : null;
+  G = { game: 'tune', step: 'setup', w: o ? o.w : 10, pred: o ? o.pred : 100, bits0: null, runs: [], recorded: false };
+  go('tune');
+}
+function chartSVG(g) {
+  const w = g.w / 100, pl = CH.l, pw = CH.W - CH.l - CH.r, ph = CH.H - CH.t - CH.b;
+  let s = `<svg viewBox="0 0 ${CH.W} ${CH.H}" role="img" aria-label="던진 횟수에 따른 앞면 비율을 나타낸 꺾은선그래프"><defs><clipPath id="clipx"><rect x="${pl}" y="${CH.t}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].forEach(p => { s += `<line x1="${pl}" x2="${pl + pw}" y1="${cy(p)}" y2="${cy(p)}" stroke="#323A8A" stroke-width="1"/><text x="${pl - 8}" y="${cy(p) + 4}" text-anchor="end">${p.toFixed(1)}</text>`; });
+  for (let n = 0; n <= FLIPS; n += CH.step) s += `<line x1="${cx(n)}" x2="${cx(n)}" y1="${CH.t}" y2="${CH.t + ph}" stroke="#2A3070" stroke-width="1"/><text x="${cx(n)}" y="${CH.t + ph + 20}" text-anchor="middle">${n}</text>`;
+  s += `<rect x="${pl}" y="${cy(0.5 + w)}" width="${pw}" height="${cy(0.5 - w) - cy(0.5 + w)}" fill="#5BD97F" fill-opacity=".16"/>`;
+  s += `<line x1="${pl}" x2="${pl + pw}" y1="${cy(0.5 + w)}" y2="${cy(0.5 + w)}" stroke="#5BD97F" stroke-width="2"/><line x1="${pl}" x2="${pl + pw}" y1="${cy(0.5 - w)}" y2="${cy(0.5 - w)}" stroke="#5BD97F" stroke-width="2"/>`;
+  s += `<line x1="${pl}" x2="${pl + pw}" y1="${cy(0.5)}" y2="${cy(0.5)}" stroke="#F4F6FF" stroke-opacity=".55" stroke-dasharray="6 5"/>`;
+  s += `<g clip-path="url(#clipx)"><g id="gruns"></g><path id="gmain" fill="none" stroke="#FFD23F" stroke-width="2.6" stroke-linejoin="round" d=""/></g>`;
+  s += `<g id="gmarks">${markLines(g)}</g>`;
+  s += `<text x="${pl + pw / 2}" y="${CH.H - 6}" text-anchor="middle" class="lab">동전을 던진 횟수</text>`;
+  s += `<text x="14" y="${CH.t + ph / 2}" text-anchor="middle" transform="rotate(-90 14 ${CH.t + ph / 2})" class="lab">앞면의 비율(상대도수)</text></svg>`;
+  return s;
+}
+function markLines(g, hide) {
+  const px = cx(Math.min(g.pred, FLIPS)), anchor = g.pred > 800 ? 'end' : 'start', dx = g.pred > 800 ? -6 : 6;
+  let s = `<line x1="${px}" x2="${px}" y1="${CH.t}" y2="${CH.H - CH.b}" stroke="#FFD23F" stroke-width="2.5" stroke-dasharray="7 5"/><text x="${px + dx}" y="${CH.t + 14}" text-anchor="${anchor}" style="fill:#FFD23F;font-weight:700">내 예측 ${g.pred}번</text>`;
+  g.runs.forEach((S1, i) => {
+    const latest = !hide && i === g.runs.length - 1, ax = cx(Math.min(S1, FLIPS));
+    s += `<line x1="${ax}" x2="${ax}" y1="${CH.t}" y2="${CH.H - CH.b}" stroke="#FF6FAE" stroke-width="${latest ? 2.5 : 1.5}" stroke-opacity="${latest ? 1 : 0.35}"/>`;
+    if (latest) { const an = S1 > 800 ? 'end' : 'start', d2 = S1 > 800 ? -6 : 6; s += `<text x="${ax + d2}" y="${CH.H - CH.b - 8}" text-anchor="${an}" style="fill:#FF6FAE;font-weight:700">${S1 > FLIPS ? '1000번까지 안정되지 못했어요' : '안정된 횟수 ' + S1 + '번'}</text>`; }
+  });
+  return s;
+}
+const ptsOf = bits => { const P = []; let h = 0; for (let i = 0; i < bits.length; i++) { h += bits[i]; P.push(cx(i + 1).toFixed(1) + ' ' + cy(h / (i + 1)).toFixed(1)); } return P; };
+function tuneHTML() {
+  return `<div class="panel" style="margin-bottom:14px"><h2>2. 상대도수 줄타기</h2>
+    <p class="hint">동전을 던질 때마다 <b>상대도수(앞면 수 ÷ 던진 횟수)</b>를 그래프로 그려요. 처음에는 크게 흔들리지만, 많이 던질수록 0.5 근처에 모여들어요.
+    아래 ①②를 정하고 던지기를 시작해서, 예측이 맞는지 그래프로 확인해 보세요. 여러 번 실험하면서 감을 쌓아 봐요.
+    <b>안정된 횟수</b>는 "이 횟수 뒤로는 끝까지 상대도수가 범위 안에 머무는 때"예요.</p></div>
+    <div id="setup"></div>
+    <div class="two solo" id="twoWrap"><div class="chartbox" id="chartbox"></div><div class="panel" id="side"></div></div>`;
+}
+function paintTune() {
+  const g = G; if (!g) return;
+  setChartSize();
+  $('#chartbox').innerHTML = chartSVG(g) + `<div class="legend"><span><i style="background:#FFD23F"></i>이번 실험의 그래프</span><span><i style="background:#5BD97F"></i>예측 범위</span><span><i style="background:#FFD23F;opacity:.7"></i>내 예측</span><span><i style="background:#FF6FAE"></i>안정된 횟수</span></div>`;
+  paintSide();
+}
+function wText(w) { return `${(0.5 - w / 100).toFixed(2)} ~ ${(0.5 + w / 100).toFixed(2)}`; }
+const SPEEDS = { 1: '느리게', 2: '보통', 3: '빠르게', 4: '바로 보기' };
+const WHINT = w => w <= 2 ? '범위가 아주 좁아서 1000번을 던져도 못 들어올 때가 많아요. 그럴 땐 "1000번 이후"로 계산해요.' : w <= 5 ? '범위가 좁을수록 더 오래 걸려요.' : '범위가 넓어서 비교적 빨리 들어와요.';
+function paintSetup() {
+  const g = G, el = $('#setup'); if (!el) return;
+  if (g.step === 'setup') {
+    el.innerHTML = `<div class="steps">
+      <div class="panel"><h3>① 상대도수가 가까워지는 범위 정하기</h3>
+        <div class="wopts" role="radiogroup" aria-label="상대도수 범위">${[10, 5, 2].map(w => `<label><input type="radio" name="wsel" value="${w}"${g.w === w ? ' checked' : ''}><span>${wText(w)}</span></label>`).join('')}</div>
+        <p class="hint" id="whint">${WHINT(g.w)}</p></div>
+      <div class="panel"><h3>② 상대도수가 가까워지는 횟수 예상하기</h3>
+        <div class="field"><div class="lab"><span>몇 번째 던진 뒤부터?</span><b id="plab">${g.pred}번</b></div>
+        <div class="row" style="gap:10px;flex-wrap:nowrap"><input type="range" id="pr" min="1" max="${FLIPS}" step="1" value="${g.pred}" style="flex:1;min-width:0" aria-label="예상 횟수"><input type="number" id="pn" min="1" max="${FLIPS}" value="${g.pred}" aria-label="예상 횟수 직접 쓰기"></div></div>
+        <p class="hint">이 횟수 뒤부터는 상대도수가 ①의 범위 밖으로 나가지 않을 것 같나요?</p></div>
+      <div class="panel"><h3>던지는 속도</h3>
+        <div class="field"><div class="lab"><span>속도</span><b id="slab">${SPEEDS[S.speed]}</b></div>
+        <input type="range" id="spr" min="1" max="4" step="1" value="${S.speed}" aria-label="던지는 속도"></div>
+        <p class="hint">오른쪽 끝은 결과를 바로 보여 줘요.</p></div>
+    </div>
+    <button type="button" class="go" data-act="t-start" style="width:100%;margin-bottom:14px">예측 확정! 던지기 시작</button>`;
+  } else {
+    el.innerHTML = `<div class="panel sumbar" style="padding:12px 16px"><span>상대도수 범위 <b>${wText(g.w)}</b></span><span>예상 횟수 <b>${g.pred}번</b></span></div>`;
+  }
+}
+function paintSide() {
+  const g = G, el = $('#side'); if (!el) return;
+  paintSetup();
+  $('#twoWrap').classList.toggle('solo', g.step === 'setup');
+  el.style.display = g.step === 'setup' ? 'none' : '';
+  if (g.step === 'setup') { el.innerHTML = ''; return; }
+  const n = g.runs.length;
+  if (g.step === 'run1') {
+    el.innerHTML = `<h3>${n ? '연습 실험 ' + n + '번째' : '② 첫 번째 실험'}</h3><div class="stat"><div>던진 횟수<b id="c-n">0</b></div><div>앞면 수<b id="c-h">0</b></div><div>상대도수<b id="c-p">-</b></div></div>
+      <p class="hint" id="c-in">초록 범위 안과 밖을 오가는 모습을 지켜보세요.</p><button type="button" class="ghost" data-act="t-skip">바로 끝까지 보기</button>`;
+  } else {
+    const L = g.runs[n - 1], cen = L > FLIPS, diff = Math.abs(g.pred - L);
+    const list = n > 1 ? `<p class="hint">지금까지 실험 결과(안정된 횟수): <b>${g.runs.map(v => v > FLIPS ? '1000+' : v).join(' · ')}</b><br>같은 예측, 같은 범위인데도 실험마다 달라요.</p>` : '';
+    el.innerHTML = `<h3>${n === 1 ? '② 첫 번째 실험 결과' : '연습 실험 ' + (n - 1) + '번째 결과'}</h3>
+      <div class="stat"><div>내 예측<b>${g.pred}번</b></div><div>안정된 횟수<b>${cen ? '1000번 이후' : L + '번'}</b></div><div>차이<b>${diff}번</b></div></div>
+      <p class="hint">${cen ? '이번에는 1000번을 던져도 끝까지 범위 안에 머물지 못했어요. 마지막 순간에 범위 밖으로 나갔다는 뜻이에요. (1001번으로 계산해요.)' : `${L}번째 던진 뒤부터는 1000번째까지 범위 밖으로 나가지 않았어요. 이 ${L}번이 <b>안정된 횟수</b>예요.`}</p>
+      ${n === 1 ? `<div class="hint explain"><b>차이</b> = 내 예측과 안정된 횟수의 차이 (+, − 없이)<br>예) 예측 200번, 안정된 횟수 293번 → 차이 93번<br>차이가 작을수록 순위가 높아요. 순위표는 <b>상대도수 범위별로</b> 따로 있어요.</div>` : ''}
+      ${list}
+      ${recBox()}
+      <p class="hint">순위에는 <b>첫 번째 실험</b>만 올라가요. 아래 버튼으로 같은 예측을 여러 번 실험하며 감을 쌓아 보세요.</p>
+      <div class="row"><button type="button" class="go sm" data-act="t-again">같은 예측으로 한 번 더 (연습)</button><button type="button" class="ghost" data-act="t-reset">예측 바꿔서 새로 도전</button><button type="button" class="ghost" data-act="board" data-g="tune">순위표 보기</button></div>`;
+  }
+}
+async function tuneRun() {
+  const g = G, t = token, first = !g.runs.length;
+  if (!first) {
+    const gm = $('#gmain'), d = gm.getAttribute('d');
+    if (d) $('#gruns').insertAdjacentHTML('beforeend', `<path d="${d}" fill="none" stroke="#8C9BFF" stroke-opacity=".5" stroke-width="1.3"/>`);
+    gm.setAttribute('d', ''); $('#gmarks').innerHTML = markLines(g, true);
+  }
+  g.step = 'run1'; paintSide();
+  const bits = randBits(FLIPS); if (first) g.bits0 = bits;
+  const P = ptsOf(bits), path = $('#gmain'); g.skip = false;
+  const dur = [0, 11000, 5000, 2000, 0][S.speed];
+  const t0 = performance.now();
+  let k = 0, heads = 0, hp = 0;
+  while (k < FLIPS) {
+    if (dur) { await frame(); if (G !== g || t !== token) return; if (g.skip) k = FLIPS; else k = Math.min(FLIPS, Math.floor((performance.now() - t0) / dur * FLIPS)); if (k < 1) continue; } else k = FLIPS;
+    for (; hp < k; hp++) heads += bits[hp];
+    path.setAttribute('d', 'M' + P.slice(0, k).join('L'));
+    const p = heads / k, nn = $('#c-n'); if (nn) { nn.textContent = k; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); const inb = Math.abs(p - 0.5) * 100 <= g.w; $('#c-in').textContent = inb ? '지금은 범위 안이에요.' : '지금은 범위 밖이에요.'; }
+  }
+  g.runs.push(settleTime(bits, g.w));
+  g.step = 'one';
+  $('#gmarks').innerHTML = markLines(g);
+  paintSide();
+  if (first) autoRecord();
+}
+function tunePayload() { const g = G; return { w: g.w, pred: g.pred, bits: bitsToHex(g.bits0) }; }
+
+/* ================= 3. 동전 조작 탐정 ================= */
+function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, rounds: [], recorded: false, mine: [] }; if (G.mode === 'play') newSpotRound(); go('spot'); }
+function newSpotRound() {
+  const g = G, i = g.round, lv = i < 3 ? [0.75, 3] : i < 6 ? [0.65, 4] : [0.58, 5];
+  const real = Array.from(randBits(SPOT_LEN)), fake = genFake(SPOT_LEN, lv[0], lv[1]), realIsA = Math.random() < 0.5;
+  g.cur = { A: realIsA ? real : fake, B: realIsA ? fake : real, real: realIsA ? 'A' : 'B', pick: null };
+}
+function seqGrid(a) { return '<div class="seq">' + a.map(v => chip(v)).join('') + '</div>'; }
+function spotTabs(mode) {
+  return `<div class="tabs" role="tablist"><button type="button" class="tab${mode === 'play' ? ' on' : ''}" data-act="s-mode" data-v="play">탐정 놀이 (순위 있음)</button><button type="button" class="tab${mode === 'mine' ? ' on' : ''}" data-act="s-mode" data-v="mine">내가 만든 배열 판정</button></div>`;
+}
+function spotHTML() {
+  const g = G;
+  if (g.mode === 'mine') return mineHTML();
+  if (g.round >= SPOT_ROUNDS) {
+    return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('play')}
+      <div class="row" style="gap:24px"><div><div class="rowlab">맞힌 개수</div><div class="bigscore">${g.correct} / ${SPOT_ROUNDS}</div></div></div>
+      <p class="hint">${g.correct >= 7 ? '훌륭한 탐정이에요! 단서를 잘 찾았어요.' : g.correct >= 5 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.'}
+      진짜 동전 던지기는 <b>같은 면이 길게 이어지기도</b> 하고, 앞뒤가 <b>생각보다 덜 번갈아</b> 나와요.</p>
+      ${recBox()}<div class="row"><button type="button" class="go" data-act="s-again">다시 도전</button><button type="button" class="ghost" data-act="board" data-g="spot">순위표 보기</button></div></div>`;
+  }
+  const c = g.cur, rev = c.pick !== null, A = seqStats(c.A), B = seqStats(c.B);
+  let res = '';
+  if (rev) {
+    const ok = c.pick === c.real, R = c.real === 'A' ? A : B, F = c.real === 'A' ? B : A;
+    const clue = F.maxRun < R.maxRun ? `지어낸 배열은 같은 면이 길게 이어지지 않았어요 (가장 긴 연속: 지어낸 ${F.maxRun}번, 진짜 ${R.maxRun}번).`
+      : F.sw > R.sw ? `지어낸 배열은 앞뒤를 더 자주 바꿨어요 (바뀐 횟수: 지어낸 ${F.sw}번, 진짜 ${R.sw}번).` : '이번에는 단서가 약했어요. 진짜 무작위도 이렇게 헷갈리게 나올 때가 있어요.';
+    res = `<div class="msg ${ok ? 'ok' : 'err'}" style="font-size:20px;color:${ok ? 'var(--green)' : 'var(--bad)'}">${ok ? '맞았어요!' : '아쉬워요.'} 진짜 동전은 <b>${c.real}</b>였어요.</div>
+      <div class="tablewrap"><table class="tbl" style="min-width:380px"><thead><tr><th></th><th>A (${c.real === 'A' ? '진짜' : '지어냄'})</th><th>B (${c.real === 'B' ? '진짜' : '지어냄'})</th></tr></thead><tbody>
+        <tr><td>앞면 수</td><td>${A.heads}</td><td>${B.heads}</td></tr><tr><td>가장 긴 연속</td><td>${A.maxRun}번</td><td>${B.maxRun}번</td></tr><tr><td>앞↔뒤 바뀐 횟수</td><td>${A.sw}번</td><td>${B.sw}번</td></tr></tbody></table></div>
+      <p class="hint">${clue}</p><div class="row"><button type="button" class="go sm" data-act="s-next">${g.round + 1 >= SPOT_ROUNDS ? '결과 보기' : '다음 문제'}</button></div>`;
+  }
+  const btn = (k) => `<button type="button" class="go${rev ? '' : ''}" data-act="s-pick" data-v="${k}" ${rev ? 'disabled' : ''}>${k}가 진짜</button>`;
+  const card = (k) => `<div class="panel" style="background:var(--deep);${rev && c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${rev ? (c.real === k ? '(진짜)' : '(지어냄)') : ''}</h3>${seqGrid(c[k])}</div>`;
+  return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('play')}
+    <p class="hint">한쪽은 진짜 동전을 ${SPOT_LEN}번 던진 결과이고, 다른 쪽은 사람이 "랜덤처럼" 지어낸 배열이에요. 진짜는 어느 쪽일까요? <b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}개 맞힘</p>
+    <div class="betgrid">${card('A')}${card('B')}</div>
+    <div class="row">${btn('A')}${btn('B')}</div>${res}</div>`;
+}
+function mineHTML() {
+  const g = G, m = g.mine, n = m.length;
+  const prog = `<div class="seq mini" style="min-height:30px">${m.map(v => chip(v, 's')).join('') || '<span class="hint">아직 아무것도 안 눌렀어요.</span>'}</div>`;
+  if (n < MINE_LEN) {
+    return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('mine')}
+      <p class="hint">진짜 동전을 던진 것처럼 보이도록, 앞·뒤를 눌러 <b>${MINE_LEN}번</b>의 결과를 직접 만들어 보세요. 다 만들면 컴퓨터가 진짜 같은지 판정해요.</p>
+      <div class="row c"><button type="button" class="pick h" data-act="m-add" data-v="1">앞</button><button type="button" class="pick t" data-act="m-add" data-v="0">뒤</button></div>
+      <div class="row" style="justify-content:space-between"><b>${n} / ${MINE_LEN}</b><button type="button" class="ghost" data-act="m-undo" ${n ? '' : 'disabled'}>하나 지우기</button></div>${prog}</div>`;
+  }
+  const me = seqStats(m), N = 3000, runs = new Array(MINE_LEN + 1).fill(0), sws = new Array(MINE_LEN + 1).fill(0), hds = new Array(MINE_LEN + 1).fill(0);
+  for (let i = 0; i < N; i++) { const st = seqStats(Array.from(randBits(MINE_LEN))); runs[st.maxRun]++; sws[st.sw]++; hds[st.heads]++; }
+  const cdf = (arr, v) => arr.slice(0, v + 1).reduce((a, b) => a + b, 0) / N, sf = (arr, v) => arr.slice(v).reduce((a, b) => a + b, 0) / N;
+  const two = (arr, v) => Math.min(1, 2 * Math.min(cdf(arr, v), sf(arr, v)));
+  const pr = Math.min(cdf(runs, me.maxRun), sf(runs, me.maxRun)), pw = two(sws, me.sw), ph = two(hds, me.heads);
+  const odd = [];
+  if (pr < ODD) odd.push(me.maxRun < 4 ? '같은 면이 길게 이어지지 않아요' : '같은 면이 너무 길게 이어져요');
+  if (pw < ODD) odd.push(me.sw > MINE_LEN / 2 ? '앞뒤를 너무 자주 바꿔요' : '앞뒤를 너무 적게 바꿔요');
+  if (ph < ODD) odd.push('앞면과 뒷면 개수가 너무 한쪽으로 치우쳤어요');
+  const verdict = odd.length ? `<b style="color:var(--bad)">사람이 만든 배열 같아요.</b> ${odd.join(', ')}. (진짜 동전도 아주 가끔은 이렇게 나와요. 100번 중 7번쯤이에요.)` : `<b style="color:var(--green)">컴퓨터가 구별하지 못했어요. 진짜 같아요!</b> 하지만 진짜 동전이라는 증거는 아니에요.`;
+  const maxShow = 12, bars = []; for (let k = 2; k <= maxShow; k++) bars.push(k);
+  const top = Math.max.apply(null, bars.map(k => runs[k]));
+  const hist = bars.map(k => `<div class="bar"><span>${k}번</span><div class="track"><div class="fill" style="width:${(runs[k] / top * 100).toFixed(1)}%;${k === me.maxRun ? '' : 'background:var(--blue)'}"></div></div><span>${(runs[k] / N * 100).toFixed(1)}%</span></div>`).join('');
+  return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('mine')}<h3>컴퓨터의 판정</h3>
+    <div class="seq mini">${m.map(v => chip(v, 's')).join('')}</div>
+    <p style="margin:0;font-size:18px">${verdict}</p>
+    <div class="stat"><div>앞면 수<b>${me.heads}</b></div><div>가장 긴 연속<b>${me.maxRun}번</b></div><div>바뀐 횟수<b>${me.sw}번</b></div></div>
+    <p class="hint">진짜 동전을 ${MINE_LEN}번 던지는 실험을 ${N}번 해서 내 배열과 비교했어요. 아래는 그때 "가장 긴 연속"이 나온 비율이에요. (노란 막대가 내 배열의 값)</p>
+    <div class="bars">${hist}</div>
+    <p class="hint">진짜 동전은 평균 앞뒤를 ${((MINE_LEN - 1) / 2).toFixed(1)}번쯤 바꾸고, 가장 긴 연속은 보통 5~6번이에요. 사람은 보통 이보다 더 자주 바꾸고 연속을 피해요.</p>
+    <div class="row"><button type="button" class="go sm" data-act="m-again">다시 만들기</button></div></div>`;
+}
+
+/* ================= 4. 내기 시뮬레이터 ================= */
+function startBet() { G = { game: 'bet', round: 0, rounds: [], recorded: false, cur: null, phase: 'pick' }; newBetRound(); go('bet'); }
+function newBetRound() { G.cur = { i: G.round, f: Math.random() < 0.5, p: null, e: 50 }; G.phase = 'pick'; }
+function betHTML() {
+  const g = G;
+  if (g.round >= BET.length) {
+    let score = 0, hits = 0; g.rounds.forEach(r => { const b = betRound(r); score += b.pts; if (b.ok) hits++; });
+    return `<div class="panel"><h2>4. 내기 시뮬레이터</h2>
+      <div class="row" style="gap:24px"><div><div class="rowlab">내 점수</div><div class="bigscore">${score} / ${BET_MAX}</div></div><div class="stat"><div>맞힌 선택<b>${hits} / ${BET.length}</b></div></div></div>
+      <p class="hint"><b>적게 던질수록</b> 결과가 크게 흔들려서 극단적인 일이 자주 일어나요. <b>많이 던질수록</b> 비율은 0.5 근처에 모이지만, 앞면이 <b>정확히</b> 반이 되는 일은 오히려 드물어져요. 큰 수의 법칙은 "비율"에 대한 법칙이에요.</p>
+      ${recBox()}<div class="row"><button type="button" class="go" data-act="b-again">다시 도전</button><button type="button" class="ghost" data-act="board" data-g="bet">순위표 보기</button></div></div>`;
+  }
+  const c = g.cur, R = BET[c.i], A = c.f ? R.small : R.big, B = c.f ? R.big : R.small, done = g.phase === 'result';
+  const sel = k => (c.p === k ? ' on' : '');
+  let body;
+  if (!done) {
+    body = `<div class="betgrid"><div class="bet"><span class="ab">A</span><p>${esc(A.t)}</p></div><div class="bet"><span class="ab">B</span><p>${esc(B.t)}</p></div></div>
+      <div class="row"><b>어느 쪽이 더 자주 성공할까요?</b><button type="button" class="pick${sel('A')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="A">A</button><button type="button" class="pick${sel('B')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="B">B</button></div>
+      <div class="field"><div class="lab"><span>A 내기가 성공할 확률을 예상해 보세요</span><b id="elab">${c.e}%</b></div><input type="range" id="er" min="0" max="100" step="1" value="${c.e}" aria-label="A 내기 성공 확률 예상"></div>
+      <div class="row"><button type="button" class="go" data-act="b-go" ${c.p ? '' : 'disabled'}>${c.p ? '1000번씩 시험해 보기' : 'A나 B를 먼저 골라 주세요'}</button></div>`;
+  } else {
+    const b = betRound(c);
+    const grid = (k, bet, st) => `<div class="bet${(k === 'A') === (b.pA > b.pB) ? ' win' : ''}"><span class="ab">${k}</span><p>${esc(bet.t)}</p>
+      <div class="dots" id="dots${k}" aria-hidden="true">${new Array(1000).fill('<i></i>').join('')}</div>
+      <p class="hint" id="cnt${k}">시험 중…</p><p class="hint">정확한 확률: <b>${fmtP(k === 'A' ? b.pA : b.pB)}</b></p></div>`;
+    body = `<div class="betgrid">${grid('A', A)}${grid('B', B)}</div>
+      <div id="betres"></div>`;
+  }
+  return `<div class="panel"><h2>4. 내기 시뮬레이터</h2>
+    <p class="hint">같은 종류의 두 가지 내기가 있어요. ${esc(R.note)} <b>${c.i + 1} / ${BET.length}</b> 문제</p>${body}</div>`;
+}
+async function betRun() {
+  const g = G, c = g.cur, t = token; g.phase = 'result';
+  const b = betRound(c);
+  $('#screen').innerHTML = betHTML();
+  const sim = (n, lo, hi) => { const res = new Array(1000); for (let i = 0; i < 1000; i++) { let h = 0; for (let j = 0; j < n; j++) if (Math.random() < 0.5) h++; res[i] = h >= lo && h <= hi; } return res; };
+  const rA = sim(b.a.n, b.a.lo, b.a.hi), rB = sim(b.b.n, b.b.lo, b.b.hi);
+  const gA = $('#dotsA'), gB = $('#dotsB');
+  let s = 0;
+  const upd = k => { let sa = 0, sb = 0; for (let i = 0; i < k; i++) { sa += rA[i]; sb += rB[i]; } $('#cntA').textContent = `${k}번 중 ${sa}번 성공 (${(sa / k * 100).toFixed(1)}%)`; $('#cntB').textContent = `${k}번 중 ${sb}번 성공 (${(sb / k * 100).toFixed(1)}%)`; };
+  while (s < 1000) {
+    const e = Math.min(1000, s + (REDUCED ? 1000 : 50));
+    for (let i = s; i < e; i++) { gA.children[i].className = rA[i] ? 'ok' : 'no'; gB.children[i].className = rB[i] ? 'ok' : 'no'; }
+    s = e; upd(s);
+    if (!REDUCED && s < 1000) { await frame(); if (G !== g || t !== token) return; }
+  }
+  const est = Math.abs(c.e - b.pA * 100);
+  g.rounds.push({ i: c.i, f: c.f, p: c.p, e: c.e });
+  $('#betres').innerHTML = `<div class="msg ${b.ok ? 'ok' : 'err'}" style="font-size:20px;color:${b.ok ? 'var(--green)' : 'var(--bad)'}">${b.ok ? '선택이 맞았어요! +10점' : '선택이 달랐어요. +0점'} · 확률 예상 오차 ${est.toFixed(1)}%p → <b>+${b.pts - (b.ok ? 10 : 0)}점</b></div>
+    <p class="hint">${betLesson(c.i)}</p><div class="row"><button type="button" class="go sm" data-act="b-next">${c.i + 1 >= BET.length ? '결과 보기' : '다음 문제'}</button></div>`;
+}
+function betLesson(i) {
+  return ['적게 던질수록 한쪽으로 크게 쏠리는 일이 자주 일어나요.', '던지는 횟수가 늘어나면 비율이 0.5에서 멀어지는 일은 점점 드물어져요.',
+    '많이 던질수록 앞면 수가 딱 절반(500번)이 되는 일은 오히려 드물어져요. 비율은 가까워져도 개수는 벌어질 수 있어요.',
+    '많이 던지면 앞면 비율이 0.4~0.6 사이에 들어올 가능성이 훨씬 커져요. 이게 큰 수의 법칙이에요.',
+    '100번보다 1000번일 때 앞면 비율이 0.45~0.55 안에 들어올 가능성이 더 커요.', '횟수가 10배 늘면 한쪽으로 크게 쏠릴 가능성은 크게 줄어요.'][i];
+}
+
+/* ================= 순위표 ================= */
+const B = { game: 'run', w: 10, offset: 0, rows: [], total: 0, matches: null, q: '' };
+const bk = g => (g === 'tune' ? 'tune' + B.w : g);   // 서버에 저장되는 게임 이름 (줄타기는 범위별로 따로)
+function boardShell() {
+  const tabs = GKEYS.map(k => `<button type="button" class="tab${k === B.game ? ' on' : ''}" data-act="b-tab" data-g="${k}">${GAMES[k].no}. ${esc(GAMES[k].title)}</button>`).join('');
+  const wt = B.game === 'tune' ? `<div class="tabs" role="tablist" aria-label="상대도수 범위">` + [10, 5, 2].map(w => `<button type="button" class="tab${w === B.w ? ' on' : ''}" data-act="b-w" data-v="${w}">상대도수 범위 ${wText(w)}</button>`).join('') + `</div>` : '';
+  return `<div class="panel"><h2>순위표</h2><div class="tabs">${tabs}</div>${wt}<div id="boardbody" class="msg">불러오는 중…</div></div>`;
+}
+const fmtPts = n => runPoints(n).toLocaleString('ko-KR') + '점';
+const th = a => '<thead><tr>' + a.map(x => `<th>${x}</th>`).join('') + '</tr></thead>';
+function spark(r) {
+  const bits = hexToBits(r.bits || ''); if (bits.length < 1000) return '';
+  const W = 200, H = 64, w = r.w / 100, y0 = 0.25, y1 = 0.75, X = n => (n / 1000) * W, Y = p => 4 + (y1 - p) / (y1 - y0) * (H - 8);
+  let h = 0, d = ''; for (let i = 0; i < 1000; i++) { h += bits[i]; if (i % 5 === 4 || i < 40) d += (d ? 'L' : 'M') + X(i + 1).toFixed(1) + ' ' + Y(h / (i + 1)).toFixed(1); }
+  const S1 = r.first || (r.runs && r.runs[0]) || 0;
+  return `<svg viewBox="0 0 ${W} ${H}" width="200" height="64" role="img" aria-label="첫 번째 실험의 꺾은선그래프"><defs><clipPath id="sp${esc(r.id)}"><rect width="${W}" height="${H}"/></clipPath></defs>
+    <rect x="0" y="${Y(0.5 + w)}" width="${W}" height="${Y(0.5 - w) - Y(0.5 + w)}" fill="#5BD97F" fill-opacity=".2"/>
+    <g clip-path="url(#sp${esc(r.id)})"><path d="${d}" fill="none" stroke="#FFD23F" stroke-width="1.6"/></g>
+    <line x1="${X(Math.min(r.pred, 1000))}" x2="${X(Math.min(r.pred, 1000))}" y1="0" y2="${H}" stroke="#FFD23F" stroke-dasharray="4 3"/>
+    <line x1="${X(Math.min(S1, 1000))}" x2="${X(Math.min(S1, 1000))}" y1="0" y2="${H}" stroke="#FF6FAE" stroke-width="2"/></svg>`;
+}
+function rowHTML(g, r, rank) {
+  const me = r.id && G && G.lastId === r.id ? ' class="me"' : '', n = esc(r.name);
+  if (g === 'run') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${fmtPts(r.n)}</td><td>${r.n}번</td><td>${strChips(String(r.seq || ''), r.n < MAXRUN)}</td></tr>`;
+  if (g === 'tune') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td>${r.pred}번</td><td class="big">${r.first > FLIPS ? '1000번 이후' : r.first + '번'}</td><td>${r.diff}번</td><td>${spark(r)}</td></tr>`;
+  if (g === 'spot') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.correct} / ${SPOT_ROUNDS}</td></tr>`;
+  return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.score} / ${BET_MAX}</td><td>${r.hits} / ${BET.length}</td></tr>`;
+}
+const HEADS = { run: ['순위', '이름', '점수', '맞힌 횟수', '배열 (빨간 테두리 = 마지막으로 틀린 것)'], tune: ['순위', '이름', '예상 횟수', '안정된 횟수', '차이', '꺾은선그래프'], spot: ['순위', '이름', '맞힌 개수'], bet: ['순위', '이름', '점수', '맞힌 선택'] };
+const ORDER = { run: '맞힌 횟수가 많을수록', tune: '예상과 안정된 횟수의 차이가 작을수록', spot: '맞힌 개수가 많을수록', bet: '점수가 높을수록' };
+async function loadBoard(offset) {
+  const t = token, g = B.game; B.offset = offset; B.matches = null;
+  const pg = await Store.page(bk(g), S.year, S.school, offset, CONFIG.pageSize);
+  if (t !== token || S.screen !== 'board') return;
+  B.rows = pg.rows; B.total = pg.total;
+  paintBoard();
+  if (g === 'run') paintDist(t);
+}
+function paintBoard() {
+  const el = $('#boardbody'); if (!el) return;
+  const g = B.game, list = B.matches || B.rows, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
+  const rows = list.map((r, i) => rowHTML(g, r, B.matches ? r.rank : B.offset + i + 1)).join('');
+  el.className = '';
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(S.school)}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)</span>
+    <span class="row"><input type="text" id="fq" maxlength="8" placeholder="이름 찾기" value="${esc(B.q)}" aria-label="이름 찾기" style="height:40px;font-size:16px;width:140px"><button type="button" class="ghost" data-act="b-find" style="min-height:40px">찾기</button></span></div>
+    <div class="tablewrap"><table class="tbl">${th(HEADS[g])}<tbody>${rows || `<tr><td colspan="${HEADS[g].length}" class="hint">${B.matches ? '찾는 이름이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!'}</td></tr>`}</tbody></table></div>
+    ${B.matches ? `<button type="button" class="linkbtn" data-act="b-page" data-o="0">전체 순위 보기</button>` : `<div class="pager"><span class="row"><button type="button" class="ghost" data-act="b-page" data-o="${Math.max(0, B.offset - PS)}" ${B.offset <= 0 ? 'disabled' : ''}>← 이전</button><button type="button" class="ghost" data-act="b-page" data-o="${B.offset + PS}" ${B.offset + PS >= B.total ? 'disabled' : ''}>다음 →</button></span><span class="hint">${Math.floor(B.offset / PS) + 1} / ${Math.max(1, Math.ceil(B.total / PS))}쪽</span><button type="button" class="linkbtn" data-act="b-page" data-o="${last}" ${B.offset >= last ? 'disabled' : ''}>마지막 쪽</button></div>`}
+    ${g === 'run' ? '<div id="dist"></div>' : ''}
+    <div class="row"><button type="button" class="go sm" data-act="start" data-g="${g}">${esc(GAMES[g].title)} 하러 가기</button></div>`;
+}
+async function paintDist(t) {
+  const d = await Store.dist(S.year, S.school), el = $('#dist');
+  if (t !== token || !el) return;
+  const tot = d.total, K = 8;
+  const act = []; for (let k = 0; k < K; k++) act.push(k === K - 1 ? d.counts.slice(k).reduce((a, b) => a + b, 0) : d.counts[k] || 0);
+  const th_ = k => (k === K - 1 ? Math.pow(0.5, K - 1) : Math.pow(0.5, k + 1)) * 100;
+  const rowsH = act.map((c, k) => { const pc = tot ? c / tot * 100 : 0; return `<div class="bar"><span>${k === K - 1 ? K - 1 + '번+' : k + '번'}</span><div class="track"><div class="fill" style="width:${Math.min(100, pc)}%"></div><div class="th" style="left:calc(${Math.min(100, th_(k))}% - 1px)"></div></div><span>${pc.toFixed(1)}% (이론 ${th_(k).toFixed(1)}%)</span></div>`; }).join('');
+  el.innerHTML = `<div class="panel" style="background:var(--deep);margin-top:6px"><h3>맞힌 횟수의 분포</h3><p class="hint">순위에 올린 ${tot}개 기록을 맞힌 횟수별로 모았어요. 막대는 실제, 분홍 선은 이론값(1/2, 1/4, 1/8, …)이에요. 기록이 많아질수록 막대가 분홍 선에 가까워져요.</p><div class="bars">${rowsH}</div></div>`;
+}
+
+/* ================= 이벤트 ================= */
+document.addEventListener('click', e => {
+  const b = e.target.closest ? e.target.closest('[data-act]') : null; if (!b || b.disabled) return;
+  const act = b.dataset.act, v = b.dataset.v, gk = b.dataset.g;
+  if (act === 'home') go('home');
+  else if (act === 'start') { if (!checkName()) return; if (gk === 'run') startRun(); else if (gk === 'tune') startTune(); else if (gk === 'spot') startSpot(); else startBet(); }
+  else if (act === 'board') { B.game = gk; B.q = ''; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
+  else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'b-tab') { B.game = gk; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'b-page') loadBoard(Math.max(0, parseInt(b.dataset.o, 10) || 0));
+  else if (act === 'b-find') {
+    const q = cleanName($('#fq').value); B.q = q;
+    if (!q) { B.matches = null; paintBoard(); return; }
+    Store.find(bk(B.game), S.year, S.school, q).then(m => { B.matches = m; paintBoard(); });
+  }
+  else if (act === 'guess') runGuess(v);
+  else if (act === 'again') startRun();
+  else if (act === 'record') autoRecord();
+  else if (act === 't-start') tuneRun();
+  else if (act === 't-skip') G.skip = true;
+  else if (act === 't-again') tuneRun();
+  else if (act === 't-reset') startTune(true);
+  else if (act === 's-mode') { startSpot(v); }
+  else if (act === 's-pick') { const c = G.cur; if (c.pick === null) { c.pick = v; if (v === c.real) G.correct++; $('#screen').innerHTML = spotHTML(); } }
+  else if (act === 's-next') { G.round++; if (G.round < SPOT_ROUNDS) newSpotRound(); $('#screen').innerHTML = spotHTML(); window.scrollTo(0, 0); if (G.round >= SPOT_ROUNDS) autoRecord(); }
+  else if (act === 's-again') startSpot('play');
+  else if (act === 'm-add') { if (G.mine.length < MINE_LEN) { G.mine.push(parseInt(v, 10)); $('#screen').innerHTML = spotHTML(); } }
+  else if (act === 'm-undo') { G.mine.pop(); $('#screen').innerHTML = spotHTML(); }
+  else if (act === 'm-again') { G.mine = []; $('#screen').innerHTML = spotHTML(); }
+  else if (act === 'b-pick') { G.cur.p = v; $('#screen').innerHTML = betHTML(); }
+  else if (act === 'b-go') betRun();
+  else if (act === 'b-next') { G.round++; if (G.round < BET.length) newBetRound(); $('#screen').innerHTML = betHTML(); window.scrollTo(0, 0); if (G.round >= BET.length) autoRecord(); }
+  else if (act === 'b-again') startBet();
+});
+document.addEventListener('input', e => {
+  const el = e.target, g = G;
+  if (el.name === 'wsel' && g && g.game === 'tune') { g.w = parseInt(el.value, 10); $('#chartbox').innerHTML = chartSVG(g) + $('#chartbox').querySelector('.legend').outerHTML; $('#whint').textContent = WHINT(g.w); }
+  else if ((el.id === 'pr' || el.id === 'pn') && g && g.game === 'tune') {
+    let v = parseInt(el.value, 10); if (!(v >= 1)) { if (el.id === 'pn') return; v = 1; } v = Math.min(FLIPS, v); g.pred = v;
+    if (el.id === 'pr') $('#pn').value = v; else $('#pr').value = v;
+    $('#plab').textContent = v + '번'; $('#gmarks').innerHTML = markLines(g);
+  }
+  else if (el.id === 'er' && g && g.game === 'bet') { g.cur.e = parseInt(el.value, 10); $('#elab').textContent = g.cur.e + '%'; }
+  else if (el.id === 'myname') { S.name = cleanName(el.value); const e = $('#nameerr'); if (e) e.textContent = ''; }
+  else if (el.id === 'spr') { S.speed = parseInt(el.value, 10); const l = $('#slab'); if (l) l.textContent = SPEEDS[S.speed]; savePrefs(); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
+  else if (el.id === 'selSchool') { S.school = el.value; savePrefs(); probeMode(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'fq') { const b = document.querySelector('[data-act=b-find]'); if (b) b.click(); }
+});
+
+/* ---------- 시작 ---------- */
+(async function init() {
+  render();
+  await loadList(); fixSelection();
+  if (S.screen === 'home') render();
+})();
+
+/* 테스트에서 쓰는 통로 (게임에는 영향 없어요) */
+window.__coin = { settleTime, probRange, betRound, seqStats, genFake, randBits, bitsToHex, hexToBits, runPoints, derive, BET, Store, S, B, LIST };
+})();
+</script>
+</body>
+</html>
