@@ -23,6 +23,8 @@ button{cursor:pointer}
 /* 머리글 */
 .hdr{height:72px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:2px solid #232A70}
 .brand{display:flex;align-items:center;gap:14px}
+.home{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;background:#232A70;color:var(--text);font-size:14px;font-weight:700;text-decoration:none;margin-right:6px;white-space:nowrap}
+.home:hover{background:var(--line)}
 .brand small{display:block;font-size:13px;color:var(--muted)}
 .brand b{font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px;font-weight:400;line-height:1.1}
 .nav{display:flex;gap:8px;align-items:center}
@@ -57,7 +59,7 @@ button{cursor:pointer}
 .acard.danger{border:2px solid #7A2B4A}
 .addrow select{flex:1;height:52px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:18px;padding:0 12px;font-family:inherit}
 .dangerbtn{background:#B3265E;color:#fff;white-space:nowrap}
-.sugg{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow-y:auto}
+.sugg{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;flex:none}
 .sitem{display:flex;justify-content:space-between;align-items:center;gap:16px;border:0;border-radius:12px;background:#232A70;color:var(--text);padding:12px 18px;font-size:18px;text-align:left}
 .sitem b{font-weight:700}.sitem span{color:var(--muted);font-size:15px}
 .snote{color:var(--muted);font-size:15px;padding:4px 2px}
@@ -88,13 +90,15 @@ button{cursor:pointer}
   font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;text-align:left;padding:0 20px}
 .ybtn.on{border:3px solid var(--yellow);background:var(--panel2)}
 .schools{flex:1;min-width:0;background:var(--panel);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:16px}
-.shead{display:flex;align-items:baseline;justify-content:space-between}
+.shead{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.shead input{width:280px;height:44px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:17px;padding:0 14px;font-family:inherit}
+.snone{grid-column:1/-1;color:var(--muted);font-size:17px;padding:16px 4px}
 .shead span{font-size:14px;color:var(--muted)}
-.sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0;grid-auto-rows:170px;overflow-y:auto;padding:3px}
+.sgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;flex:1;min-height:0;grid-auto-rows:150px;overflow-y:auto;padding:3px}
 .scard{position:relative;border-radius:16px;border:2px solid var(--line);background:transparent;color:var(--text);padding:20px;
   display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;text-align:left}
 .scard.on{border:3px solid var(--yellow);background:var(--panel2)}
-.scard .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:26px}
+.scard .nm{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:keep-all}
 .scard small{display:block;font-size:14px;color:var(--muted);margin-top:2px}
 .scard .ck{position:absolute;right:14px;top:14px}
 .enter{flex:none;display:flex;align-items:center;justify-content:space-between;background:var(--panel);border-radius:20px;padding:16px 24px 16px 32px}
@@ -243,6 +247,7 @@ button{cursor:pointer}
   <div id="stage">
     <header class="hdr">
       <div class="brand">
+        <a class="home" id="homeLink" href="/" title="MT RYU의 실험실 첫 화면으로"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 9 L9 2.5 L16 9 M4 8 V15 H14 V8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>실험실 홈</a>
         <svg width="36" height="36" viewBox="0 0 36 36" aria-hidden="true"><rect x="2" y="2" width="32" height="32" rx="9" fill="#FFD23F"/><circle cx="11" cy="11" r="3" fill="#12163A"/><circle cx="18" cy="18" r="3" fill="#12163A"/><circle cx="25" cy="25" r="3" fill="#12163A"/></svg>
         <div><small>확률 실험실</small><b>강 건너기</b></div>
       </div>
@@ -398,11 +403,11 @@ const Store = {
 };
 
 /* ---------- 학년도·학교 목록 (관리자 모드에서 바꿔요) ---------- */
-const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), mode: 'local' };
+const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), regions: {}, mode: 'local' };
 function okList(l) {
   return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
     && l.years.length >= 1 && l.years.length <= 12 && l.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
-    && l.schools.length >= 1 && l.schools.length <= 30 && l.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20);
+    && l.schools.length >= 1 && l.schools.length <= 200 && l.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20);
 }
 function applyList(l) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); }
 function readLocalList() { try { const l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) applyList(l); } catch (e) {} }
@@ -412,7 +417,7 @@ async function loadList() {
   try {
     const j = await Store.http('GET', CONFIG.configUrl, null, { timeout: 3000 });
     if (!okList(j)) throw new Error('bad');
-    applyList(j); LIST.mode = 'server'; writeLocalList();
+    applyList(j); LIST.regions = j.regions || {}; LIST.mode = 'server'; writeLocalList();
   } catch (e) { LIST.mode = 'local'; }
 }
 /* 간단한 해시 (서버가 없을 때 이 컴퓨터용 관리자 암호 확인에만 써요) */
@@ -472,7 +477,7 @@ function show(screen) {
 
 
 /* ---------- 관리자 모드 ---------- */
-const ADM = { key: null, years: [], schools: [], msg: '', err: false, busy: false, sugg: [] };
+const ADM = { key: null, years: [], schools: [], regions: {}, msg: '', err: false, busy: false, sugg: [] };
 function adminHTML() {
   const yrs = ADM.years.map(y => `<span class="chip">${y}학년도<button type="button" data-act="admdel" data-k="y" data-v="${y}" aria-label="${y}학년도 지우기">×</button></span>`).join('');
   const scs = ADM.schools.map(s => `<span class="chip">${esc(s)}<button type="button" data-act="admdel" data-k="s" data-v="${esc(s)}" aria-label="${esc(s)} 지우기">×</button></span>`).join('');
@@ -513,13 +518,13 @@ async function tryLogin(pw) {
     try {
       const j = await Store.http('GET', CONFIG.configUrl, null, { headers: { 'x-admin-key': pw } });
       if (!j.admin) throw new Error('no');
-      ADM.key = pw; ADM.years = j.years.slice(); ADM.schools = j.schools.slice();
+      ADM.key = pw; ADM.years = j.years.slice(); ADM.schools = j.schools.slice(); ADM.regions = Object.assign({}, j.regions || {});
     } catch (e) { return err(e.status === 401 ? '암호가 달라요.' : '서버에 연결할 수 없어요.'); }
   } else {
     const h = hash53('rd|' + pw), saved = localStorage.getItem('rd_adminhash');
     if (!saved) { try { localStorage.setItem('rd_adminhash', h); } catch (e) {} }
     else if (saved !== h) return err('암호가 달라요.');
-    ADM.key = pw; ADM.years = LIST.years.slice(); ADM.schools = LIST.schools.slice();
+    ADM.key = pw; ADM.years = LIST.years.slice(); ADM.schools = LIST.schools.slice(); ADM.regions = Object.assign({}, LIST.regions);
   }
   ADM.msg = ''; ADM.err = false; closeLogin(); show('admin');
 }
@@ -529,8 +534,8 @@ async function adminSave() {
   if (LIST.mode === 'server') {
     ADM.busy = true; show('admin');
     try {
-      const j = await Store.http('PUT', CONFIG.configUrl, { years, schools }, { headers: { 'x-admin-key': ADM.key } });
-      applyList(j); writeLocalList();
+      const j = await Store.http('PUT', CONFIG.configUrl, { years, schools, regions: ADM.regions }, { headers: { 'x-admin-key': ADM.key } });
+      applyList(j); LIST.regions = j.regions || {}; writeLocalList();
     } catch (e) { ADM.busy = false; ADM.msg = e.status === 401 ? '암호가 달라요.' : '저장하지 못했어요. 다시 시도해 주세요.'; ADM.err = true; return show('admin'); }
     ADM.busy = false;
   } else { applyList({ years, schools }); writeLocalList(); }
@@ -585,13 +590,13 @@ function searchSchools(q) {
 function pickSchool(i) {
   const x = ADM.sugg[i]; if (!x) return;
   let name = x.name;
-  if (ADM.schools.includes(name)) {            // 같은 이름 학교가 이미 있으면 지역을 붙여 구분해요
+  if (ADM.schools.includes(name) && ADM.regions[name] && ADM.regions[name] !== x.region) {   // 같은 이름 다른 지역 학교면 지역을 붙여 구분해요
     const alt = x.name + '(' + x.region + ')';
     if (alt.length <= 20) name = alt;
   }
   if (ADM.schools.includes(name)) { ADM.msg = '이미 있는 학교예요.'; ADM.err = true; return show('admin'); }
-  if (ADM.schools.length >= 30) { ADM.msg = '학교는 30개까지 만들 수 있어요.'; ADM.err = true; return show('admin'); }
-  ADM.schools.push(name); ADM.msg = ''; ADM.err = false; ADM.sugg = []; show('admin');
+  if (ADM.schools.length >= 200) { ADM.msg = '학교는 200개까지 만들 수 있어요.'; ADM.err = true; return show('admin'); }
+  ADM.schools.push(name); ADM.regions[name] = x.region; ADM.msg = ''; ADM.err = false; ADM.sugg = []; show('admin');
 }
 function adminAdd(kind) {
   const inp = document.getElementById(kind === 'year' ? 'admYear' : 'admSchool');
@@ -605,7 +610,7 @@ function adminAdd(kind) {
   } else {
     if (!v || /[<>\u0000-\u001f]/.test(v)) ADM.msg = '학교 이름을 써 주세요.';
     else if (ADM.schools.includes(v)) ADM.msg = '이미 있는 학교예요.';
-    else if (ADM.schools.length >= 30) ADM.msg = '학교는 30개까지 만들 수 있어요.';
+    else if (ADM.schools.length >= 200) ADM.msg = '학교는 200개까지 만들 수 있어요.';
     else { ADM.schools.push(v); ADM.msg = ''; ADM.err = false; }
   }
   show('admin');
@@ -613,15 +618,56 @@ function adminAdd(kind) {
 }
 
 /* ---------- 1. 서버 선택 ---------- */
-function setupHTML() {
-  const roofs = ['#FFD23F', '#7BE0FF', '#FF8A8A'];
-  const years = LIST.years.map(y => `<button type="button" class="ybtn${y === state.year ? ' on' : ''}" aria-pressed="${y === state.year}" data-act="year" data-v="${y}">${y}학년도</button>`).join('');
-  const schools = LIST.schools.map((s, i) => `
-    <button type="button" class="scard${s === state.school ? ' on' : ''}" aria-pressed="${s === state.school}" data-act="school" data-v="${esc(s)}">
-      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${roofs[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
-      <div><div class="nm">${esc(s)}</div><small>전체 순위 보기</small></div>
-      ${s === state.school ? '<svg class="ck" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="#FFD23F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+const SQ = { q: '', sugg: [], timer: 0, seq: 0 };
+const ROOFS = ['#FFD23F', '#7BE0FF', '#FF8A8A'];
+function schoolCards() {
+  const q = SQ.q.trim();
+  const list = LIST.schools.slice().sort((a, b) => a.localeCompare(b, 'ko')).filter(n => !q || n.includes(q));
+  if (!list.length) return '<div class="snone">등록된 학교 중에 없어요. 두 글자 이상 쓰면 아래에서 찾아 추가할 수 있어요.</div>';
+  return list.map((sc, i) => `
+    <button type="button" class="scard${sc === state.school ? ' on' : ''}" aria-pressed="${sc === state.school}" data-act="school" data-v="${esc(sc)}">
+      <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M4 18 L22 6 L40 18 Z" fill="${ROOFS[i % 3]}"/><rect x="8" y="18" width="28" height="20" fill="#AEB6F0"/><rect x="18" y="26" width="8" height="12" fill="#12163A"/></svg>
+      <div><div class="nm">${esc(sc)}</div><small>${LIST.regions[sc] ? esc(LIST.regions[sc]) + ' · ' : ''}전체 순위 보기</small></div>
+      ${sc === state.school ? '<svg class="ck" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="14" fill="#FFD23F"/><path d="M8 14 L12.5 18.5 L20 10" fill="none" stroke="#12163A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
     </button>`).join('');
+}
+function paintSsugg(msg) {
+  const box = document.getElementById('ssugg'); if (!box) return;
+  if (msg) { box.innerHTML = `<div class="snote">${esc(msg)}</div>`; return; }
+  box.innerHTML = SQ.sugg.length ? '<div class="snote">나이스에서 찾은 학교 · 눌러서 추가해요</div>' + SQ.sugg.map((x, i) => `<button type="button" class="sitem" data-act="sadd" data-i="${i}"><b>${esc(x.name)}</b><span>${esc(x.region)}${x.kind ? ' · ' + esc(x.kind) : ''}</span></button>`).join('') : '';
+}
+function searchPublic(q) {
+  clearTimeout(SQ.timer); SQ.sugg = []; paintSsugg('');
+  q = q.trim();
+  if (q.length < 2 || LIST.mode !== 'server') return;
+  const my = ++SQ.seq;
+  SQ.timer = setTimeout(async () => {
+    try {
+      const j = await Store.http('GET', '/api/schools?q=' + encodeURIComponent(q), null, { timeout: 7000 });
+      if (my !== SQ.seq) return;
+      SQ.sugg = (j.schools || []).filter(x => !(LIST.schools.includes(x.name) && (!LIST.regions[x.name] || LIST.regions[x.name] === x.region))).slice(0, 15);
+      paintSsugg(SQ.sugg.length ? '' : '목록에 더 추가할 학교를 찾지 못했어요.');
+    } catch (e) {
+      if (my !== SQ.seq) return;
+      paintSsugg(e.status === 429 ? '잠시 뒤에 다시 검색해 주세요.' : '학교 검색을 쓸 수 없어요. 선생님께 학교 추가를 부탁해 주세요.');
+    }
+  }, 400);
+}
+async function addSchoolPublic(i) {
+  const x = SQ.sugg[i]; if (!x) return;
+  paintSsugg('학교를 확인하는 중…');
+  try {
+    const j = await Store.http('POST', CONFIG.configUrl, { add: { name: x.name, region: x.region } }, { timeout: 10000 });
+    if (!okList(j)) throw new Error('bad');
+    applyList(j); LIST.regions = j.regions || {}; writeLocalList();
+    state.school = j.added; savePrefs(); SQ.q = ''; SQ.sugg = []; show('setup');
+  } catch (e) {
+    paintSsugg(e.status === 429 ? '잠시 뒤에 다시 해 주세요.' : e.status === 400 ? '이 학교는 추가할 수 없어요. 선생님께 부탁해 주세요.' : '학교를 추가하지 못했어요. 선생님께 부탁해 주세요.');
+  }
+}
+function setupHTML() {
+
+  const years = LIST.years.map(y => `<button type="button" class="ybtn${y === state.year ? ' on' : ''}" aria-pressed="${y === state.year}" data-act="year" data-v="${y}">${y}학년도</button>`).join('');
   const step = (n, b, t) => `<div class="step"><i>${n}</i><div><b>${b}</b><span>${t}</span></div></div>`;
   return `<main class="setup">
     <section class="hero">
@@ -635,7 +681,7 @@ function setupHTML() {
     </section>
     <section class="pick">
       <div class="years"><h2>학년도</h2>${years}</div>
-      <div class="schools"><div class="shead"><h2>학교 서버 선택</h2><span>선생님이 만들어 둔 학교 중에서 골라요</span></div><div class="sgrid">${schools}</div></div>
+      <div class="schools"><div class="shead"><h2>학교 서버 선택</h2><input id="schoolQ" type="text" maxlength="20" placeholder="학교 이름 검색" autocomplete="off" value="${esc(SQ.q)}"></div><div class="sgrid" id="sgrid">${schoolCards()}</div><div id="ssugg" class="sugg"></div></div>
     </section>
     <section class="enter">
       <div><small>선택한 서버</small><div class="jua">${state.year}학년도 · ${esc(state.school)}</div></div>
@@ -934,6 +980,8 @@ async function runFind(q) {
 
 /* ---------- 이벤트 ---------- */
 document.addEventListener('click', e => {
+  const hl = e.target.closest('#homeLink');
+  if (hl && state.screen === 'play' && !confirm('게임을 그만하고 실험실 첫 화면으로 갈까요?')) { e.preventDefault(); return; }
   const b = e.target.closest('[data-act]'); if (!b || b.disabled) return;
   const act = b.dataset.act;
   if (act === 'year') { state.year = Number(b.dataset.v); savePrefs(); show('setup'); }
@@ -976,10 +1024,11 @@ document.addEventListener('click', e => {
     b.dataset.sure = '1'; b.textContent = '정말 모두 삭제할까요?';
     setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = '전체 순위 삭제'; } }, 4000);
   }
+  else if (act === 'sadd') { addSchoolPublic(Number(b.dataset.i)); }
   else if (act === 'admpick') { pickSchool(Number(b.dataset.i)); }
   else if (act === 'admdel') {
     if (b.dataset.k === 'y') ADM.years = ADM.years.filter(y => String(y) !== b.dataset.v);
-    else ADM.schools = ADM.schools.filter(x => x !== b.dataset.v);
+    else { ADM.schools = ADM.schools.filter(x => x !== b.dataset.v); delete ADM.regions[b.dataset.v]; }
     ADM.msg = ''; ADM.err = false; show('admin');
   }
 });
@@ -994,6 +1043,7 @@ document.addEventListener('submit', e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset && t.dataset.name) { state[t.dataset.name].name = t.value; updateReady(); savePrefs(); }
+  if (t.id === 'schoolQ') { SQ.q = t.value; el('sgrid').innerHTML = schoolCards(); searchPublic(t.value); }
   if (t.id === 'admSchool') searchSchools(t.value);
   if (t.id === 'delYear') { ADM.delYear = Number(t.value); ADM.msg = ''; show('admin'); }
   if (t.id === 'delSchool') { ADM.delSchool = t.value; ADM.msg = ''; show('admin'); }

@@ -25,7 +25,7 @@ function okConfig(c) {
   return !!c && Array.isArray(c.years) && Array.isArray(c.schools)
     && c.years.length >= 1 && c.years.length <= 12
     && c.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
-    && c.schools.length >= 1 && c.schools.length <= 30
+    && c.schools.length >= 1 && c.schools.length <= 200
     && c.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20 && !/[\u0000-\u001f<>]/.test(s));
 }
 
@@ -42,4 +42,37 @@ function isAdmin(req) {
   return !!k && req.headers['x-admin-key'] === k;
 }
 
-module.exports = { configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
+// 같은 사람이 너무 자주 호출하지 못하게 막아요 (학교는 같은 IP를 쓰는 경우가 많아서 넉넉하게)
+async function rateLimit(req, name, limit, windowSec) {
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'x';
+  const key = 'rl:' + name + ':' + ip;
+  const n = Number(await redis(['INCR', key]));
+  if (n === 1) await redis(['EXPIRE', key, windowSec]);
+  return n <= limit;
+}
+// 나이스 호출 하루 총량 제한 (인증키 한도를 지키려고)
+async function neisBudget(limit) {
+  const day = new Date().toISOString().slice(0, 10);
+  const key = 'rl:neis:' + day;
+  const n = Number(await redis(['INCR', key]));
+  if (n === 1) await redis(['EXPIRE', key, 90000]);
+  return n <= limit;
+}
+// 나이스 학교기본정보 검색
+async function neisSearch(q) {
+  const key = process.env.NEIS_KEY;
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const u = 'https://open.neis.go.kr/hub/schoolInfo?Type=json&pIndex=1&pSize=15&KEY=' + encodeURIComponent(key) + '&SCHUL_NM=' + encodeURIComponent(q);
+    const r = await fetch(u, { signal: ctl.signal });
+    const j = await r.json();
+    const block = Array.isArray(j.schoolInfo) ? j.schoolInfo.find(x => x && x.row) : null;
+    return (block ? block.row : []).map(x => ({
+      name: x.SCHUL_NM, region: String(x.ATPT_OFCDC_SC_NM || '').replace(/교육청$/, ''),
+      kind: x.SCHUL_KND_SC_NM || '', addr: x.ORG_RDNMA || ''
+    })).filter(x => x.name);
+  } finally { clearTimeout(t); }
+}
+
+module.exports = { rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
