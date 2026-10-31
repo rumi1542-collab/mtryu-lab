@@ -19,14 +19,8 @@
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0}
-.page{min-height:100vh;background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding:0 16px 56px}
+.page{min-height:calc(100vh - var(--labbar-h,0px));background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);display:flex;flex-direction:column;align-items:center;padding:36px 16px 56px}
 .wrap{width:100%;max-width:1040px;display:flex;flex-direction:column;gap:48px}
-.bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-top:20px}
-.brand{display:flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--ink);font-size:20px;font-weight:900}
-.brand img{width:40px;height:40px;display:block}
-nav{display:flex;flex-wrap:wrap;gap:4px}
-.nl{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;text-decoration:none;color:var(--ink);font-size:15px;font-weight:700}
-.nl:hover{background:#EBDDF6}
 .hero{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
 .hero img{width:96px;height:96px;display:block}
 h1{margin:0;font-size:clamp(32px,5vw,48px);line-height:1.25;font-weight:900}
@@ -45,20 +39,11 @@ h1 em{font-style:normal;color:var(--purple)}
 .p{--c:var(--rose);--t:#F9DDF6}
 .note{margin:0;text-align:center;font-size:15px;font-weight:500;color:var(--muted)}
 </style>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
 </head>
 <body>
 <div id="top" class="page">
 <div class="wrap">
-
-<div class="bar">
-<a class="brand" href="#top"><img src="favicon.svg" alt="">MT RYU의 실험실</a>
-<nav>
-<a class="nl" href="#math">수학 실험실</a>
-<a class="nl" href="#stat">통계 실험실</a>
-<a class="nl" href="#prob">확률 실험실</a>
-<a class="nl" href="#game">게임 수학 실험실</a>
-</nav>
-</div>
 
 <div class="hero">
 <img src="favicon.svg" alt="MT 로고">
