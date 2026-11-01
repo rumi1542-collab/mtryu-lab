@@ -155,7 +155,13 @@ input[type=number]{width:110px}
 .seg input:focus-visible+span{outline:3px solid var(--yellow);outline-offset:2px}
 
 /* 그래프 */
-.chartbox{background:var(--deep);border-radius:16px;padding:10px 10px 4px;min-width:0}
+.chartbox{background:var(--deep);border-radius:16px;padding:10px 10px 4px;min-width:0;position:relative}
+.flipcard{padding:12px 16px 6px;margin-bottom:14px;gap:6px}.flipcard h3{margin:0;font-size:17px}
+.flipstrip{display:flex;gap:4px;align-items:center;overflow-x:auto;overflow-y:hidden;padding:4px 2px 10px;min-height:46px;outline-offset:2px}
+.flipstrip::-webkit-scrollbar{height:10px}.flipstrip::-webkit-scrollbar-thumb{background:var(--blue);border-radius:5px}.flipstrip::-webkit-scrollbar-track{background:var(--deep);border-radius:5px}
+.flipstrip .cc{flex:none}.flipstrip .cc.on{outline:3px solid #fff;outline-offset:1px}
+.tip{position:absolute;pointer-events:none;z-index:5;background:#F4F6FF;color:#12163A;border:2px solid var(--blue);border-radius:10px;padding:8px 11px;font-size:14px;line-height:1.55;box-shadow:3px 3px 0 var(--pink);white-space:nowrap}
+.tip .in{color:#1E8E45;font-weight:700}.tip .out{color:#C23B3B;font-weight:700}.tip i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
 .chartbox svg{display:block;width:100%;height:auto}
 svg text{font-family:'Noto Sans KR',sans-serif;fill:var(--muted);font-size:13px}
 svg .lab{fill:var(--text);font-weight:700}
@@ -648,7 +654,9 @@ function chartSVG(g) {
   s += `<g clip-path="url(#clipx)"><g id="gruns"></g><path id="gmain" fill="none" stroke="#FFD23F" stroke-width="2.6" stroke-linejoin="round" d=""/></g>`;
   s += `<g id="gmarks">${markLines(g)}</g>`;
   s += `<text x="${pl + pw / 2}" y="${CH.H - 6}" text-anchor="middle" class="lab">동전을 던진 횟수</text>`;
-  s += `<text x="14" y="${CH.t + ph / 2}" text-anchor="middle" transform="rotate(-90 14 ${CH.t + ph / 2})" class="lab">앞면의 비율(상대도수)</text></svg>`;
+  s += `<text x="14" y="${CH.t + ph / 2}" text-anchor="middle" transform="rotate(-90 14 ${CH.t + ph / 2})" class="lab">앞면의 비율(상대도수)</text>`;
+  s += `<line id="hline" x1="0" x2="0" y1="${CH.t}" y2="${CH.t + ph}" stroke="#F4F6FF" stroke-width="1.5" style="display:none;pointer-events:none"/><circle id="hdot" r="5.5" fill="#FFD23F" stroke="#fff" stroke-width="2" style="display:none;pointer-events:none"/>`;
+  s += `<rect id="hit" x="${pl}" y="${CH.t}" width="${pw}" height="${ph}" fill="transparent" style="touch-action:pan-y;cursor:crosshair"/></svg>`;
   return s;
 }
 function markLines(g, hide) {
@@ -668,6 +676,7 @@ function tuneHTML() {
     아래 ①②를 정하고 던지기를 시작해서, 예측이 맞는지 그래프로 확인해 보세요. 여러 번 실험하면서 감을 쌓아 봐요.
     <b>안정된 횟수</b>는 "이 횟수 뒤로는 끝까지 상대도수가 범위 안에 머무는 때"예요.</p></div>
     <div id="setup"></div>
+    <section class="panel flipcard" id="flipcard"><h3 id="fliptitle">던진 결과</h3><div class="flipstrip" id="flipstrip" tabindex="0" role="region" aria-label="던진 결과 목록 (좌우로 넘겨 볼 수 있어요)"><span class="hint" id="fliphint">던지기를 시작하면 여기에 앞(노란 칸)·뒤(파란 칸)가 차례로 쌓여요.</span></div></section>
     <div class="two solo" id="twoWrap"><div class="chartbox" id="chartbox"></div><div class="panel" id="side"></div></div>`;
 }
 function paintTune() {
@@ -675,6 +684,52 @@ function paintTune() {
   setChartSize();
   $('#chartbox').innerHTML = chartSVG(g) + `<div class="legend"><span><i style="background:#FFD23F"></i>이번 실험의 그래프</span><span><i style="background:#5BD97F"></i>예측 범위</span><span><i style="background:#FFD23F;opacity:.7"></i>내 예측</span><span><i style="background:#FF6FAE"></i>안정된 횟수</span></div>`;
   paintSide();
+  const cb = $('#chartbox');
+  cb.addEventListener('pointermove', tuneHover);
+  cb.addEventListener('pointerdown', tuneHover);
+  cb.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hideHover(); });
+}
+/* 결과 창(한 줄 스크롤)과 그래프 위 세로 막대 */
+function stripTitle(k, h) { const t = $('#fliptitle'); if (t) t.textContent = k ? `던진 결과 (${k}번 · 앞 ${h}번 · 뒤 ${k - h}번)` : '던진 결과'; }
+function stripReset(bits) {
+  const g = G, el = $('#flipstrip'); g.stripBits = bits; g.stripK = 0; g.shown = 0; hideHover();
+  if (el) { el.innerHTML = ''; el.scrollLeft = 0; } stripTitle(0, 0);
+}
+function stripTo(k) {
+  const g = G, el = $('#flipstrip'); if (!g || !el || !g.cums) return;
+  g.shown = k;
+  let html = ''; for (let i = g.stripK; i < k; i++) html += chip(g.stripBits[i] === 1, 's');
+  if (html) { el.insertAdjacentHTML('beforeend', html); g.stripK = k; if (!g.hoverN) el.scrollLeft = el.scrollWidth; }
+  stripTitle(k, g.cums[g.cur][k]);
+}
+function hideHover() {
+  const g = G; if (g) g.hoverN = null;
+  ['#hline', '#hdot'].forEach(q => { const e = $(q); if (e) e.style.display = 'none'; });
+  const t = $('#tip'); if (t) t.remove();
+  const o = document.querySelector('#flipstrip .cc.on'); if (o) o.classList.remove('on');
+}
+function tuneHover(e) {
+  const g = G; if (!g || g.game !== 'tune' || !g.cums || !g.shown) return;
+  const box = $('#chartbox'), svg = box && box.querySelector('svg'); if (!svg) return;
+  const r = svg.getBoundingClientRect(), sc = r.width / CH.W, x = (e.clientX - r.left) / sc, pw = CH.W - CH.l - CH.r;
+  if (x < CH.l - 6 || x > CH.W - CH.r + 6) return hideHover();
+  const n = Math.max(1, Math.min(g.shown, Math.round((x - CH.l) / pw * FLIPS)));
+  g.hoverN = n;
+  const cum = g.cums[g.cur], h = cum[n], p = h / n, inb = Math.abs(2 * h - n) * 100 <= 2 * g.w * n;
+  const ln = $('#hline'), dt = $('#hdot');
+  ln.setAttribute('x1', cx(n)); ln.setAttribute('x2', cx(n)); ln.style.display = '';
+  dt.setAttribute('cx', cx(n)); dt.setAttribute('cy', cy(p)); dt.style.display = '';
+  let rows = `<b>${n}번째까지</b><br>앞 ${h}번 · 뒤 ${n - h}번<br>상대도수 <b>${p.toFixed(3)}</b> <span class="${inb ? 'in' : 'out'}">${inb ? '범위 안' : '범위 밖'}</span>`;
+  const before = []; for (let i = Math.max(0, g.cur - 4); i < g.cur; i++) before.push(`<br><i style="background:#8C9BFF"></i>${i === 0 ? '첫 실험' : '연습 ' + i}: ${(g.cums[i][n] / n).toFixed(3)}`);
+  if (before.length) rows = rows.replace('상대도수 <b>', '<i style="background:#FFD23F"></i>이번 상대도수 <b>') + before.join('');
+  let tip = $('#tip'); if (!tip) { box.insertAdjacentHTML('beforeend', '<div class="tip" id="tip"></div>'); tip = $('#tip'); }
+  tip.innerHTML = rows;
+  const br = box.getBoundingClientRect(), px = r.left - br.left + cx(n) * sc, tw = tip.offsetWidth;
+  tip.style.left = (px + 14 + tw > br.width ? Math.max(4, px - 14 - tw) : px + 14) + 'px';
+  tip.style.top = (r.top - br.top + CH.t * sc + 10) + 'px';
+  const el = $('#flipstrip'), c = el && el.children[n - 1];
+  const old = el && el.querySelector('.cc.on'); if (old && old !== c) old.classList.remove('on');
+  if (c) { c.classList.add('on'); el.scrollLeft = Math.max(0, c.offsetLeft - el.clientWidth / 2); }
 }
 function wText(w) { return `${(0.5 - w / 100).toFixed(2)} ~ ${(0.5 + w / 100).toFixed(2)}`; }
 const INTRO_N = 10;
@@ -751,6 +806,7 @@ async function tuneRun() {
   g.step = 'run1'; paintSide();
   { const tw = $('#twoWrap'); if (tw) tw.style.display = g.intro ? 'none' : ''; }
   const bits = randBits(FLIPS); if (first) g.bits0 = bits;
+  { const cum = new Uint16Array(FLIPS + 1); for (let i = 0; i < FLIPS; i++) cum[i + 1] = cum[i] + bits[i]; (g.cums = g.cums || []).push(cum); g.cur = g.cums.length - 1; stripReset(bits); }
   const P = ptsOf(bits), path = $('#gmain'); g.skip = false;
   const dur = [0, 11000, 5000, 2000, 0][S.speed];
   const t0 = performance.now();
@@ -770,7 +826,7 @@ async function tuneRun() {
       await flipCoin(coin, bits[i] === 0, 900);
       if (G !== g || t !== token) return;
       if (g.skipIntro || g.skip || !$('#i-mini')) break;
-      heads += bits[i]; hp = i + 1;
+      heads += bits[i]; hp = i + 1; stripTo(hp);
       path.setAttribute('d', 'M' + P.slice(0, hp).join('L'));
       const p = heads / hp, nn = $('#c-n'); if (nn) { nn.textContent = hp; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); }
       $('#i-mini').innerHTML = miniSVG(bits, hp); $('#i-chips').innerHTML = Array.from({ length: hp }, (_, q) => chip(bits[q] === 1, 's')).join('');
@@ -790,6 +846,7 @@ async function tuneRun() {
   while (k < FLIPS) {
     if (dur) { await frame(); if (G !== g || t !== token) return; if (g.skip) k = FLIPS; else k = Math.min(FLIPS, Math.floor((performance.now() - t0b) / dur * FLIPS)); if (k < 1) continue; } else k = FLIPS;
     for (; hp < k; hp++) heads += bits[hp];
+    stripTo(k);
     path.setAttribute('d', 'M' + P.slice(0, k).join('L'));
     const p = heads / k, nn = $('#c-n'); if (nn) { nn.textContent = k; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); const inb = Math.abs(p - 0.5) * 100 <= g.w; $('#c-in').textContent = inb ? '지금은 범위 안이에요.' : '지금은 범위 밖이에요.'; }
   }
