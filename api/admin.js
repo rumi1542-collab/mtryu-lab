@@ -24,7 +24,8 @@ function days(n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(kst
 function pairs(flat) { const o = {}; for (let i = 0; i + 1 < (flat || []).length; i += 2) o[flat[i]] = Number(flat[i + 1]) || 0; return o; }
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return send(res, 405, { error: 'method-not-allowed' }); }
+  const isRescore = req.method === 'POST' && (req.query || {}).op === 'rescore';
+  if (req.method !== 'GET' && !isRescore) { res.setHeader('Allow', 'GET, POST'); return send(res, 405, { error: 'method-not-allowed' }); }
   if (!configured()) return send(res, 503, { error: 'storage-not-configured' });
   if (!process.env.RD_ADMIN_KEY) return send(res, 503, { error: 'admin-not-configured' });
   try {
@@ -34,6 +35,24 @@ module.exports = async function handler(req, res) {
     if (!isAdmin(req)) { await rateLimit(req, 'admfail', 20, 600); return send(res, 401, { error: 'unauthorized' }); }
 
     const q = req.query || {};
+    // 예전에 쌓인 기록의 점수 규칙(같은 점수면 먼저 낸 사람이 위)을 새 규칙(최근 기록이 위)으로 한 번 바꿔요. 여러 번 눌러도 안전해요.
+    if (q.op === 'rescore') {
+      const cfg0 = await getConfig(); let keys = 0, fixed = 0;
+      const years = Array.from(new Set(cfg0.years.concat(Array.from({ length: 12 }, (_, i) => 2020 + i))));
+      for (const g of GAMES) for (const y of years) for (const s of cfg0.schools) {
+        const k = keyOf(g, y, s), flat = await redis(['ZRANGE', k, 0, -1, 'WITHSCORES']);
+        if (!flat || !flat.length) continue; keys++;
+        const cmds = [];
+        for (let i = 0; i + 1 < flat.length; i += 2) {
+          let ts; try { ts = JSON.parse(flat[i]).ts; } catch (e) { continue; }
+          const sc = Number(flat[i + 1]); if (!Number.isFinite(ts) || !Number.isFinite(sc)) continue;
+          const v = Math.round(sc - ts / 1e13);
+          if (Math.abs(sc - (v + ts / 1e13)) < 1e-7) cmds.push(['ZADD', k, v - ts / 1e13, flat[i]]);   // 예전 규칙인 기록만 바꿔요
+        }
+        if (cmds.length) { await redisMulti(cmds); fixed += cmds.length; }
+      }
+      return send(res, 200, { ok: true, keys, fixed });
+    }
     if (q.op === 'ping') return send(res, 200, { ok: true });
 
     if (q.op === 'stats') {

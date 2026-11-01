@@ -82,7 +82,7 @@ module.exports = async function handler(req, res) {
       const ts = Date.now();
       const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요)
       const member = JSON.stringify({ id, name, rolls, setup, ts, uid });
-      const score = rolls + ts / 1e13; // 굴린 횟수가 같으면 먼저 기록한 사람이 위
+      const score = rolls - ts / 1e13; // 굴린 횟수가 같으면 최근에 기록한 사람이 위
       await redis(['ZADD', key, score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);

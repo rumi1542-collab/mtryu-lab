@@ -374,7 +374,7 @@ const Store = {
   mode: 'server',
   key: (y, s) => 'rd_scores:' + y + ':' + s,
   localList(y, s) { try { return JSON.parse(localStorage.getItem(Store.key(y, s)) || '[]'); } catch (e) { return []; } },
-  sortRecs(l) { return l.slice().sort((p, q) => p.rolls - q.rolls || p.ts - q.ts); },
+  sortRecs(l) { return l.slice().sort((p, q) => p.rolls - q.rolls || q.ts - p.ts); },
   async http(method, url, body, opt) {
     opt = opt || {};
     const ctl = new AbortController();
@@ -388,7 +388,8 @@ const Store = {
   },
   async page(y, s, offset, limit) {
     try {
-      const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s) + '&offset=' + offset + '&limit=' + limit);
+      let j = null;
+      for (let k = 0; k < 2 && !j; k++) { try { j = await Store.http('GET', CONFIG.apiUrl + '?year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s) + '&offset=' + offset + '&limit=' + limit, null, { timeout: 9000 }); } catch (e) { if (k) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
       if (!j || !Array.isArray(j.top)) throw new Error('bad');
       Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
@@ -1060,8 +1061,8 @@ function paintResult() {
   const pager = R.matches
     ? `<div class="pager"><span>이름 검색 결과 ${R.matches.length}명${R.matches.length >= 50 ? ' (최대 50명)' : ''}</span><button type="button" class="pbtn wide" data-act="clearfind">전체 순위로</button></div>`
     : `<div class="pager"><button type="button" class="pbtn" data-act="pg" data-v="first" aria-label="처음 쪽"${cur <= 1 ? ' disabled' : ''}>«</button><button type="button" class="pbtn" data-act="pg" data-v="prev" aria-label="이전 쪽"${cur <= 1 ? ' disabled' : ''}>‹</button><span class="pnum">${cur} / ${pages}쪽 · ${total ? (offset + 1) + '~' + Math.min(offset + PS, total) + '위' : '기록 없음'}</span><button type="button" class="pbtn" data-act="pg" data-v="next" aria-label="다음 쪽"${cur >= pages ? ' disabled' : ''}>›</button><button type="button" class="pbtn" data-act="pg" data-v="last" aria-label="마지막 쪽"${cur >= pages ? ' disabled' : ''}>»</button></div>`;
-  board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)}</small><h2 class="jua">전체 순위 <span class="cnt">${total}명</span></h2></div>
-      <span class="mode${Store.mode === 'local' ? ' local' : ''}">${Store.mode === 'local' ? '이 컴퓨터 기록' : '학교 전체 기록'}</span></div>
+  board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)} · 같은 횟수는 최근 기록이 위</small><h2 class="jua">전체 순위 <span class="cnt">${total}명</span></h2></div>
+      <span class="mode${Store.mode === 'local' ? ' local' : ''}">${Store.mode === 'local' ? '이 컴퓨터 기록' : '학교 전체 기록'}</span>${Store.mode === 'local' ? '<button type="button" class="pbtn wide" data-act="retryload">서버에서 다시 불러오기</button>' : ''}</div>
     <div class="strip"><form class="findrow" data-form="find" autocomplete="off"><input id="findQ" type="text" maxlength="8" placeholder="내 이름 찾기" value="${esc(R.q || '')}"><button type="submit" class="pbtn wide">찾기</button></form>${mine}</div>
     <div class="cols"><span>순위</span><span>이름</span><span>굴린 횟수</span><span>처음 배치 (1 → 12)</span></div>
     <div class="rows">${rows}</div>${pager}`;
@@ -1128,6 +1129,7 @@ document.addEventListener('click', e => {
     loadPage(Math.min(Math.max(to, 0), last));
   }
   else if (act === 'gomine') { const rk = state.result.rank[b.dataset.p]; if (rk) loadPage(Math.floor((rk - 1) / CONFIG.pageSize) * CONFIG.pageSize); }
+  else if (act === 'retryload') loadPage(state.result.offset || 0);
   else if (act === 'clearfind') { state.result.q = ''; loadPage(state.result.offset || 0); }
   else if (act === 'admin') { openLogin(); }
   else if (act === 'loginx') { closeLogin(); }

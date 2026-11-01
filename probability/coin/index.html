@@ -335,7 +335,7 @@ const Store = {
   key: (g, y, s) => 'cn_scores:' + g + ':' + y + ':' + s,
   localList(g, y, s) { try { return JSON.parse(localStorage.getItem(Store.key(g, y, s)) || '[]'); } catch (e) { return []; } },
   sortVal(g, r) { return g === 'run' ? -r.n : g.startsWith('tune') ? r.diff : g === 'spot' ? -r.correct : -r.score; },
-  sortRecs(g, l) { return l.slice().sort((p, q) => Store.sortVal(g, p) - Store.sortVal(g, q) || p.ts - q.ts); },
+  sortRecs(g, l) { return l.slice().sort((p, q) => Store.sortVal(g, p) - Store.sortVal(g, q) || q.ts - p.ts); },
   async http(method, url, body, opt) {
     opt = opt || {};
     const ctl = new AbortController();
@@ -350,7 +350,8 @@ const Store = {
   q(g, y, s) { return CONFIG.apiUrl + '?game=' + g + '&year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s); },
   async page(g, y, s, offset, limit) {
     try {
-      const j = await Store.http('GET', Store.q(g, y, s) + '&offset=' + offset + '&limit=' + limit);
+      let j = null;
+      for (let k = 0; k < 2 && !j; k++) { try { j = await Store.http('GET', Store.q(g, y, s) + '&offset=' + offset + '&limit=' + limit, null, { timeout: 9000 }); } catch (e) { if (k) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
       if (!j || !Array.isArray(j.top)) throw new Error('bad');
       Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
@@ -933,7 +934,7 @@ function paintBoard() {
   const g = B.game, list = B.matches || B.rows, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
   const rows = list.map((r, i) => rowHTML(g, r, B.matches ? r.rank : B.offset + i + 1)).join('');
   el.className = '';
-  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)</span>
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)${Store.mode === 'server' ? '' : ` <button type="button" class="linkbtn" data-act="b-page" data-o="${B.offset}">서버에서 다시 불러오기</button>`}${B.q ? '' : ' · 같은 점수는 최근 기록이 위'}</span>
     <span class="row"><input type="text" id="fq" maxlength="8" placeholder="이름 찾기" value="${esc(B.q)}" aria-label="이름 찾기" style="height:40px;font-size:16px;width:140px"><button type="button" class="ghost" data-act="b-find" style="min-height:40px">찾기</button></span></div>
     <div class="tablewrap"><table class="tbl">${th(HEADS[g])}<tbody>${rows || `<tr><td colspan="${HEADS[g].length}" class="hint">${B.matches ? '찾는 이름이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!'}</td></tr>`}</tbody></table></div>
     ${B.matches ? `<button type="button" class="linkbtn" data-act="b-page" data-o="0">전체 순위 보기</button>` : `<div class="pager"><span class="row"><button type="button" class="ghost" data-act="b-page" data-o="${Math.max(0, B.offset - PS)}" ${B.offset <= 0 ? 'disabled' : ''}>← 이전</button><button type="button" class="ghost" data-act="b-page" data-o="${B.offset + PS}" ${B.offset + PS >= B.total ? 'disabled' : ''}>다음 →</button></span><span class="hint">${Math.floor(B.offset / PS) + 1} / ${Math.max(1, Math.ceil(B.total / PS))}쪽</span><button type="button" class="linkbtn" data-act="b-page" data-o="${last}" ${B.offset >= last ? 'disabled' : ''}>마지막 쪽</button></div>`}

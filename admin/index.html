@@ -380,7 +380,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
       '<div class="list"><h3>학교 (' + CF.schools.length + '곳)</h3><div class="chips">' + CF.schools.map(function (s) { return '<span class="chip">' + esc(s) + (CF.regions[s] ? ' <small style="color:var(--muted)">' + esc(CF.regions[s]) + '</small>' : '') + '<button type="button" data-rs="' + esc(s) + '" aria-label="' + esc(s) + ' 빼기"' + (CF.schools.length <= 1 ? ' disabled' : '') + '>×</button></span>'; }).join('') + '</div>' +
       '<div class="flt"><input id="cs" class="in" maxlength="20" placeholder="학교 이름 두 글자 이상" style="width:230px" aria-label="추가할 학교 검색" value="' + esc(CF.q) + '"><button type="button" class="bt" id="csfind">나이스에서 찾기</button></div>' +
       '<p id="cmsg" class="crumb" role="status">' + esc(CF.msg) + '</p><ul id="csres" class="res" ' + (CF.sugg.length ? '' : 'hidden') + '>' + CF.sugg.map(function (x, i) { return '<li><button type="button" data-add="' + i + '">' + esc(x.name) + '<small>' + esc([x.region, x.kind, x.addr].filter(Boolean).join(' · ')) + '</small></button></li>'; }).join('') + '</ul></div>' +
-      '<div class="bar2"><span class="crumb">' + (CF.dirty ? '저장하지 않은 변경이 있어요.' : '변경 사항이 없어요.') + '</span><span style="display:flex;gap:8px"><button type="button" class="bt" id="crev"' + (CF.dirty ? '' : ' disabled') + '>되돌리기</button><button type="button" class="bt pri" id="csave"' + (CF.dirty ? '' : ' disabled') + '>저장하기</button></span></div>';
+      '<div class="bar2"><span class="crumb">' + (CF.dirty ? '저장하지 않은 변경이 있어요.' : '변경 사항이 없어요.') + '</span><span style="display:flex;gap:8px"><button type="button" class="bt" id="crev"' + (CF.dirty ? '' : ' disabled') + '>되돌리기</button><button type="button" class="bt pri" id="csave"' + (CF.dirty ? '' : ' disabled') + '>저장하기</button></span></div>' +
+      '<div class="list"><h3>순위 정렬 규칙 맞추기</h3><p class="note">같은 점수일 때 최근 기록이 위에 오도록, 예전에 쌓인 기록의 정렬 값을 한 번 바꿔요. 여러 번 눌러도 안전하고, 기록은 지워지지 않아요.</p><div><button type="button" class="bt" id="crescore">지금 맞추기</button></div></div>';
     $('#body').innerHTML = h;
     $('#body').querySelectorAll('[data-ry]').forEach(function (b) { b.onclick = function () { var y = Number(b.getAttribute('data-ry')); CF.years = CF.years.filter(function (v) { return v !== y; }); CF.dirty = true; paintSettings(); }; });
     $('#body').querySelectorAll('[data-rs]').forEach(function (b) { b.onclick = function () { var s = b.getAttribute('data-rs'); CF.schools = CF.schools.filter(function (v) { return v !== s; }); delete CF.regions[s]; CF.dirty = true; paintSettings(); }; });
@@ -399,6 +400,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
       if (CF.schools.length >= 200) { toast('학교는 200곳까지예요.'); return; }
       CF.schools.push(label); CF.regions[label] = x.region; CF.sugg = []; CF.msg = label + ' 추가됨 (저장해야 반영돼요)'; CF.q = ''; CF.dirty = true; paintSettings();
     }; });
+    $('#crescore').onclick = function () { this.disabled = true; api('/api/admin?op=rescore', { method: 'POST' }).then(function (j) { toast('정리했어요. 기록이 있는 순위표 ' + j.keys + '개 중 ' + j.fixed + '건을 바꿨어요.'); $('#crescore').disabled = false; }, function (e) { fail(e, '정리하지'); $('#crescore').disabled = false; }); };
     $('#crev').onclick = renderSettings;
     $('#csave').onclick = function () {
       api('/api/config', { method: 'PUT', body: { years: CF.years, schools: CF.schools, regions: CF.regions } }).then(function (c) { S.cfg = null; S.rec.year = 0; S.rec.school = ''; toast('저장했어요.'); renderSettings(); }, function (e) { fail(e, '저장하지'); });

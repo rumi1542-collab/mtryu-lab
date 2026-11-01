@@ -35,7 +35,7 @@ async function validYearSchool(year, school) {
 const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
 // 게임별로 값을 검사하고, 서버가 직접 계산한 값(점수 등)을 붙여서 돌려줘요. 못 받는 기록이면 null.
-// score: Redis에서 작을수록 위인 숫자 (소수점 아래 ts 값으로 같은 점수일 때 먼저 낸 사람이 위)
+// score: Redis에서 작을수록 위인 숫자 (소수점 아래에서 ts를 빼서, 같은 점수일 때 최근 기록이 위)
 function build(game, b, ts) {
   if (game === 'run') {
     const seq = String(b.seq || ''), guess = String(b.guess || '');
@@ -45,19 +45,19 @@ function build(game, b, ts) {
     const finishedByMiss = n === seq.length - 1;
     const maxed = n === C.MAXRUN && seq.length === C.MAXRUN;
     if (!finishedByMiss && !maxed) return null;
-    return { data: { seq, guess, n }, score: -n + ts / 1e13 };
+    return { data: { seq, guess, n }, score: -n - ts / 1e13 };
   }
   if (game.startsWith('tune')) {
     const w = Number(game.slice(4)), pred = b.pred, hex = String(b.bits || '');
     if (!isInt(pred, 1, C.FLIPS) || !/^[0-9a-f]{250}$/.test(hex)) return null;
     // 안정된 횟수와 차이는 서버가 던진 결과(bits)에서 직접 계산해요
     const first = C.settleTime(C.hexToBits(hex), w), diff = Math.abs(pred - first);
-    return { data: { w, pred, bits: hex, first, diff }, score: diff + ts / 1e13 };
+    return { data: { w, pred, bits: hex, first, diff }, score: diff - ts / 1e13 };
   }
   if (game === 'spot') {
     const correct = b.correct;
     if (!isInt(correct, 0, C.SPOT_ROUNDS)) return null;
-    return { data: { correct }, score: -correct + ts / 1e13 };
+    return { data: { correct }, score: -correct - ts / 1e13 };
   }
   if (game === 'bet') {
     const rounds = b.rounds;
@@ -69,7 +69,7 @@ function build(game, b, ts) {
       const x = C.betRound(r); total += x.pts; if (x.ok) hits++;
       clean.push({ i, f: r.f, p: r.p, e: r.e });
     }
-    return { data: { rounds: clean, score: total, hits }, score: -total + ts / 1e13 };
+    return { data: { rounds: clean, score: total, hits }, score: -total - ts / 1e13 };
   }
   return null;
 }
