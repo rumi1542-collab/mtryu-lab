@@ -62,18 +62,18 @@ function build(game, b, ts) {
     if (!isInt(correct, 0, C.ENDLESS_MAX)) return null;
     return { data: { correct }, score: -correct - ts / 1e13 };
   }
-  if (game === 'bet') {    // 시작하기: 선택한 기록을 서버가 다시 채점해요. 마지막이 3번째 틀림이어야 끝난 게임이에요.
+  if (game === 'bet') {    // 시작하기: 푼 문제를 서버가 다시 채점하고, 문제 번호에 맞는 난이도(확률 차이)인지, 목숨 규칙대로 끝났는지 확인해요.
     const rounds = b.rounds;
-    if (!Array.isArray(rounds) || rounds.length < C.LIVES || rounds.length > C.ENDLESS_MAX + C.LIVES) return null;
-    let hits = 0, miss = 0;
+    if (!Array.isArray(rounds) || rounds.length < C.LIVES || rounds.length > C.ENDLESS_MAX + 2 * C.LIVES + Math.ceil(C.ENDLESS_MAX / C.LEVEL_LEN)) return null;
+    let hits = 0, lives = C.LIVES;
     for (let i = 0; i < rounds.length; i++) {
-      const r = rounds[i];
-      if (!r || !isInt(r.i, 0, C.BET.length - 1) || typeof r.f !== 'boolean' || (r.p !== 'A' && r.p !== 'B')) return null;
-      const ok = C.betRound({ i: r.i, f: r.f, p: r.p, e: 50 }).ok;
-      if (ok) hits++; else miss++;
-      if (miss === C.LIVES && i !== rounds.length - 1) return null;   // 3번 틀린 뒤에 더 이어진 기록은 받지 않아요
+      const x = C.pairRound(rounds[i]); if (!x) return null;
+      const band = C.gapBand(C.levelOf(i)); if (x.gap < band[0] - 1e-9 || x.gap >= band[1] + 1e-9) return null;
+      if (x.ok) hits++; else lives--;
+      if (lives <= 0) { if (i !== rounds.length - 1) return null; break; }
+      if ((i + 1) % C.LEVEL_LEN === 0) lives = Math.min(C.LIVES, lives + 1);   // 레벨이 오르면 목숨 하나가 돌아와요
     }
-    if (miss !== C.LIVES) return null;
+    if (lives > 0) return null;                                              // 아직 끝나지 않은 게임은 올릴 수 없어요
     return { data: { score: hits, hits }, score: -hits - ts / 1e13 };
   }
   return null;

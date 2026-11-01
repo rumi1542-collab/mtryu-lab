@@ -5,7 +5,8 @@ const MAXRUN = 30;      // 연속 맞추기 최대 횟수
 const FLIPS = 1000;     // 상대도수 줄타기에서 던지는 횟수
 const SPOT_ROUNDS = 8;  // 동전 조작 탐정 연습하기 문제 수 (순위에 올리는 '시작하기'는 끝없이, 3번 틀리면 끝)
 const LIVES = 3;        // 시작하기에서 틀려도 되는 횟수 + 1 (3번 틀리면 끝)
-const ENDLESS_MAX = 300; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
+const ENDLESS_MAX = 600; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
+const LEVEL_LEN = 20;    // 20문제마다 레벨이 올라가요 (레벨이 오르면 목숨이 하나 돌아와요, 최대 LIVES개)
 
 function hexToBits(h) {
   const o = new Uint8Array(h.length * 4);
@@ -58,4 +59,17 @@ function betRound(r) {
   return { pA, pB, ok, pts };
 }
 
-module.exports = { LIVES, ENDLESS_MAX, MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };
+// 내기 시뮬레이터 '시작하기': 레벨별로 두 내기의 성공 확률 차이가 이 범위 안인 문제만 나와요 (작은 차이일수록 어려워요)
+const levelOf = idx => Math.floor(idx / LEVEL_LEN) + 1;
+function gapBand(level) { return level <= 1 ? [0.30, 1] : level === 2 ? [0.15, 0.30] : level === 3 ? [0.05, 0.15] : level === 4 ? [0.02, 0.05] : [0.005, 0.02]; }
+// r = { a:[n,lo,hi], b:[n,lo,hi], p:'A'|'B' }  →  { ok, pA, pB, gap } (모양이 올바르지 않으면 null)
+function pairRound(r) {
+  if (!r || !Array.isArray(r.a) || !Array.isArray(r.b) || (r.p !== 'A' && r.p !== 'B')) return null;
+  for (const x of [r.a, r.b]) {
+    if (x.length !== 3 || !x.every(Number.isInteger)) return null;
+    if (x[0] < 1 || x[0] > 1000 || x[1] < 0 || x[2] < x[1] || x[2] > x[0]) return null;
+  }
+  const pA = probRange(r.a[0], r.a[1], r.a[2]), pB = probRange(r.b[0], r.b[1], r.b[2]), gap = Math.abs(pA - pB);
+  return { ok: (r.p === 'A') === (pA > pB), pA, pB, gap };
+}
+module.exports = { levelOf, gapBand, pairRound, LEVEL_LEN, LIVES, ENDLESS_MAX, MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };
