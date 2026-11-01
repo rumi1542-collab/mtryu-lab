@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>관리자 · MT RYU의 실험실</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* 관리자 화면: 어디에서도 링크하지 않아요. 주소를 직접 열고, 관리자 암호(서버의 RD_ADMIN_KEY)로 들어와요. lab-bar.js는 쓰지 않아요. */
+:root{--ink:#2B0F3F;--muted:#5A4670;--line:#E6D8F2;--bg:#F8F2FC;--panel:#fff;--purple:#7719AA;--pink:#D81B7A;--hot:#FF2D95;--soft:#F0DDFA;--danger:#B3004D}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--hot);outline-offset:1px}
+
+/* 로그인 */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.lbox{width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px;background:var(--panel);border:2px solid var(--ink);border-radius:16px;padding:24px;box-shadow:6px 6px 0 var(--pink)}
+.lbox h1{margin:0;font-size:22px;font-weight:900}
+.lbox p{margin:0;font-size:14px;color:var(--muted)}
+
+/* 공통 입력·버튼 */
+.in{min-height:42px;padding:0 12px;border:2px solid var(--ink);border-radius:10px;background:#fff;font-size:15px;min-width:0}
+.bt{min-height:42px;padding:0 16px;border:2px solid var(--ink);border-radius:10px;background:#fff;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap}
+.bt:hover:not(:disabled){background:var(--soft)}
+.bt.pri{background:var(--purple);border-color:var(--purple);color:#fff}.bt.pri:hover:not(:disabled){background:#5f1388}
+.bt.danger{border-color:var(--danger);color:var(--danger)}.bt.danger:hover:not(:disabled){background:#FFE3EE}
+.bt.sm{min-height:34px;padding:0 12px}
+.bt:disabled{opacity:.45;cursor:not-allowed}
+.err{margin:0;min-height:1.3em;font-size:13.5px;font-weight:700;color:var(--danger)}
+
+/* 틀 */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;background:linear-gradient(90deg,#2B0F3F,#4A1573);color:#fff;border-bottom:2px solid var(--pink)}
+.top h1{margin:0;font-size:16px;font-weight:900;white-space:nowrap}
+.top .sp{flex:1}
+.top select,.top button{flex:none;white-space:nowrap;min-height:34px;border:0;border-radius:999px;padding:0 14px;background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.top select option{color:var(--ink)}
+.shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;max-width:1280px;margin:0 auto;padding:20px 16px 60px}
+.side{align-self:start;position:sticky;top:72px;background:var(--panel);border:2px solid var(--ink);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:2px}
+.side .grp{margin:10px 8px 4px;font-size:12px;font-weight:700;color:var(--muted)}
+.nv{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 10px;border:0;border-radius:10px;background:none;text-align:left;font-size:14.5px;cursor:pointer}
+.nv:hover{background:var(--soft)}
+.nv.on{background:var(--purple);color:#fff;font-weight:700}
+.nv.l1{padding-left:26px}.nv.l2{padding-left:42px;font-size:13.5px}
+.nv .ic{width:20px;text-align:center}
+.mnav{display:none}
+.main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--panel);border:2px solid var(--ink);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card h2{margin:0;font-size:20px;font-weight:900}
+.card h3{margin:0;font-size:15px;font-weight:900}
+.crumb{margin:0;font-size:13px;color:var(--muted)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{min-height:38px;padding:0 16px;border:2px solid var(--line);border-radius:999px;background:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.note{margin:0;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:13.5px;color:var(--muted)}
+.empty{margin:0;padding:22px;text-align:center;color:var(--muted);font-size:14.5px;border:2px dashed var(--line);border-radius:12px}
+
+/* 숫자 카드 */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.stat{padding:12px 14px;border:2px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:2px}
+.stat b{font-size:26px;font-weight:900;line-height:1.1}
+.stat span{font-size:13px;color:var(--muted)}
+
+/* 막대 그래프 */
+.chart{display:flex;align-items:flex-end;gap:2px;height:130px;padding:4px 0 0;border-bottom:2px solid var(--line)}
+.chart i{flex:1;min-width:2px;background:var(--purple);border-radius:3px 3px 0 0;min-height:2px}
+.chart i.z{background:var(--line)}
+.axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.hb{display:grid;grid-template-columns:minmax(80px,170px) minmax(0,1fr) auto;gap:8px;align-items:center;font-size:14px}
+.hb .bar{height:14px;background:var(--soft);border-radius:7px;overflow:hidden}
+.hb .bar i{display:block;height:100%;background:var(--pink);border-radius:7px}
+.hb .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .v{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.list{display:flex;flex-direction:column;gap:8px}
+
+/* 표 */
+.tw{overflow-x:auto;border:2px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--soft);font-size:13px;position:sticky;top:0}
+tr:last-child td{border-bottom:0}
+tr.sel td{background:#FFF1F8}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
+.flt{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.flt label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.bar2{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.pager{display:flex;gap:10px;align-items:center;justify-content:center;font-size:14px}
+
+/* 설정 */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 6px 0 14px;border:2px solid var(--line);border-radius:999px;background:#fff;font-size:14px}
+.chip button{width:28px;height:28px;border:0;border-radius:50%;background:var(--soft);cursor:pointer;font-weight:900}
+.chip button:hover{background:#FFD6E8}
+.res{list-style:none;margin:0;padding:0;border:2px solid var(--line);border-radius:10px;max-height:220px;overflow:auto}
+.res li+li{border-top:1px solid var(--line)}
+.res button{display:flex;flex-direction:column;align-items:flex-start;width:100%;min-height:44px;padding:8px 12px;border:0;background:#fff;text-align:left;cursor:pointer;font-weight:700}
+.res button:hover{background:var(--soft)}.res small{font-weight:400;color:var(--muted)}
+
+/* 안내창·알림 */
+.mo{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(43,15,63,.6)}
+.mb{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px;background:#fff;border:2px solid var(--ink);border-radius:16px;padding:22px;box-shadow:6px 6px 0 var(--pink)}
+.mb h2{margin:0;font-size:19px}.mb p{margin:0;font-size:14.5px;color:var(--muted)}
+.mb .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:60;max-width:calc(100vw - 32px);padding:11px 18px;border-radius:999px;background:var(--ink);color:#fff;font-size:14px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+
+@media (max-width:860px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:14px;padding-top:14px}
+  .side{display:none}
+  .mnav{display:block}
+  .mnav select{width:100%;min-height:46px;border:2px solid var(--ink);border-radius:12px;padding:0 12px;background:#fff;font-weight:700;font-size:15px}
+  .top h1{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .hb{grid-template-columns:minmax(70px,110px) minmax(0,1fr) auto}
+}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<main id="login" class="login" hidden>
+  <form id="lform" class="lbox" autocomplete="off">
+    <h1>관리자</h1>
+    <p>관리자 암호를 입력해 주세요.</p>
+    <input id="lkey" class="in" type="password" placeholder="관리자 암호" autocomplete="current-password" aria-label="관리자 암호">
+    <p id="lerr" class="err" role="alert"></p>
+    <button class="bt pri" type="submit" id="lgo">들어가기</button>
+  </form>
+</main>
+
+<!-- 본 화면 -->
+<div id="app" hidden>
+  <header class="top">
+    <h1>MT RYU의 실험실 · 관리자</h1>
+    <span class="sp"></span>
+    <select id="days" aria-label="기간">
+      <option value="1">오늘</option><option value="7" selected>최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
+    </select>
+    <button type="button" id="out">나가기</button>
+  </header>
+  <div class="shell">
+    <div class="mnav"><select id="mnav" aria-label="메뉴"></select></div>
+    <nav class="side" id="side" aria-label="메뉴"></nav>
+    <main class="main" id="main"></main>
+  </div>
+</div>
+
+<div id="modal" class="mo" hidden></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(n) { return Number(n || 0).toLocaleString('ko-KR'); }
+
+  /* ── 메뉴: 실험실 순서대로 ── */
+  var UNIT_NAME = { home: '메인 페이지', math: '수학 실험실', stat: '통계 실험실', prob: '확률 실험실 첫 화면', river: '강 건너기', coin: '동전 실험실', game: '게임 수학 실험실' };
+  var NODES = [
+    { id: 'overview', label: '전체 현황', ic: '📊', units: null },
+    { grp: '실험실' },
+    { id: 'home', label: '메인 페이지', ic: '🏠', units: ['home'] },
+    { id: 'math', label: '수학 실험실', ic: '➕', units: ['math'] },
+    { id: 'stat', label: '통계 실험실', ic: '📈', units: ['stat'] },
+    { id: 'prob', label: '확률 실험실', ic: '🎲', units: ['prob', 'river', 'coin'] },
+    { id: 'river', label: '강 건너기', lvl: 1, units: ['river'], game: 'river' },
+    { id: 'coin', label: '동전 실험실', lvl: 1, units: ['coin'] },
+    { id: 'run', label: '1 연속 맞추기', lvl: 2, game: 'run', parent: 'coin' },
+    { id: 'tune10', label: '2 상대도수 줄타기 ±0.10', lvl: 2, game: 'tune10', parent: 'coin' },
+    { id: 'tune5', label: '2 상대도수 줄타기 ±0.05', lvl: 2, game: 'tune5', parent: 'coin' },
+    { id: 'tune2', label: '2 상대도수 줄타기 ±0.02', lvl: 2, game: 'tune2', parent: 'coin' },
+    { id: 'spot', label: '3 동전 조작 탐정', lvl: 2, game: 'spot', parent: 'coin' },
+    { id: 'bet', label: '4 내기 시뮬레이터', lvl: 2, game: 'bet', parent: 'coin' },
+    { id: 'game', label: '게임 수학 실험실', ic: '🎮', units: ['game'] },
+    { grp: '관리' },
+    { id: 'settings', label: '학년도·학교', ic: '⚙️' }
+  ];
+  var BYID = {}; NODES.forEach(function (n) { if (n.id) BYID[n.id] = n; });
+
+  var S = { key: '', node: 'overview', tab: 'stats', days: 7, cfg: null, rec: { year: 0, school: '', sort: 'rank', q: '', offset: 0, sel: {}, data: null, seq: 0 }, seq: 0 };
+  try { S.key = sessionStorage.getItem('mtryu.adminkey') || ''; } catch (e) {}
+
+  /* ── 서버 호출 ── */
+  function api(path, o) {
+    o = o || {};
+    var h = { 'x-admin-key': S.key };
+    if (o.body) h['Content-Type'] = 'application/json';
+    return fetch(path, { method: o.method || 'GET', headers: h, body: o.body ? JSON.stringify(o.body) : undefined }).then(function (r) {
+      return r.json().catch(function () { return null; }).then(function (j) {
+        if (!r.ok) { var e = new Error('http ' + r.status); e.status = r.status; e.body = j; throw e; }
+        return j;
+      });
+    });
+  }
+  function toast(t) { var el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { el.hidden = true; }, 2600); }
+  function logout() { try { sessionStorage.removeItem('mtryu.adminkey'); } catch (e) {} S.key = ''; $('#app').hidden = true; $('#login').hidden = false; $('#lkey').value = ''; $('#lkey').focus(); }
+  function fail(e, what) {
+    if (e && e.status === 401) { logout(); $('#lerr').textContent = '암호가 맞지 않거나 연결이 끊어졌어요. 다시 들어와 주세요.'; return; }
+    toast((what || '불러오지') + ' 못했어요. ' + (e && e.status === 429 ? '잠시 뒤에 다시 해 주세요.' : '인터넷을 확인해 주세요.'));
+  }
+
+  /* ── 안내창 (브라우저 기본 확인창 대신) ── */
+  function ask(o) {   // { title, text, ok, danger, typed }
+    return new Promise(function (resolve) {
+      var m = $('#modal'), last = document.activeElement;
+      m.innerHTML = '<div class="mb" role="alertdialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">' + esc(o.title) + '</h2><p>' + esc(o.text) + '</p>' +
+        (o.typed ? '<input id="mtype" class="in" type="text" autocomplete="off" placeholder="' + esc(o.typed) + '" aria-label="확인을 위해 ' + esc(o.typed) + ' 입력">' : '') +
+        '<div class="row"><button type="button" class="bt" id="mno">취소</button><button type="button" class="bt ' + (o.danger ? 'danger' : 'pri') + '" id="myes"' + (o.typed ? ' disabled' : '') + '>' + esc(o.ok || '확인') + '</button></div></div>';
+      m.hidden = false;
+      function done(v) { m.hidden = true; m.innerHTML = ''; document.removeEventListener('keydown', key, true); try { last.focus(); } catch (e) {} resolve(v); }
+      function key(e) { if (e.key === 'Escape') { e.preventDefault(); done(false); } }
+      document.addEventListener('keydown', key, true);
+      $('#mno').onclick = function () { done(false); };
+      $('#myes').onclick = function () { done(true); };
+      if (o.typed) $('#mtype').oninput = function () { $('#myes').disabled = this.value.trim() !== o.typed; };
+      (o.typed ? $('#mtype') : $('#mno')).focus();
+    });
+  }
+
+  /* ── 메뉴 그리기 ── */
+  function renderNav() {
+    var h = '', opts = '';
+    NODES.forEach(function (n) {
+      if (n.grp) { h += '<div class="grp">' + esc(n.grp) + '</div>'; opts += '<optgroup label="' + esc(n.grp) + '"></optgroup>'; return; }
+      h += '<button type="button" class="nv' + (n.lvl ? ' l' + n.lvl : '') + (n.id === S.node ? ' on' : '') + '" data-id="' + n.id + '"' + (n.id === S.node ? ' aria-current="page"' : '') + '><span class="ic">' + (n.ic || '') + '</span>' + esc(n.label) + '</button>';
+      opts += '<option value="' + n.id + '"' + (n.id === S.node ? ' selected' : '') + '>' + (n.lvl === 2 ? '　　' : n.lvl === 1 ? '　' : '') + esc((n.ic ? n.ic + ' ' : '') + n.label) + '</option>';
+    });
+    $('#side').innerHTML = h;
+    $('#mnav').innerHTML = opts.replace(/<optgroup label="[^"]*"><\/optgroup>/g, '');
+  }
+  function go(id) {
+    S.node = id; var n = BYID[id];
+    S.tab = (n.units || n.id === 'overview') ? 'stats' : (n.game ? 'records' : 'stats');
+    S.rec.offset = 0; S.rec.sel = {}; S.rec.data = null; S.rec.q = '';
+    renderNav(); render();
+  }
+  $('#side').addEventListener('click', function (e) { var b = e.target.closest('.nv'); if (b) go(b.getAttribute('data-id')); });
+  $('#mnav').addEventListener('change', function () { go(this.value); });
+  $('#days').addEventListener('change', function () { S.days = Number(this.value); if (S.tab === 'stats' && S.node !== 'settings') render(); });
+  $('#out').addEventListener('click', logout);
+
+  /* ── 화면 ── */
+  function render() {
+    var n = BYID[S.node], main = $('#main');
+    if (S.node === 'settings') return renderSettings();
+    var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin') ? '확률 실험실 › ' + n.label : '';
+    var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game;
+    var tabs = (hasStats && hasRec) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button><button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button></div>' : '';
+    main.innerHTML = '<section class="card">' + (crumb ? '<p class="crumb">' + esc(crumb) + '</p>' : '') + '<h2>' + esc(n.label) + '</h2>' + tabs + '<div id="body"><p class="empty">불러오는 중…</p></div></section>';
+    main.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { S.tab = b.getAttribute('data-tab'); render(); }; });
+    if (S.tab === 'records' && hasRec) loadRecords(); else if (hasStats) loadStats(n); else $('#body').innerHTML = '<p class="note">이 게임의 접속 분석은 <b>동전 실험실</b> 메뉴에서 함께 볼 수 있어요.</p>';
+    if (S.tab === 'records' && !hasStats) return;
+  }
+
+  /* ── 접속 분석 ── */
+  function loadStats(n) {
+    var my = ++S.seq, q = '/api/admin?op=stats&days=' + S.days + (n.units ? '&units=' + n.units.join(',') : '');
+    var ps = [api(q)];
+    if (S.node === 'overview') ps.push(api('/api/admin?op=counts'));
+    Promise.all(ps).then(function (r) { if (my === S.seq) paintStats(n, r[0], r[1]); }, function (e) { if (my === S.seq) { $('#body').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
+  }
+  function md(d) { return d.slice(5).replace('-', '/'); }
+  function paintStats(n, s, counts) {
+    var single = n.units && n.units.length === 1;
+    var html = '<div class="stats"><div class="stat"><b>' + fmt(s.visits) + '</b><span>방문 (페이지를 연 횟수)</span></div><div class="stat"><b>' + fmt(s.users) + '</b><span>사용자 (익명 번호 기준)</span></div>';
+    html += '<div class="stat"><b>' + fmt(s.schools.length) + '</b><span>접속한 학교</span></div>';
+    if (counts) { var tot = 0; counts.rows.forEach(function (r) { tot += r.river + r.run + r.tune10 + r.tune5 + r.tune2 + r.spot + r.bet; }); html += '<div class="stat"><b>' + fmt(tot) + '</b><span>쌓인 기록 (' + counts.year + '학년도)</span></div>'; }
+    html += '</div>';
+    if (!s.visits) html += '<p class="empty">이 기간에는 접속 기록이 없어요. 접속 분석은 처음 켠 날부터 모으고, 지난 방문은 볼 수 없어요.</p>';
+    else {
+      var max = Math.max.apply(null, s.series.map(function (r) { return r.total; })) || 1;
+      html += '<div><h3>날짜별 방문</h3><div class="chart" role="img" aria-label="날짜별 방문 막대그래프. 최대 ' + max + '회">' + s.series.map(function (r) { return '<i class="' + (r.total ? '' : 'z') + '" style="height:' + Math.max(2, Math.round(r.total / max * 100)) + '%" title="' + md(r.day) + ' · ' + r.total + '회"></i>'; }).join('') + '</div><div class="axis"><span>' + md(s.series[0].day) + '</span><span>최대 ' + fmt(max) + '회/일</span><span>' + md(s.series[s.series.length - 1].day) + '</span></div></div>';
+      html += '<div class="two">';
+      if (!single) {
+        var us = Object.keys(s.totals).sort(function (a, b) { return s.totals[b] - s.totals[a]; }), mx = s.totals[us[0]] || 1;
+        html += '<div class="list"><h3>' + (S.node === 'overview' ? '실험실별 방문' : '메뉴별 방문') + '</h3>' + us.map(function (u) { return '<div class="hb"><span class="nm">' + esc(UNIT_NAME[u]) + '</span><span class="bar"><i style="width:' + Math.round(s.totals[u] / mx * 100) + '%"></i></span><span class="v">' + fmt(s.totals[u]) + '회 · ' + fmt(s.usersByUnit[u]) + '명</span></div>'; }).join('') + '</div>';
+      }
+      var sm = s.schools.length ? s.schools[0].visits : 1;
+      html += '<div class="list"><h3>학교별 방문</h3>' + (s.schools.length ? s.schools.map(function (c) { return '<div class="hb"><span class="nm" title="' + esc(c.name) + '">' + esc(c.name) + '</span><span class="bar"><i style="width:' + Math.round(c.visits / sm * 100) + '%"></i></span><span class="v">' + fmt(c.visits) + '회' + (c.users != null ? ' · ' + fmt(c.users) + '명' : '') + '</span></div>'; }).join('') : '<p class="empty">학교 정보가 있는 방문이 아직 없어요.</p>') + '</div></div>';
+      html += '<details><summary>날짜별 표로 보기</summary><div class="tw"><table><thead><tr><th>날짜</th><th class="num">방문</th></tr></thead><tbody>' + s.series.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.day) + '</td><td class="num">' + fmt(r.total) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
+    }
+    if (counts) {
+      html += '<div><h3>학교·게임별 기록 수 (' + counts.year + '학년도)</h3>' + (counts.rows.length ? '<div class="tw"><table><thead><tr><th>학교</th><th class="num">강 건너기</th><th class="num">연속 맞추기</th><th class="num">줄타기 ±0.10</th><th class="num">±0.05</th><th class="num">±0.02</th><th class="num">조작 탐정</th><th class="num">내기</th></tr></thead><tbody>' +
+        counts.rows.map(function (r) { return '<tr><td>' + esc(r.school) + '</td><td class="num">' + fmt(r.river) + '</td><td class="num">' + fmt(r.run) + '</td><td class="num">' + fmt(r.tune10) + '</td><td class="num">' + fmt(r.tune5) + '</td><td class="num">' + fmt(r.tune2) + '</td><td class="num">' + fmt(r.spot) + '</td><td class="num">' + fmt(r.bet) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="empty">등록된 학교가 없어요.</p>') + '</div>';
+    }
+    if (S.node === 'math' || S.node === 'stat' || S.node === 'game') html += '<p class="note">이 실험실은 아직 서버에 남기는 학생 기록이 없어서, 접속 분석만 볼 수 있어요.</p>';
+    $('#body').innerHTML = html;
+  }
+
+  /* ── 기록 관리 ── */
+  function ensureCfg() {
+    if (S.cfg) return Promise.resolve(S.cfg);
+    return api('/api/config').then(function (c) { S.cfg = c; if (!S.rec.year) S.rec.year = c.years[0]; if (!S.rec.school) S.rec.school = c.schools[0]; return c; });
+  }
+  function timeKST(ts) {
+    try { var p = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ts)), o = {}; p.forEach(function (x) { o[x.type] = x.value; }); return o.month + '/' + o.day + ' ' + o.hour + ':' + o.minute; } catch (e) { return ''; }
+  }
+  var PAGE = 20;
+  function loadRecords() {
+    var n = BYID[S.node];
+    ensureCfg().then(function (c) {
+      var R = S.rec, my = ++R.seq;
+      var q = '/api/admin?op=records&game=' + n.game + '&year=' + R.year + '&school=' + encodeURIComponent(R.school) + '&sort=' + R.sort + '&offset=' + R.offset + '&limit=' + PAGE + '&q=' + encodeURIComponent(R.q);
+      paintRecordsFrame(c, null);
+      return api(q).then(function (d) { if (my !== R.seq) return; R.data = d; paintRecordsFrame(c, d); }, function (e) { if (my === R.seq) { $('#rtable').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
+    }, function (e) { fail(e); });
+  }
+  function selCount() { return Object.keys(S.rec.sel).length; }
+  function paintRecordsFrame(c, d) {
+    var R = S.rec, body = $('#body'); if (!body) return;
+    if (!$('#rfrm')) {
+      body.innerHTML = '<div id="rfrm" style="display:flex;flex-direction:column;gap:14px">' +
+        '<div class="flt"><label>학년도<select id="ry" class="in">' + c.years.map(function (y) { return '<option value="' + y + '"' + (y === R.year ? ' selected' : '') + '>' + y + '학년도</option>'; }).join('') + '</select></label>' +
+        '<label>학교<select id="rs" class="in">' + c.schools.map(function (s) { return '<option value="' + esc(s) + '"' + (s === R.school ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>' +
+        '<label>정렬<select id="rt" class="in"><option value="recent">최근순</option><option value="rank">순위순</option><option value="oldest">오래된 순</option></select></label>' +
+        '<label>별명 찾기<span style="display:flex;gap:6px"><input id="rq" class="in" maxlength="8" placeholder="별명" style="width:130px"><button type="button" class="bt" id="rfind">찾기</button></span></label></div>' +
+        '<div class="bar2"><span id="rinfo" class="crumb"></span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="bt danger" id="rdelsel" disabled>선택 삭제</button><button type="button" class="bt danger" id="rdelall">이 학교·학년도 전체 삭제</button></span></div>' +
+        '<div id="rtable"></div><div id="rpager" class="pager"></div></div>';
+      $('#rt').value = R.sort;
+      $('#ry').onchange = function () { R.year = Number(this.value); R.offset = 0; R.sel = {}; loadRecords(); };
+      $('#rs').onchange = function () { R.school = this.value; R.offset = 0; R.sel = {}; loadRecords(); };
+      $('#rt').onchange = function () { R.sort = this.value; R.offset = 0; loadRecords(); };
+      function find() { R.q = $('#rq').value.trim(); R.offset = 0; loadRecords(); }
+      $('#rfind').onclick = find; $('#rq').onkeydown = function (e) { if (e.key === 'Enter') find(); };
+      $('#rdelsel').onclick = delSelected; $('#rdelall').onclick = delAll;
+    }
+    if (!d) { $('#rtable').innerHTML = '<p class="empty">불러오는 중…</p>'; return; }
+    $('#rinfo').textContent = '전체 ' + fmt(d.total) + '개' + (R.q ? ' · 검색 결과 ' + fmt(d.matched) + '개' : '');
+    if (!d.items.length) $('#rtable').innerHTML = '<p class="empty">' + (R.q ? '찾는 별명이 없어요.' : '이 학교·학년도에는 아직 기록이 없어요.') + '</p>';
+    else {
+      var allOn = d.items.every(function (x) { return R.sel[x.id]; });
+      $('#rtable').innerHTML = '<div class="tw"><table><thead><tr><th><input type="checkbox" id="rall" aria-label="이 쪽 모두 선택"' + (allOn ? ' checked' : '') + '></th><th class="num">순위</th><th>별명</th><th>기록</th><th>시각</th><th>기기</th></tr></thead><tbody>' +
+        d.items.map(function (x) { return '<tr class="' + (R.sel[x.id] ? 'sel' : '') + '"><td><input type="checkbox" data-id="' + esc(x.id) + '"' + (R.sel[x.id] ? ' checked' : '') + ' aria-label="' + esc(x.name) + ' 선택"></td><td class="num">' + x.rank + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.summary) + '</td><td>' + esc(timeKST(x.ts)) + '</td><td style="color:var(--muted)">' + (x.uid ? esc(x.uid) : '-') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      $('#rtable').querySelectorAll('input[data-id]').forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute('data-id'); if (cb.checked) R.sel[id] = 1; else delete R.sel[id]; cb.closest('tr').classList.toggle('sel', cb.checked); syncSel(); }; });
+      $('#rall').onchange = function () { var on = this.checked; d.items.forEach(function (x) { if (on) R.sel[x.id] = 1; else delete R.sel[x.id]; }); paintRecordsFrame(c, d); };
+    }
+    var pages = Math.max(1, Math.ceil(d.matched / PAGE)), cur = Math.floor(R.offset / PAGE) + 1;
+    $('#rpager').innerHTML = d.matched > PAGE ? '<button type="button" class="bt sm" id="rprev"' + (cur <= 1 ? ' disabled' : '') + '>‹ 이전</button><span>' + cur + ' / ' + pages + '쪽</span><button type="button" class="bt sm" id="rnext"' + (cur >= pages ? ' disabled' : '') + '>다음 ›</button>' : '';
+    if ($('#rprev')) { $('#rprev').onclick = function () { R.offset = Math.max(0, R.offset - PAGE); loadRecords(); }; $('#rnext').onclick = function () { R.offset += PAGE; loadRecords(); }; }
+    syncSel();
+  }
+  function syncSel() { var b = $('#rdelsel'); if (!b) return; var n = selCount(); b.disabled = !n; b.textContent = n ? '선택한 ' + n + '건 삭제' : '선택 삭제'; }
+  function delUrl(extra) {
+    var n = BYID[S.node], R = S.rec;
+    return (n.game === 'river' ? '/api/scores?' : '/api/coin?game=' + n.game + '&') + 'year=' + R.year + '&school=' + encodeURIComponent(R.school) + extra;
+  }
+  function delSelected() {
+    var ids = Object.keys(S.rec.sel); if (!ids.length) return;
+    ask({ title: ids.length + '건을 삭제할까요?', text: S.rec.school + ' · ' + S.rec.year + '학년도의 선택한 기록이 순위에서 사라져요. 되돌릴 수 없어요.', ok: '삭제', danger: true }).then(function (yes) {
+      if (!yes) return;
+      var chunks = []; for (var i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+      var removed = 0;
+      chunks.reduce(function (p, c) { return p.then(function () { return api(delUrl('&ids=' + c.map(encodeURIComponent).join(',')), { method: 'DELETE' }).then(function (j) { removed += (j && j.removed) || 0; }); }); }, Promise.resolve())
+        .then(function () { S.rec.sel = {}; toast(removed + '건을 삭제했어요.'); S.rec.offset = 0; loadRecords(); }, function (e) { fail(e, '삭제하지'); loadRecords(); });
+    });
+  }
+  function delAll() {
+    var R = S.rec, total = R.data ? R.data.total : 0;
+    ask({ title: '순위를 모두 지울까요?', text: R.school + ' · ' + R.year + '학년도의 ' + BYID[S.node].label + ' 기록 ' + fmt(total) + '개가 모두 사라져요. 되돌릴 수 없어요. 계속하려면 아래에 “삭제”라고 써 주세요.', ok: '모두 삭제', danger: true, typed: '삭제' }).then(function (yes) {
+      if (!yes) return;
+      api(delUrl('&all=1'), { method: 'DELETE' }).then(function (j) { S.rec.sel = {}; S.rec.offset = 0; toast(((j && j.removed) || 0) + '건을 삭제했어요.'); loadRecords(); }, function (e) { fail(e, '삭제하지'); });
+    });
+  }
+
+  /* ── 학년도·학교 설정 ── */
+  var CF = null;
+  function renderSettings() {
+    $('#main').innerHTML = '<section class="card"><h2>학년도·학교</h2><div id="body"><p class="empty">불러오는 중…</p></div></section>';
+    api('/api/config').then(function (c) { CF = { years: c.years.slice(), schools: c.schools.slice(), regions: Object.assign({}, c.regions || {}), dirty: false, sugg: [], q: '', msg: '' }; paintSettings(); }, function (e) { fail(e); });
+  }
+  function paintSettings() {
+    var h = '<p class="note">여기서 정한 학년도와 학교가 게임의 서버 목록이 돼요. 목록에서 빼도 이미 쌓인 기록은 지워지지 않고, 순위표에서만 보이지 않아요. 학생이 내 정보에서 고른 학교는 저절로 추가돼요.</p>' +
+      '<div class="list"><h3>학년도</h3><div class="chips">' + CF.years.map(function (y) { return '<span class="chip">' + y + '학년도<button type="button" data-ry="' + y + '" aria-label="' + y + '학년도 빼기"' + (CF.years.length <= 1 ? ' disabled' : '') + '>×</button></span>'; }).join('') + '</div>' +
+      '<div class="flt"><input id="cy" class="in" type="number" min="2000" max="2100" placeholder="예: 2027" style="width:130px" aria-label="추가할 학년도"><button type="button" class="bt" id="cyadd">학년도 추가</button></div></div>' +
+      '<div class="list"><h3>학교 (' + CF.schools.length + '곳)</h3><div class="chips">' + CF.schools.map(function (s) { return '<span class="chip">' + esc(s) + (CF.regions[s] ? ' <small style="color:var(--muted)">' + esc(CF.regions[s]) + '</small>' : '') + '<button type="button" data-rs="' + esc(s) + '" aria-label="' + esc(s) + ' 빼기"' + (CF.schools.length <= 1 ? ' disabled' : '') + '>×</button></span>'; }).join('') + '</div>' +
+      '<div class="flt"><input id="cs" class="in" maxlength="20" placeholder="학교 이름 두 글자 이상" style="width:230px" aria-label="추가할 학교 검색" value="' + esc(CF.q) + '"><button type="button" class="bt" id="csfind">나이스에서 찾기</button></div>' +
+      '<p id="cmsg" class="crumb" role="status">' + esc(CF.msg) + '</p><ul id="csres" class="res" ' + (CF.sugg.length ? '' : 'hidden') + '>' + CF.sugg.map(function (x, i) { return '<li><button type="button" data-add="' + i + '">' + esc(x.name) + '<small>' + esc([x.region, x.kind, x.addr].filter(Boolean).join(' · ')) + '</small></button></li>'; }).join('') + '</ul></div>' +
+      '<div class="bar2"><span class="crumb">' + (CF.dirty ? '저장하지 않은 변경이 있어요.' : '변경 사항이 없어요.') + '</span><span style="display:flex;gap:8px"><button type="button" class="bt" id="crev"' + (CF.dirty ? '' : ' disabled') + '>되돌리기</button><button type="button" class="bt pri" id="csave"' + (CF.dirty ? '' : ' disabled') + '>저장하기</button></span></div>';
+    $('#body').innerHTML = h;
+    $('#body').querySelectorAll('[data-ry]').forEach(function (b) { b.onclick = function () { var y = Number(b.getAttribute('data-ry')); CF.years = CF.years.filter(function (v) { return v !== y; }); CF.dirty = true; paintSettings(); }; });
+    $('#body').querySelectorAll('[data-rs]').forEach(function (b) { b.onclick = function () { var s = b.getAttribute('data-rs'); CF.schools = CF.schools.filter(function (v) { return v !== s; }); delete CF.regions[s]; CF.dirty = true; paintSettings(); }; });
+    $('#cyadd').onclick = function () { var y = parseInt($('#cy').value, 10); if (!(y >= 2000 && y <= 2100) || CF.years.indexOf(y) >= 0) { toast('2000~2100 사이의 새 학년도를 써 주세요.'); return; } if (CF.years.length >= 12) { toast('학년도는 12개까지예요.'); return; } CF.years.push(y); CF.years.sort(function (a, b) { return b - a; }); CF.dirty = true; paintSettings(); };
+    function find() {
+      var q = $('#cs').value.trim(); CF.q = q;
+      if (q.length < 2) { CF.msg = '두 글자 이상 써 주세요.'; CF.sugg = []; paintSettings(); return; }
+      CF.msg = '찾는 중…'; $('#cmsg').textContent = CF.msg;
+      api('/api/schools?q=' + encodeURIComponent(q)).then(function (j) { CF.sugg = j.schools || []; CF.msg = CF.sugg.length ? '눌러서 추가해요.' : '찾는 학교가 없어요.'; paintSettings(); }, function (e) { CF.sugg = []; CF.msg = e.status === 503 ? '나이스 인증키(NEIS_KEY)가 서버에 없어요.' : '학교 검색을 쓸 수 없어요.'; paintSettings(); });
+    }
+    $('#csfind').onclick = find; $('#cs').onkeydown = function (e) { if (e.key === 'Enter') find(); };
+    $('#body').querySelectorAll('[data-add]').forEach(function (b) { b.onclick = function () {
+      var x = CF.sugg[Number(b.getAttribute('data-add'))], label = x.name;
+      if (CF.schools.indexOf(label) >= 0 && CF.regions[label] && CF.regions[label] !== x.region) label = (x.name + '(' + x.region + ')').slice(0, 20);
+      if (CF.schools.indexOf(label) >= 0) { toast('이미 있는 학교예요.'); return; }
+      if (CF.schools.length >= 200) { toast('학교는 200곳까지예요.'); return; }
+      CF.schools.push(label); CF.regions[label] = x.region; CF.sugg = []; CF.msg = label + ' 추가됨 (저장해야 반영돼요)'; CF.q = ''; CF.dirty = true; paintSettings();
+    }; });
+    $('#crev').onclick = renderSettings;
+    $('#csave').onclick = function () {
+      api('/api/config', { method: 'PUT', body: { years: CF.years, schools: CF.schools, regions: CF.regions } }).then(function (c) { S.cfg = null; S.rec.year = 0; S.rec.school = ''; toast('저장했어요.'); renderSettings(); }, function (e) { fail(e, '저장하지'); });
+    };
+  }
+
+  /* ── 로그인 ── */
+  function enter() { $('#login').hidden = true; $('#app').hidden = false; renderNav(); render(); }
+  $('#lform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var k = $('#lkey').value; if (!k) { $('#lerr').textContent = '암호를 입력해 주세요.'; return; }
+    S.key = k; $('#lgo').disabled = true; $('#lerr').textContent = '';
+    api('/api/admin?op=ping').then(function () { try { sessionStorage.setItem('mtryu.adminkey', k); } catch (e) {} $('#lgo').disabled = false; enter(); }, function (e) {
+      $('#lgo').disabled = false; S.key = '';
+      $('#lerr').textContent = e.status === 401 ? '암호가 맞지 않아요.' : e.status === 429 ? '너무 많이 틀렸어요. 10분 뒤에 다시 해 주세요.' : e.status === 503 ? '서버에 관리자 암호(RD_ADMIN_KEY)나 저장소 설정이 없어요.' : '연결하지 못했어요. 인터넷을 확인해 주세요.';
+      $('#lkey').select();
+    });
+  });
+  if (S.key) { api('/api/admin?op=ping').then(enter, function () { S.key = ''; $('#login').hidden = false; $('#lkey').focus(); }); }
+  else { $('#login').hidden = false; $('#lkey').focus(); }
+})();
+</script>
+</body>
+</html>

@@ -16,6 +16,21 @@ async function redis(cmd) {
   return j.result;
 }
 
+// 여러 명령을 한 번에 보내요 (Upstash 파이프라인). 결과는 명령 순서대로 돌아오는 값 배열이에요.
+async function redisMulti(cmds) {
+  const r = await fetch(URL_.replace(/\/$/, '') + '/pipeline', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+    body: JSON.stringify(cmds)
+  });
+  const j = await r.json();
+  if (!Array.isArray(j)) throw new Error('pipeline');
+  return j.map(x => { if (x && x.error) throw new Error(x.error); return x ? x.result : null; });
+}
+
+// 한국 시간 기준 날짜 'YYYY-MM-DD' (접속 집계를 날짜별로 나눌 때 써요)
+function kstDay(ms) { return new Date((ms == null ? Date.now() : ms) + 9 * 3600e3).toISOString().slice(0, 10); }
+
 function send(res, code, body) {
   res.setHeader('Cache-Control', 'no-store');
   res.status(code).json(body);
@@ -43,8 +58,9 @@ function isAdmin(req) {
 }
 
 // 같은 사람이 너무 자주 호출하지 못하게 막아요 (학교는 같은 IP를 쓰는 경우가 많아서 넉넉하게)
+function ipOf(req) { return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'x'; }
 async function rateLimit(req, name, limit, windowSec) {
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'x';
+  const ip = ipOf(req);
   const key = 'rl:' + name + ':' + ip;
   const n = Number(await redis(['INCR', key]));
   if (n === 1) await redis(['EXPIRE', key, windowSec]);
@@ -76,4 +92,4 @@ async function neisSearch(q) {
   } finally { clearTimeout(t); }
 }
 
-module.exports = { rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
+module.exports = { kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };

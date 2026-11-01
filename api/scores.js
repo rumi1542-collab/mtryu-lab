@@ -8,7 +8,7 @@
 //
 // GET    /api/scores?year=&school=&offset=0&limit=10 → { top, total }   순위표 (쪽 나누기)
 // GET    /api/scores?year=&school=&q=이름              → { matches, total } 이름 찾기
-// POST   /api/scores  {year,school,id,name,rolls,setup} → { rank, top }  기록 저장
+// POST   /api/scores  {year,school,id,name,rolls,setup,uid?} → { rank, top }  기록 저장 (name은 순위에 보이는 별명, uid는 공개하지 않는 익명 번호)
 // DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 1개 삭제
 // DELETE /api/scores?year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)    여러 건 삭제
 // DELETE /api/scores?year=&school=&all=1      (헤더 x-admin-key 필요)    순위 전체 삭제
@@ -19,8 +19,9 @@ const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 20000; // 학교·학년도마다 최대 2만 개 기록 (한 줄에 약 150바이트 → 3MB 정도라 부담이 없어요)
 
+// 순위표로 내보낼 때는 익명 번호(uid)를 빼요. uid는 나중에 로그인할 때 '이 기기의 기록 가져오기'에만 쓰려고 저장만 해 둬요.
 function parseMembers(list) {
-  return (list || []).map(m => { try { return JSON.parse(m); } catch (e) { return null; } }).filter(Boolean);
+  return (list || []).map(m => { try { const o = JSON.parse(m); delete o.uid; return o; } catch (e) { return null; } }).filter(Boolean);
 }
 
 // 관리자 모드에서 등록한 학년도·학교만 받아요
@@ -79,7 +80,8 @@ module.exports = async function handler(req, res) {
 
       const key = 'rd:' + Number(b.year) + ':' + b.school;
       const ts = Date.now();
-      const member = JSON.stringify({ id, name, rolls, setup, ts });
+      const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요)
+      const member = JSON.stringify({ id, name, rolls, setup, ts, uid });
       const score = rolls + ts / 1e13; // 굴린 횟수가 같으면 먼저 기록한 사람이 위
       await redis(['ZADD', key, score, member]);
       const rank0 = await redis(['ZRANK', key, member]);

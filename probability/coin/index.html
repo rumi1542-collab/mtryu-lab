@@ -421,6 +421,8 @@ async function loadList() {
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
 const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
 const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2 };
+let ME = null;           // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
+const viewSchool = () => S.vschool || S.school;   // 순위표를 볼 학교
 let G = null;           // 진행 중인 게임
 let token = 0;          // 화면을 옮기면 진행 중이던 애니메이션을 멈추는 표식
 function checkName() {
@@ -496,7 +498,8 @@ async function autoRecord() {
   g.saving = true; setRec('', '기록을 올리는 중…', false);
   try {
     const id = rid();
-    const r = await Store.save(game, S.year, S.school, Object.assign({ id, name, ts: Date.now() }, payload));
+    enforceMine();
+    const r = await Store.save(game, S.year, S.school, Object.assign({ id, name, ts: Date.now(), uid: ME ? ME.uid : undefined }, payload));
     g.recorded = true; g.saving = false; g.lastId = id;
     setRec('ok', `<b>${esc(name)}</b> 님의 기록이 자동으로 올라갔어요! <b>${r.rank}위</b> (${esc(S.school)}${g.game === 'tune' ? ' · 범위 ' + wText(g.w) : ''} 기록 ${r.total}개 중) · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터에만 저장'}` +
       ` <button type="button" class="linkbtn" data-act="board" data-g="${g.game}">순위표 보기</button>`, false);
@@ -528,7 +531,7 @@ function go(screen) { S.screen = screen; render(); }
 /* ================= 시작 화면 ================= */
 function homeHTML() {
   const yrs = LIST.years.map(y => `<option value="${y}"${y === S.year ? ' selected' : ''}>${y}학년도</option>`).join('');
-  const sch = LIST.schools.map(s => `<option value="${esc(s)}"${s === S.school ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  const sch = LIST.schools.map(s => `<option value="${esc(s)}"${s === viewSchool() ? ' selected' : ''}>${esc(s)}</option>`).join('');
   const cards = GKEYS.map(k => {
     const g = GAMES[k];
     return `<section class="card"><span class="no" aria-hidden="true">${g.no}</span><span class="tag">${esc(g.tag)}</span><h3>${esc(g.title)}</h3><p>${esc(g.desc)}</p>
@@ -536,16 +539,16 @@ function homeHTML() {
   }).join('');
   return `<div class="intro"><h1>동전 하나로 배우는 확률</h1>
     <p>동전을 한 번 던지면 앞이 나올지 뒤가 나올지 아무도 몰라요. 그런데 많이 던지면 규칙이 보여요. 1번부터 4번까지 순서대로 해 보세요.</p></div>
-    <div class="who"><label>이름<input type="text" id="myname" maxlength="8" placeholder="띄어쓰기 없이 8글자" value="${esc(S.name)}" autocomplete="off" style="width:170px"></label><label>학년도<select id="selYear">${yrs}</select></label><label>학교<select id="selSchool">${sch}</select></label>
+    <div class="who"><label>${ME ? '별명(내 정보)' : '이름'}<input type="text" id="myname" maxlength="8" placeholder="띄어쓰기 없이 8글자" value="${esc(S.name)}" autocomplete="off" style="width:170px"${ME ? ' readonly title="내 별명이에요. 바꾸려면 오른쪽 위 이름표를 눌러요"' : ''}></label><label>학년도<select id="selYear">${yrs}</select></label><label>${ME ? '순위표 학교' : '학교'}<select id="selSchool">${sch}</select></label>
       <span class="hint" id="modeNote" style="padding-bottom:10px"></span></div>
     <div class="msg err" id="nameerr" role="alert" style="min-height:0"></div>
-    <p class="hint" style="margin:-6px 0 0">이름을 쓰고 시작하면, 게임이 끝날 때 기록이 <b>자동으로 순위에 올라가요</b>. (순위 보기는 이름 없이도 돼요.)</p>
+    <p class="hint" style="margin:-6px 0 0">${ME ? `게임이 끝나면 기록이 내 학교(<b>${esc(S.school)}</b>)의 순위에 <b>별명으로 자동으로 올라가요</b>. 학교 칸은 다른 학교 순위를 볼 때 써요. 내 학교나 별명을 바꾸려면 <b>오른쪽 위 이름표</b>를 눌러 주세요.` : '이름을 쓰고 시작하면, 게임이 끝날 때 기록이 <b>자동으로 순위에 올라가요</b>.'}</p>
     <div class="cards">${cards}</div>
     <div class="foot"><span>학교·학년도는 강 건너기의 관리자 모드에서 늘릴 수 있어요.</span><a href="/probability/river/">강 건너기(주사위 두 개) 하러 가기 →</a></div>`;
 }
 async function probeMode() {
   const t = token;
-  await Store.page('run', S.year, S.school, 0, 1);
+  await Store.page('run', S.year, viewSchool(), 0, 1);
   if (t !== token || S.screen !== 'home') return;
   const n = $('#modeNote'); if (n) n.textContent = Store.mode === 'server' ? '기록은 학교 전체 순위표에 저장돼요.' : '지금은 이 컴퓨터에만 기록이 저장돼요.';
 }
@@ -877,7 +880,7 @@ const HEADS = { run: ['순위', '이름', '점수', '맞힌 횟수', '배열 (�
 const ORDER = { run: '맞힌 횟수가 많을수록', tune: '예상과 안정된 횟수의 차이가 작을수록', spot: '맞힌 개수가 많을수록', bet: '점수가 높을수록' };
 async function loadBoard(offset) {
   const t = token, g = B.game; B.offset = offset; B.matches = null;
-  const pg = await Store.page(bk(g), S.year, S.school, offset, CONFIG.pageSize);
+  const pg = await Store.page(bk(g), S.year, viewSchool(), offset, CONFIG.pageSize);
   if (t !== token || S.screen !== 'board') return;
   B.rows = pg.rows; B.total = pg.total;
   paintBoard();
@@ -888,7 +891,7 @@ function paintBoard() {
   const g = B.game, list = B.matches || B.rows, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
   const rows = list.map((r, i) => rowHTML(g, r, B.matches ? r.rank : B.offset + i + 1)).join('');
   el.className = '';
-  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(S.school)}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)</span>
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)</span>
     <span class="row"><input type="text" id="fq" maxlength="8" placeholder="이름 찾기" value="${esc(B.q)}" aria-label="이름 찾기" style="height:40px;font-size:16px;width:140px"><button type="button" class="ghost" data-act="b-find" style="min-height:40px">찾기</button></span></div>
     <div class="tablewrap"><table class="tbl">${th(HEADS[g])}<tbody>${rows || `<tr><td colspan="${HEADS[g].length}" class="hint">${B.matches ? '찾는 이름이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!'}</td></tr>`}</tbody></table></div>
     ${B.matches ? `<button type="button" class="linkbtn" data-act="b-page" data-o="0">전체 순위 보기</button>` : `<div class="pager"><span class="row"><button type="button" class="ghost" data-act="b-page" data-o="${Math.max(0, B.offset - PS)}" ${B.offset <= 0 ? 'disabled' : ''}>← 이전</button><button type="button" class="ghost" data-act="b-page" data-o="${B.offset + PS}" ${B.offset + PS >= B.total ? 'disabled' : ''}>다음 →</button></span><span class="hint">${Math.floor(B.offset / PS) + 1} / ${Math.max(1, Math.ceil(B.total / PS))}쪽</span><button type="button" class="linkbtn" data-act="b-page" data-o="${last}" ${B.offset >= last ? 'disabled' : ''}>마지막 쪽</button></div>`}
@@ -896,7 +899,7 @@ function paintBoard() {
     <div class="row"><button type="button" class="go sm" data-act="start" data-g="${g}">${esc(GAMES[g].title)} 하러 가기</button></div>`;
 }
 async function paintDist(t) {
-  const d = await Store.dist(S.year, S.school), el = $('#dist');
+  const d = await Store.dist(S.year, viewSchool()), el = $('#dist');
   if (t !== token || !el) return;
   const tot = d.total, K = 8;
   const act = []; for (let k = 0; k < K; k++) act.push(k === K - 1 ? d.counts.slice(k).reduce((a, b) => a + b, 0) : d.counts[k] || 0);
@@ -918,7 +921,7 @@ document.addEventListener('click', e => {
   else if (act === 'b-find') {
     const q = cleanName($('#fq').value); B.q = q;
     if (!q) { B.matches = null; paintBoard(); return; }
-    Store.find(bk(B.game), S.year, S.school, q).then(m => { B.matches = m; paintBoard(); });
+    Store.find(bk(B.game), S.year, viewSchool(), q).then(m => { B.matches = m; paintBoard(); });
   }
   else if (act === 'guess') runGuess(v);
   else if (act === 'again') startRun();
@@ -954,33 +957,49 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
-  else if (el.id === 'selSchool') { S.school = el.value; savePrefs(); probeMode(); }
+  else if (el.id === 'selSchool') { if (ME) S.vschool = el.value === S.school ? null : el.value; else S.school = el.value; savePrefs(); probeMode(); }
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'fq') { const b = document.querySelector('[data-act=b-find]'); if (b) b.click(); }
 });
 
-/* 메인 페이지에서 새로 저장한 내 정보(학교·이름)를 한 번만 채워 줘요 (me-sync.js) */
+/* ---------- 내 정보 (me-sync.js · lab-bar.js) ----------
+   내 정보가 있으면 기록은 항상 내 학교·내 별명으로 올라가요. 학교 드롭다운은 다른 학교 순위를 볼 때만 써요.
+   순위에 올라가는 이름은 별명이고, 실명·학번은 이 게임에 오지 않아요. */
 async function syncMe() {
-  try {
-    const r = await MtryuMeSync.apply('cn_mesig', LIST.schools, LIST.regions, CONFIG.configUrl);
-    if (!r) return;
-    if (r.list && okList(r.list)) { LIST.years = r.list.years.slice(); LIST.schools = r.list.schools.slice(); LIST.regions = r.list.regions || {}; }
-    const nm = cleanName(r.me.name), cur = readJSON('cn_prefs'), put = {};
-    if (r.label) { S.school = r.label; prefs.school = r.label; put.school = r.label; }
-    if (nm) { S.name = nm; put.name = nm; }
-    try { localStorage.setItem('cn_prefs', JSON.stringify(Object.assign(cur, put))); } catch (e) {}   // 학년도 등 다른 저장값은 그대로 둬요
-    MtryuMeSync.done('cn_mesig', r);
-  } catch (e) {}
+  const m = MtryuMeSync.read();
+  if (!m) { ME = null; return; }   // 정보가 없으면 lab-bar.js가 입력창을 띄워 둬요
+  let r;
+  try { r = await MtryuMeSync.resolve(LIST.schools, LIST.regions, CONFIG.configUrl); } catch (e) { r = { me: m, label: null, retry: true }; }
+  if (r && r.list && okList(r.list)) { LIST.years = r.list.years.slice(); LIST.schools = r.list.schools.slice(); LIST.regions = r.list.regions || {}; }
+  if (!r || !r.label) {
+    ME = null;
+    if (r && r.retry) MtryuMeSync.block({ title: '학교를 불러오지 못했어요', text: '내 학교를 순위 서버에 올리는 중에 잠깐 문제가 생겼어요. 잠시 뒤에 다시 해 주세요.', label: '다시 시도', onClick: () => location.reload() });
+    else MtryuMeSync.block({ title: '학교를 다시 골라 주세요', text: '순위는 나이스에서 찾은 학교로만 올라가요. 내 정보에서 학교를 검색해서 다시 골라 주세요.', label: '학교 다시 고르기', onClick: () => window.MtryuMe && window.MtryuMe.openDialog({ required: true, strict: true }) });
+    return;
+  }
+  MtryuMeSync.unblock();
+  ME = { nick: cleanName(m.nick), uid: m.uid, label: r.label };
 }
+function enforceMine() {   // 기록할 학교와 이름을 내 것으로 맞춰요 (순위를 보던 학교는 그대로 둬요)
+  if (!ME) return;
+  S.school = ME.label; S.name = ME.nick; prefs.school = ME.label;
+  if (S.vschool && !LIST.schools.includes(S.vschool)) S.vschool = null;
+}
+async function refreshMe() {
+  await syncMe(); enforceMine();
+  try { localStorage.setItem('cn_prefs', JSON.stringify(Object.assign(readJSON('cn_prefs'), { school: S.school, name: S.name }))); } catch (e) {}   // 학년도 등 다른 저장값은 그대로 둬요
+  if (S.screen === 'home') render();
+}
+MtryuMeSync.watch(refreshMe);
 
 /* ---------- 시작 ---------- */
 (async function init() {
   render();
   await loadList(); await syncMe();
   if (LIST.years.includes(prefs.year)) S.year = prefs.year;           // 지난번에 고른 학년도·학교로 시작해요
-  if (LIST.schools.includes(prefs.school)) S.school = prefs.school;
-  fixSelection();
+  if (!ME && LIST.schools.includes(prefs.school)) S.school = prefs.school;
+  fixSelection(); enforceMine();
   if (S.screen === 'home') render();
 })();
 

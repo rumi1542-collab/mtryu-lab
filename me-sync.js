@@ -1,9 +1,13 @@
-/* 내 정보(학교·학번·이름)를 순위 저장이 있는 게임(강 건너기·동전 실험실)에 자동으로 맞춰 줘요.
-   메인 페이지에서 정보를 새로 저장하면, 게임이 처음 열릴 때 한 번만 학교와 이름을 채워 줘요.
-   그 뒤에 게임 안에서 학교나 이름을 직접 바꾸면 그대로 두고, 메인에서 정보를 또 바꿀 때만 다시 맞춰요.
-   게임 쪽 사용법:  var r = await MtryuMeSync.apply('rd_mesig', LIST.schools, LIST.regions, '/api/config');
-                    (r가 null이면 할 일이 없어요)  →  다 맞춘 뒤 MtryuMeSync.done('rd_mesig', r)
-   저장 키 'mtryu.me'는 lab-bar.js·index.html과 같아요. */
+/* 순위가 있는 게임(강 건너기·동전 실험실)이 내 정보를 읽고, 내 학교를 순위 서버 목록에 맞출 때 쓰는 도구예요.
+   게임 페이지의 <head>에서 lab-bar.js보다 먼저(defer 없이) 불러와요.   <script src="/me-sync.js"></script>
+
+     var m = MtryuMeSync.read();                      // { school, sid, name, nick, uid } 또는 null (네 가지가 다 있을 때만)
+     var r = await MtryuMeSync.resolve(schools, regions, '/api/config');
+         // → { me, label, list, retry }   label: 순위 서버에 있는 내 학교 이름 (없으면 null)
+         //   list: 학교를 새로 추가했을 때 서버가 돌려준 최신 목록   retry: 잠깐 막힌 것이라 다시 하면 될 수도 있다는 뜻
+     MtryuMeSync.block({...}) / unblock()             // 내 학교를 순위 서버에 올리지 못할 때 게임을 막는 안내창
+     MtryuMeSync.watch(fn)                            // 내 정보가 바뀌면(이름표에서 바꾸면) fn을 불러요
+   내 정보를 저장하고 입력창을 여는 일은 lab-bar.js(window.MtryuMe)가 해요. 저장 키 'mtryu.me'는 같아요. */
 (function () {
   'use strict';
   var ME_KEY = 'mtryu.me';
@@ -11,11 +15,10 @@
   function read() {
     try {
       var m = JSON.parse(localStorage.getItem(ME_KEY));
-      if (m && m.school && m.school.name && m.sid && m.name) return m;
+      if (m && m.school && m.school.name && m.sid && m.name && m.nick && /^[a-f0-9]{32}$/.test(m.uid || '')) return m;
     } catch (e) {}
     return null;
   }
-  function sig(m) { return [m.school.code || m.school.name, m.sid, m.name].join('|'); }
 
   // 순위표 학교 목록에서 내 학교를 찾아요 (같은 이름의 다른 지역 학교는 '이름(지역)'으로 들어 있어요)
   function findLabel(m, schools, regions) {
@@ -40,29 +43,47 @@
     }, function (e) { clearTimeout(t); throw e; });
   }
 
-  // 이 게임이 아직 맞춰 보지 않은 새 정보가 있으면 { me, label, list, sig, retry } 를 돌려줘요. 없으면 null.
-  //   label: 순위표 학교 이름 (못 찾으면 null)   list: 학교를 새로 추가했을 때 서버가 돌려준 최신 목록
-  //   retry: 학교를 추가하다가 잠깐 막혔다는 뜻이에요 (다음에 다시 시도해요)
-  function apply(storeKey, schools, regions, configUrl) {
+  function resolve(schools, regions, configUrl) {
     var m = read();
     if (!m) return Promise.resolve(null);
-    var s = sig(m), prev = '';
-    try { prev = localStorage.getItem(storeKey) || ''; } catch (e) {}
-    if (prev === s) return Promise.resolve(null);
     var label = findLabel(m, schools || [], regions);
-    if (label || !m.school.region || !m.school.code) {   // 찾았거나, 나이스에서 고른 학교가 아니라 추가할 수 없는 경우
-      return Promise.resolve({ me: m, label: label, list: null, sig: s, retry: false });
-    }
+    if (label) return Promise.resolve({ me: m, label: label, list: null, retry: false });
+    // 나이스에서 고른 학교(학교 코드·지역이 있는 경우)만 순위 서버에 추가할 수 있어요
+    if (!m.school.region || !m.school.code) return Promise.resolve({ me: m, label: null, list: null, retry: false, manual: true });
     return postAdd(configUrl, m.school.name, m.school.region).then(function (j) {
-      return { me: m, label: (j && j.added) || null, list: j || null, sig: s, retry: false };
+      return { me: m, label: (j && j.added) || null, list: j || null, retry: false };
     }, function (e) {
-      return { me: m, label: null, list: null, sig: s, retry: e && e.status !== 400 };   // 400은 다시 해도 안 되는 경우
+      return { me: m, label: null, list: null, retry: !(e && e.status === 400) };   // 400은 다시 해도 안 되는 경우
     });
   }
-  function done(storeKey, r) {
-    if (!r || r.retry) return;
-    try { localStorage.setItem(storeKey, r.sig); } catch (e) {}
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function unblock() { var g = document.getElementById('mtryu-block'); if (g) g.remove(); }
+  // o: { title, text, label, onClick }  — 닫을 수 없는 안내창
+  function block(o) {
+    unblock();
+    var host = document.createElement('div');
+    host.id = 'mtryu-block';
+    host.style.cssText = 'position:fixed;inset:0;z-index:2147483400;margin:0;padding:0;';
+    var root = host.attachShadow({ mode: 'open' });
+    root.innerHTML =
+      '<style>:host{all:initial}*{box-sizing:border-box}' +
+      ".ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(43,15,63,.82);font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',system-ui,sans-serif;color:#2B0F3F}" +
+      '.box{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px;background:#fff;border:2px solid #2B0F3F;border-radius:16px;padding:24px;box-shadow:6px 6px 0 #D81B7A}' +
+      'h2{margin:0;font-size:22px;font-weight:900}p{margin:0;font-size:15px;line-height:1.6;color:#5A4670}' +
+      'button{min-height:48px;border:0;border-radius:10px;background:#7719AA;color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}' +
+      'button:focus-visible{outline:3px solid #FF2D95;outline-offset:2px}</style>' +
+      '<div class="ov" role="alertdialog" aria-modal="true" aria-labelledby="t"><div class="box"><h2 id="t">' + esc(o.title) + '</h2><p>' + esc(o.text) + '</p><button type="button" id="b">' + esc(o.label) + '</button></div></div>';
+    var b = root.getElementById ? root.getElementById('b') : root.querySelector('#b');
+    b.addEventListener('click', o.onClick);
+    document.body.appendChild(host);
+    try { b.focus(); } catch (e) {}
   }
 
-  window.MtryuMeSync = { read: read, apply: apply, done: done };
+  function watch(fn) {
+    window.addEventListener('mtryu:me-changed', fn);
+    window.addEventListener('storage', function (e) { if (e.key === ME_KEY || e.key === null) fn(); });
+  }
+
+  window.MtryuMeSync = { read: read, resolve: resolve, block: block, unblock: unblock, watch: watch };
 })();

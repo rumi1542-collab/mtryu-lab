@@ -7,7 +7,7 @@
 // GET    /api/coin?game=&year=&school=&offset=0&limit=10 → { top, total }     순위표 (쪽 나누기)
 // GET    /api/coin?game=&year=&school=&q=이름              → { matches, total }  이름 찾기
 // GET    /api/coin?game=run&year=&school=&dist=1           → { counts, total }   맞힌 횟수 분포 (연속 맞추기)
-// POST   /api/coin  {game,year,school,id,name, ...게임별 값} → { rank, total }     기록 저장
+// POST   /api/coin  {game,year,school,id,name,uid?, ...게임별 값} → { rank, total }     기록 저장 (name은 순위에 보이는 별명, uid는 공개하지 않는 익명 번호)
 // DELETE /api/coin?game=&year=&school=&id=        (헤더 x-admin-key 필요)   기록 1개 삭제
 // DELETE /api/coin?game=&year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)   여러 건 삭제
 // DELETE /api/coin?game=&year=&school=&all=1      (헤더 x-admin-key 필요)   순위 전체 삭제
@@ -23,9 +23,8 @@ const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
 
-function parseMembers(list) {
-  return (list || []).map(m => { try { return JSON.parse(m); } catch (e) { return null; } }).filter(Boolean);
-}
+      const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요)
+      const member = JSON.stringify({ id, name, rolls, setup, ts, uid });
 async function validYearSchool(year, school) {
   const y = Number(year);
   if (!Number.isInteger(y) || y < 2000 || y > 2100) return false;
@@ -124,7 +123,8 @@ module.exports = async function handler(req, res) {
       const built = build(g, b, ts);
       if (!built) return send(res, 400, { error: 'bad-record' });
       const key = 'cn:' + g + ':' + Number(b.year) + ':' + b.school;
-      const member = JSON.stringify(Object.assign({ id, name, ts }, built.data));
+      const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요, 순위표로는 내보내지 않아요)
+      const member = JSON.stringify(Object.assign({ id, name, ts, uid }, built.data));
       await redis(['ZADD', key, built.score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
