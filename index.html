@@ -41,6 +41,11 @@ h1 em{font-style:normal;color:var(--purple)}
 .g{--c:var(--violet);--t:#E5DDFB}
 .p{--c:var(--rose);--t:#F9DDF6}
 .note{margin:0;text-align:center;font-size:15px;font-weight:500;color:var(--muted)}
+.addr{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:4px 4px 4px 14px;border:2px solid var(--ink);border-radius:999px;background:#fff;box-shadow:2px 2px 0 var(--purple);font-size:14px;font-weight:700}
+.addr .at{min-width:0;overflow-wrap:anywhere;user-select:all}
+.addr button{flex:none;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:var(--purple);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.addr button:hover{background:#5f1388}
+.addr button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 .fb{margin:-24px 0 0;text-align:center;font-size:12.5px}
 .fb a{color:var(--muted);opacity:.75;text-decoration:none;padding:6px 8px;border-radius:6px}
 .fb a:hover,.fb a:focus-visible{opacity:1;text-decoration:underline}
@@ -56,6 +61,7 @@ h1 em{font-style:normal;color:var(--purple)}
 <img src="favicon.svg" alt="MT 로고">
 <h1>만지고 움직이며<br>배우는 <em>수학 실험실</em></h1>
 <p>탐구하고 싶은 실험실을 골라 보세요.</p>
+<div class="addr"><span class="at" id="addrText">🔗 숏.한국/모티/실험실</span><button type="button" id="addrCopy" aria-label="주소 복사">복사</button></div>
 </div>
 
 <div class="cards">
@@ -126,6 +132,27 @@ h1 em{font-style:normal;color:var(--purple)}
   document.addEventListener('DOMContentLoaded', refresh);   // lab-bar.js(defer)는 이때까지 준비돼요
   window.addEventListener('mtryu:me-changed', refresh);
   window.addEventListener('storage', function (e) { if (e.key === 'mtryu.me') refresh(); });
+})();
+</script>
+<script>
+/* 짧은 주소 복사: 눌러서 클립보드에 넣어요 (메신저·알림장에 붙이면 바로 링크가 돼요) */
+(function () {
+  var ADDR = 'https://숏.한국/모티/실험실';
+  var btn = document.getElementById('addrCopy'); if (!btn) return;
+  var t;
+  function done(ok) {
+    btn.textContent = ok ? '복사됨 ✓' : '길게 눌러 복사';
+    if (!ok) { try { var r = document.createRange(); r.selectNodeContents(document.getElementById('addrText')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }
+    clearTimeout(t); t = setTimeout(function () { btn.textContent = '복사'; }, 2000);
+  }
+  function legacy() {
+    try { var a = document.createElement('textarea'); a.value = ADDR; a.setAttribute('readonly', ''); a.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(a); a.select(); var ok = document.execCommand('copy'); a.remove(); return ok; } catch (e) { return false; }
+  }
+  btn.addEventListener('click', function () {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ADDR).then(function () { done(true); }, function () { done(legacy()); });
+    else done(legacy());
+  });
 })();
 </script>
 </body>
