@@ -432,7 +432,7 @@ async function loadList() {
 /* ---------- 상태 ---------- */
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
 const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
-const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2, intro: prefs.intro !== 0 };
+const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2, intro: true };
 let ME = null;           // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
 const viewSchool = () => S.vschool || S.school;   // 순위표를 볼 학교
 let G = null;           // 진행 중인 게임
@@ -449,7 +449,7 @@ function checkName() {
   }
   S.name = name; savePrefs(); return true;
 }
-function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed, intro: S.intro ? 1 : 0 })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed })); } catch (e) {} }
 const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
 function fixSelection() {
   const cy = curYear(); if (!LIST.years.includes(cy)) LIST.years.unshift(cy);
@@ -619,7 +619,7 @@ const cx = n => CH.l + (n / FLIPS) * (CH.W - CH.l - CH.r);
 const cy = p => CH.t + (CH.y1 - p) / (CH.y1 - CH.y0) * (CH.H - CH.t - CH.b);
 function startTune(keep) {
   const o = keep && G && G.game === 'tune' ? G : null;
-  G = { game: 'tune', step: 'setup', w: o ? o.w : 10, pred: o ? o.pred : 100, bits0: null, runs: [], recorded: false };
+  G = { game: 'tune', step: 'setup', w: o ? o.w : 10, pred: o ? o.pred : FLIPS, bits0: null, runs: [], recorded: false };
   go('tune');
 }
 function chartSVG(g) {
@@ -756,7 +756,6 @@ async function tuneRun() {
       await sleep(i < 3 ? 1200 : 700);
       if (G !== g || t !== token) return;
     }
-    if (i >= INTRO_N) { S.intro = false; savePrefs(); }   // 한 번 끝까지 보면 다음부터는 바로 쭉 보여 줘요 (설정에서 다시 켤 수 있어요)
     const box = $('#istage'); if (box) box.remove(); const tw = $('#twoWrap'); if (tw) tw.style.display = '';
     const ci = $('#c-in'); if (ci) ci.textContent = '이제 쭉 던져서 1000번까지 그려 볼게요. 초록 범위 안과 밖을 오가는 모습을 지켜보세요.';
     if (dur) t0b = performance.now() - hp / FLIPS * dur;
@@ -1016,7 +1015,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
-  else if (el.id === 'intro') { S.intro = el.checked; savePrefs(); }
+  else if (el.id === 'intro') { S.intro = el.checked; }
   else if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
   else if (el.id === 'selSchool') { if (ME) S.vschool = el.value === S.school ? null : el.value; else S.school = el.value; savePrefs(); probeMode(); }
 });
