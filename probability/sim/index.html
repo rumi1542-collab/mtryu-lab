@@ -279,7 +279,7 @@ const S = {
   play: { id: '', my: null, tally: null, mine: false, pick: null, busy: false, msg: '', err: false, view: 'live', reveal: null, stats: null, sf: 'all' },
   live: { idx: [], n: 0, running: false, rate: 5, timer: null, busy: false, tok: '', msg: '' }
 };
-const MAX_LIVE = 20000, LIVE_CHIPS = 400, TICK = 2, RATES = [[1, '느리게'], [5, '보통'], [20, '빠르게'], [100, '아주 빠르게']];
+const MAX_LIVE = 20000, LIVE_CHIPS = 400, TICK = 1, RATES = [[1, '느리게'], [5, '보통'], [20, '빠르게'], [100, '아주 빠르게']];
 let listCount = null;   // 홈에 보여줄 우리 학교 실험 수
 
 const app = $('#app');
@@ -425,7 +425,7 @@ function labHtml() {
 
 function liveHtml(title) {
   return '<div class="card" id="livecard">' + (title ? '<h2>' + title + '</h2>' : '') + '<div class="ctl"><button class="btn primary" id="livego" data-act="livego">▶ 시작</button><button class="btn" id="livestop" data-act="livestop">⏸ 멈춤</button>' +
-    '<div><div class="hint" style="margin-bottom:4px">던지는 속도 (1초에, 2초마다 갱신)</div><div class="quick" aria-label="던지는 속도">' + RATES.map(r => '<button data-act="rate" data-v="' + r[0] + '">' + r[1] + ' · ' + r[0] + '번</button>').join('') + '</div></div></div>' +
+    '<div><div class="hint" style="margin-bottom:4px">던지는 속도 (1초에)</div><div class="quick" aria-label="던지는 속도">' + RATES.map(r => '<button data-act="rate" data-v="' + r[0] + '">' + r[1] + ' · ' + r[0] + '번</button>').join('') + '</div></div></div>' +
     '<p class="hint" style="margin-top:10px">지금까지 <b id="livecnt">0</b>번 던졌어요. (최대 ' + fmt(MAX_LIVE) + '번까지)</p><p id="livemsg" class="msg"></p><div id="res1"></div></div>';
 }
 function syncLive() {
