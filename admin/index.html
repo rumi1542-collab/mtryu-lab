@@ -37,6 +37,7 @@ button,input,select{font:inherit;color:inherit}
 .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;background:linear-gradient(90deg,#2B0F3F,#4A1573);color:#fff;border-bottom:2px solid var(--pink)}
 .top h1{margin:0;font-size:16px;font-weight:900;white-space:nowrap}
 .top .sp{flex:1}
+.top button.on{background:#FFC53D;color:#3B2A00}
 .top select,.top button{flex:none;white-space:nowrap;min-height:34px;border:0;border-radius:999px;padding:0 14px;background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
 .top select option{color:var(--ink)}
 .shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;max-width:1280px;margin:0 auto;padding:20px 16px 60px}
@@ -140,6 +141,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     <select id="days" aria-label="기간">
       <option value="1">오늘</option><option value="7" selected>최근 7일</option><option value="30">최근 30일</option><option value="90">최근 90일</option>
     </select>
+    <button type="button" id="tst" aria-pressed="false" title="켜면 이 브라우저에서 한 활동이 서버에 저장되지 않아요 (3시간 뒤 저절로 꺼져요)">🧪 테스트 모드: 꺼짐</button>
+    <button type="button" id="tclr" hidden title="테스트 모드에서 이 컴퓨터에 쌓인 연습 기록을 지워요">테스트 기록 지우기</button>
     <button type="button" id="out">나가기</button>
   </header>
   <div class="shell">
@@ -245,6 +248,35 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   $('#mnav').addEventListener('change', function () { go(this.value); });
   $('#days').addEventListener('change', function () { S.days = Number(this.value); if (S.tab === 'stats' && S.node !== 'settings') render(); });
   $('#out').addEventListener('click', logout);
+
+  /* ── 테스트 모드: 켜져 있는 동안 이 브라우저의 활동(접속 집계·순위 기록·학교 추가·시뮬레이터 올리기/판정)을 서버에 보내지 않아요.
+        기록은 이 컴퓨터에만 'T:' 이름으로 쌓이고, 3시간 뒤 저절로 꺼져요. 실험실 페이지(lab-bar.js·각 게임)가 같은 키 'mtryu.test'를 읽어요. ── */
+  var TEST_KEY = 'mtryu.test', TEST_MS = 3 * 3600 * 1000;
+  function testEnd() { try { var t = Number(localStorage.getItem(TEST_KEY)) || 0; return t > Date.now() ? t : 0; } catch (e) { return 0; } }
+  function paintTest() {
+    var t = testEnd(), b = $('#tst');
+    b.classList.toggle('on', !!t); b.setAttribute('aria-pressed', t ? 'true' : 'false');
+    b.textContent = t ? '🧪 테스트 모드: 켜짐 (~' + new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ')' : '🧪 테스트 모드: 꺼짐';
+    $('#tclr').hidden = !t && !testKeys().length;
+  }
+  function testKeys() { var out = []; try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (k && k.indexOf('T:') === 0) out.push(k); } } catch (e) {} return out; }
+  $('#tst').addEventListener('click', function () {
+    try {
+      if (testEnd()) { localStorage.removeItem(TEST_KEY); toast('테스트 모드를 껐어요. 이제부터는 서버에 저장돼요.'); }
+      else { localStorage.setItem(TEST_KEY, String(Date.now() + TEST_MS)); toast('테스트 모드를 켰어요. 3시간 동안 서버에 저장되지 않아요.'); }
+    } catch (e) { toast('이 브라우저에서는 테스트 모드를 쓸 수 없어요.'); }
+    paintTest();
+  });
+  $('#tclr').addEventListener('click', function () {
+    var ks = testKeys();
+    ask({ title: '테스트 기록을 지울까요?', text: '이 컴퓨터에 쌓인 테스트 기록 ' + ks.length + '건(묶음)이 지워져요. 서버의 실제 기록은 그대로예요.', ok: '지우기', danger: true }).then(function (yes) {
+      if (!yes) return;
+      ks.forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+      toast('테스트 기록을 지웠어요.'); paintTest();
+    });
+  });
+  window.addEventListener('storage', function (e) { if (e.key === TEST_KEY || e.key === null) paintTest(); });
+  paintTest(); setInterval(paintTest, 60000);
 
   /* ── 화면 ── */
   function render() {

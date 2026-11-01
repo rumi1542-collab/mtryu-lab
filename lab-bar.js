@@ -25,6 +25,11 @@
        학교나 학번이 바뀌면(다른 학생이 이 컴퓨터를 쓰면) 새로 만들어요.
      다른 주소(도메인)의 실험실로 넘어갈 때는 주소 끝에 #mtryu-me=... 를 붙여 건네고, 받는 쪽이 저장한 뒤 바로 지워요. */
   var ME_KEY = 'mtryu.me', HASH_KEY = 'mtryu-me=', HOME_ORIGIN = new URL(HOME).origin;
+  /* ── 테스트 모드 ──────────────────────────────────────────────────────
+     관리자 화면(/admin/)에서 켜요. 켜져 있는 동안은 접속 집계·순위 기록·학교 추가·시뮬레이터 올리기/판정을 서버에 보내지 않아요.
+     저장 위치: localStorage 'mtryu.test' = 끝나는 시각(ms). 3시간이 지나면 저절로 꺼지고, 다른 주소의 실험실로 갈 때는 주소 끝에 끝나는 시각만 실어 보내요. */
+  var TEST_KEY = 'mtryu.test', TEST_HASH = 'mtryu-test=', TEST_MAX = 3 * 3600 * 1000 + 60000;
+  function testLeft() { try { var t = Number(localStorage.getItem(TEST_KEY)) || 0; return t > Date.now() ? t : 0; } catch (e) { return 0; } }
   function clean(s, n) { return String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n); }
   function noSpace(s, n) { return clean(s, 60).replace(/\s+/g, '').slice(0, n); }
   function validUid(u) { return typeof u === 'string' && /^[a-f0-9]{32}$/.test(u); }
@@ -55,12 +60,15 @@
   function shortSchool(n) { return String(n).replace(/초등학교$/, '초').replace(/고등학교$/, '고').replace(/중학교$/, '중'); }
   // 다른 도메인의 실험실로 갈 때만 내 정보를 주소 끝에 실어 보내요
   function handoff(href) {
-    var m = readMe();
-    if (!m) return href;
+    var m = readMe(), t = testLeft();
+    if (!m && !t) return href;
     try {
       var u = new URL(href, location.href);
       if (u.origin === location.origin || u.origin === HOME_ORIGIN) return href;
-      return u.href.split('#')[0] + '#' + HASH_KEY + encodeURIComponent(JSON.stringify(m));
+      var parts = [];
+      if (m) parts.push(HASH_KEY + encodeURIComponent(JSON.stringify(m)));
+      if (t) parts.push(TEST_HASH + t);   // 테스트 모드도 함께 넘겨요 (끝나는 시각만 담겨요)
+      return u.href.split('#')[0] + '#' + parts.join('&');
     } catch (e) { return href; }
   }
   // 입력하고 돌아갈 주소는 우리 실험실 주소일 때만 받아요 (엉뚱한 곳으로 보내지 못하게)
@@ -80,12 +88,17 @@
   function takeHandoff() {
     try {
       var h = location.hash;
-      if (h.indexOf('#' + HASH_KEY) !== 0) return;
-      var raw = h.slice(HASH_KEY.length + 1).split('&')[0];
-      var rest = h.slice(HASH_KEY.length + 1 + raw.length);   // 뒤에 다른 값이 붙어 있었다면 남겨 둬요
-      history.replaceState(history.state, '', location.pathname + location.search + (rest.charAt(0) === '&' ? '#' + rest.slice(1) : ''));
-      var m = sanitizeMe(JSON.parse(decodeURIComponent(raw)));
-      if (m) writeMe(m);
+      if (h.indexOf('#' + HASH_KEY) !== 0 && h.indexOf('#' + TEST_HASH) !== 0) return;
+      var keep = [], meRaw = '', tRaw = '';
+      h.slice(1).split('&').forEach(function (p) {   // 우리 값만 꺼내고, 다른 값이 붙어 있었다면 남겨 둬요
+        if (p.indexOf(HASH_KEY) === 0) meRaw = p.slice(HASH_KEY.length);
+        else if (p.indexOf(TEST_HASH) === 0) tRaw = p.slice(TEST_HASH.length);
+        else if (p) keep.push(p);
+      });
+      history.replaceState(history.state, '', location.pathname + location.search + (keep.length ? '#' + keep.join('&') : ''));
+      if (meRaw) { var m = sanitizeMe(JSON.parse(decodeURIComponent(meRaw))); if (m) writeMe(m); }
+      var t = Number(tRaw);
+      if (t > Date.now() && t <= Date.now() + TEST_MAX) { try { localStorage.setItem(TEST_KEY, String(t)); } catch (e) {} }
     } catch (e) {}
   }
   takeHandoff();
@@ -137,7 +150,7 @@
   function track() {
     try {
       var unit = unitOf(), me = readMe();
-      if (!unit || !me || !me.uid) return;
+      if (!unit || !me || !me.uid || testLeft()) return;   // 테스트 모드에서는 접속을 세지 않아요
       var k = 'mtryu.hit.' + unit, now = Date.now(), last = 0;
       try { last = Number(sessionStorage.getItem(k)) || 0; } catch (e) {}
       if (now - last < 30 * 60 * 1000) return;   // 같은 화면에서는 30분에 한 번만
@@ -226,6 +239,9 @@
       return '<a class="mi' + (l.id === cur ? ' on' : '') + '" data-base="' + esc(l.href) + '" href="' + esc(handoff(l.href)) + '">' + esc(l.name) + '</a>';
     }).join('');
     function meHref() { return onHome ? HOME + '?me=1' : HOME + '?me=1&back=' + encodeURIComponent(here()); }
+    function testHTML() {
+      return testLeft() ? '<a class="tst" href="' + HOME + 'admin/" title="테스트 모드: 서버에 저장하지 않아요. 눌러서 관리자 화면에서 끌 수 있어요">🧪 테스트</a>' : '';
+    }
     function tagHTML() {
       var m = readMe();
       if (!m) return '<a class="me empty" href="' + esc(meHref()) + '" title="학교·학번·이름·별명을 한 번만 적어 두세요">이름 입력</a>';
@@ -261,6 +277,8 @@
       '.me:hover{background:rgba(255,255,255,.26)}' +
       '.me .sc,.me .id{font-weight:500;color:#EBDDF6}' +
       '.me .nm{overflow:hidden;text-overflow:ellipsis}' +
+      '.tst{display:inline-flex;align-items:center;height:30px;padding:0 10px;margin-right:6px;border-radius:999px;background:#FFC53D;color:#3B2A00;font-weight:900;white-space:nowrap}' +
+      '#me-slot{align-items:center}' +
       '.me.empty{background:transparent;border:1.5px dashed rgba(255,255,255,.6);color:#EBDDF6;font-weight:500}' +
       '.me.empty:hover{background:rgba(255,255,255,.14)}' +
       '@media (max-width:720px){nav{display:none}.btn{display:inline-flex}.brand span{max-width:26vw;overflow:hidden;text-overflow:ellipsis}.me{max-width:38vw;padding:0 10px}.me .sc{display:none}}' +
@@ -268,7 +286,7 @@
       '<div class="bar" role="navigation" aria-label="MT RYU의 수학 실험실">' +
         '<a class="brand" href="' + HOME + '" title="실험실 첫 화면으로"><img src="' + HOME + 'favicon.svg" alt=""><span>MT RYU의 수학 실험실</span></a>' +
         '<nav>' + links + '</nav>' +
-        '<div class="right"><span id="me-slot">' + tagHTML() + '</span>' +
+        '<div class="right"><span id="me-slot">' + testHTML() + tagHTML() + '</span>' +
         '<button class="btn" type="button" aria-expanded="false" aria-controls="panel">실험실 ▾</button></div>' +
       '</div>' +
       '<div class="panel" id="panel">' + menu + '</div>';
@@ -295,13 +313,13 @@
     // 내 정보가 바뀌면(저장·삭제·다른 탭) 이름표와 이동 주소를 다시 만들고, 막이 떠 있었다면 걷어요
     var slot = root.querySelector('#me-slot');
     function refresh() {
-      slot.innerHTML = tagHTML();
+      slot.innerHTML = testHTML() + tagHTML();
       var as = root.querySelectorAll('a[data-base]');
       for (var i = 0; i < as.length; i++) as[i].href = handoff(as[i].getAttribute('data-base'));
       if (readMe()) removeGate(); else enforce();   // 정보를 지우면 곧바로 다시 입력하게 해요 (공용 컴퓨터에서 다음 학생 차례)
     }
     window.addEventListener('mtryu:me-changed', function () { refresh(); track(); });
-    window.addEventListener('storage', function (e) { if (e.key === ME_KEY || e.key === null) { refresh(); if (!readMe()) enforce(); else track(); } });
+    window.addEventListener('storage', function (e) { if (e.key === ME_KEY || e.key === null) { refresh(); if (!readMe()) enforce(); else track(); } else if (e.key === TEST_KEY) refresh(); });
 
     document.body.insertBefore(host, document.body.firstChild);
     enforce();

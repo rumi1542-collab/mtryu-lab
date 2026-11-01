@@ -370,13 +370,15 @@ const chev = up => `<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden=
 const WAVES = `<svg class="waves" aria-hidden="true" viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice"><g fill="none" stroke="#FFFFFF" stroke-opacity="0.16" stroke-width="3" stroke-linecap="round">${[60,160,260,360,460,560,660].map(y => `<path d="M-20 ${y} Q30 ${y-24} 80 ${y} T180 ${y} T280 ${y} T380 ${y} T480 ${y}"/>`).join('')}</g></svg>`;
 
 /* ---------- 저장 (서버 → 안 되면 이 컴퓨터) ---------- */
+const TEST = () => { try { return Number(localStorage.getItem('mtryu.test')) > Date.now(); } catch (e) { return false; } };   // 관리자 화면의 '테스트 모드'가 켜져 있으면 서버에 저장하지 않아요
 const Store = {
   mode: 'server',
-  key: (y, s) => 'rd_scores:' + y + ':' + s,
+  key: (y, s) => (TEST() ? 'T:' : '') + 'rd_scores:' + y + ':' + s,   // 테스트 모드의 기록은 이 컴퓨터에만, 따로 모아요
   localList(y, s) { try { return JSON.parse(localStorage.getItem(Store.key(y, s)) || '[]'); } catch (e) { return []; } },
   sortRecs(l) { return l.slice().sort((p, q) => p.rolls - q.rolls || q.ts - p.ts); },
   async http(method, url, body, opt) {
     opt = opt || {};
+    if (TEST() && !(method === 'GET' && url === CONFIG.configUrl)) throw new Error('test');   // 테스트 모드: 서버에는 아무것도 보내지 않아요 (학교 목록 읽기만 가능)
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), opt.timeout || 5000);
     try {

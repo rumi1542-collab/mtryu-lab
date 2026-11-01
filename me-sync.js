@@ -48,6 +48,8 @@
     if (!m) return Promise.resolve(null);
     var label = findLabel(m, schools || [], regions);
     if (label) return Promise.resolve({ me: m, label: label, list: null, retry: false });
+    // 테스트 모드(관리자 화면에서 켜요): 순위 서버의 학교 목록에는 아무것도 추가하지 않아요
+    try { if (Number(localStorage.getItem('mtryu.test')) > Date.now()) return Promise.resolve({ me: m, label: m.school.name, list: null, retry: false }); } catch (e) {}
     // 나이스에서 고른 학교(학교 코드·지역이 있는 경우)만 순위 서버에 추가할 수 있어요
     if (!m.school.region || !m.school.code) return Promise.resolve({ me: m, label: null, list: null, retry: false, manual: true });
     return postAdd(configUrl, m.school.name, m.school.region).then(function (j) {

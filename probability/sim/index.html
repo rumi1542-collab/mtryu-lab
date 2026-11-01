@@ -643,8 +643,10 @@ function paintPub() {
     '<p class="msg ' + (P.err ? 'err' : '') + '">' + esc(P.msg) + '</p></div>';
 }
 const curKey = () => S.exp ? JSON.stringify([S.exp.tool, S.exp.names, S.exp.p]) : '';
+const TEST = () => { try { return Number(localStorage.getItem('mtryu.test')) > Date.now(); } catch (e) { return false; } };   // 관리자 화면의 '테스트 모드'
 async function publish() {
   const P = S.pub; P.busy = true; P.msg = ''; P.err = false; paintPub();
+  if (TEST()) { P.busy = false; P.msg = '🧪 테스트 모드예요. 우리 학교에는 올리지 않았어요.'; paintPub(); return; }
   const bad = await needReady();
   if (bad) { P.busy = false; P.msg = bad; P.err = true; paintPub(); return; }
   try {
@@ -713,6 +715,7 @@ function paintJudge() { const b = $('#judge'); if (b) b.innerHTML = judgeHtml();
 async function vote() {
   const P = S.play; if (!P.pick || P.busy) return;
   P.busy = true; P.msg = ''; P.err = false; paintJudge();
+  if (TEST()) { P.busy = false; P.msg = '🧪 테스트 모드예요. 판정은 저장하지 않았어요.'; paintJudge(); return; }
   const bad = await needReady(); if (bad) { P.busy = false; P.msg = bad; P.err = true; paintJudge(); return; }
   try { const j = await api({ act: 'vote', id: P.id, uid: ME.uid, choice: P.pick }); P.my = j.my; P.tally = j.tally; listCount = null; S.list.items = null; if (j.already) toast('이미 판단한 실험이에요. 처음 고른 것으로 보여 줄게요.'); }
   catch (e) { P.msg = errText(e); P.err = true; }
