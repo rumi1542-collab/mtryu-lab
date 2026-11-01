@@ -23,8 +23,11 @@ const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
 
-      const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요)
-      const member = JSON.stringify({ id, name, rolls, setup, ts, uid });
+// 저장된 기록(JSON 글자)을 풀어서 돌려줘요. 공개하지 않는 익명 번호(uid)는 빼고 내보내요. (api/scores.js와 같은 방식)
+function parseMembers(list) {
+  return (list || []).map(m => { try { const o = JSON.parse(m); delete o.uid; return o; } catch (e) { return null; } }).filter(Boolean);
+}
+
 async function validYearSchool(year, school) {
   const y = Number(year);
   if (!Number.isInteger(y) || y < 2000 || y > 2100) return false;
