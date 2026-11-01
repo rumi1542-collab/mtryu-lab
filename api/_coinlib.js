@@ -3,7 +3,9 @@
 
 const MAXRUN = 30;      // 연속 맞추기 최대 횟수
 const FLIPS = 1000;     // 상대도수 줄타기에서 던지는 횟수
-const SPOT_ROUNDS = 8;  // 동전 조작 탐정 문제 수
+const SPOT_ROUNDS = 8;  // 동전 조작 탐정 연습하기 문제 수 (순위에 올리는 '시작하기'는 끝없이, 3번 틀리면 끝)
+const LIVES = 3;        // 시작하기에서 틀려도 되는 횟수 + 1 (3번 틀리면 끝)
+const ENDLESS_MAX = 300; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
 
 function hexToBits(h) {
   const o = new Uint8Array(h.length * 4);
@@ -36,7 +38,16 @@ const BET = [
   { small: { n: 10,  lo: 5,  hi: 5  }, big: { n: 1000, lo: 500, hi: 500 } },
   { small: { n: 10,  lo: 4,  hi: 6  }, big: { n: 1000, lo: 400, hi: 600 } },
   { small: { n: 100, lo: 45, hi: 55 }, big: { n: 1000, lo: 450, hi: 550 } },
-  { small: { n: 4,   lo: 3,  hi: 4  }, big: { n: 40,   lo: 30, hi: 40 } }
+  { small: { n: 4,   lo: 3,  hi: 4  }, big: { n: 40,   lo: 30, hi: 40 } },
+  { small: { n: 5,   lo: 4,  hi: 5  }, big: { n: 50,   lo: 40, hi: 50 } },
+  { small: { n: 20,  lo: 13, hi: 20 }, big: { n: 200,  lo: 130, hi: 200 } },
+  { small: { n: 2,   lo: 1,  hi: 1  }, big: { n: 200,  lo: 100, hi: 100 } },
+  { small: { n: 10,  lo: 3,  hi: 7  }, big: { n: 100,  lo: 30, hi: 70 } },
+  { small: { n: 20,  lo: 9,  hi: 11 }, big: { n: 500,  lo: 225, hi: 275 } },
+  { small: { n: 10,  lo: 0,  hi: 4  }, big: { n: 1000, lo: 0,  hi: 400 } },
+  { small: { n: 5,   lo: 0,  hi: 0  }, big: { n: 50,   lo: 0,  hi: 0 } },
+  { small: { n: 10,  lo: 9,  hi: 10 }, big: { n: 100,  lo: 90, hi: 100 } },
+  { small: { n: 100, lo: 55, hi: 100 }, big: { n: 1000, lo: 550, hi: 1000 } }
 ];
 function betRound(r) {
   const R = BET[r.i], a = r.f ? R.small : R.big, b = r.f ? R.big : R.small;
@@ -47,4 +58,4 @@ function betRound(r) {
   return { pA, pB, ok, pts };
 }
 
-module.exports = { MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };
+module.exports = { LIVES, ENDLESS_MAX, MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };

@@ -17,7 +17,7 @@ function summary(game, m) {
   if (game === 'run') return m.n + '연속';
   if (game.startsWith('tune')) return '예상과 ' + m.diff + '번 차이';
   if (game === 'spot') return m.correct + '개 맞힘';
-  if (game === 'bet') return m.score + '점';
+  if (game === 'bet') return (m.hits != null ? m.hits : m.score) + '개 맞힘';
   return '';
 }
 function days(n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(kstDay(Date.now() - i * 86400e3)); return out; }

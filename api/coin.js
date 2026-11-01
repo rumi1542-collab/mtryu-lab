@@ -12,7 +12,7 @@
 // DELETE /api/coin?game=&year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)   여러 건 삭제
 // DELETE /api/coin?game=&year=&school=&all=1      (헤더 x-admin-key 필요)   순위 전체 삭제
 //
-// 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 점수↑ — 같으면 먼저 기록한 사람이 위
+// 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑ — 같으면 먼저 기록한 사람이 위
 
 const { configured, redis, send, getConfig, isAdmin, rateLimit } = require('./_lib');
 const { badName } = require('./_names');
@@ -57,22 +57,24 @@ function build(game, b, ts) {
     const first = C.settleTime(C.hexToBits(hex), w), diff = Math.abs(pred - first);
     return { data: { w, pred, bits: hex, first, diff }, score: diff - ts / 1e13 };
   }
-  if (game === 'spot') {
+  if (game === 'spot') {   // 시작하기: 끝없이 나오는 문제에서 3번 틀리기 전까지 맞힌 개수
     const correct = b.correct;
-    if (!isInt(correct, 0, C.SPOT_ROUNDS)) return null;
+    if (!isInt(correct, 0, C.ENDLESS_MAX)) return null;
     return { data: { correct }, score: -correct - ts / 1e13 };
   }
-  if (game === 'bet') {
+  if (game === 'bet') {    // 시작하기: 선택한 기록을 서버가 다시 채점해요. 마지막이 3번째 틀림이어야 끝난 게임이에요.
     const rounds = b.rounds;
-    if (!Array.isArray(rounds) || rounds.length !== C.BET.length) return null;
-    let total = 0, hits = 0; const clean = [];
+    if (!Array.isArray(rounds) || rounds.length < C.LIVES || rounds.length > C.ENDLESS_MAX + C.LIVES) return null;
+    let hits = 0, miss = 0;
     for (let i = 0; i < rounds.length; i++) {
       const r = rounds[i];
-      if (!r || r.i !== i || typeof r.f !== 'boolean' || (r.p !== 'A' && r.p !== 'B') || !isInt(r.e, 0, 100)) return null;
-      const x = C.betRound(r); total += x.pts; if (x.ok) hits++;
-      clean.push({ i, f: r.f, p: r.p, e: r.e });
+      if (!r || !isInt(r.i, 0, C.BET.length - 1) || typeof r.f !== 'boolean' || (r.p !== 'A' && r.p !== 'B')) return null;
+      const ok = C.betRound({ i: r.i, f: r.f, p: r.p, e: 50 }).ok;
+      if (ok) hits++; else miss++;
+      if (miss === C.LIVES && i !== rounds.length - 1) return null;   // 3번 틀린 뒤에 더 이어진 기록은 받지 않아요
     }
-    return { data: { rounds: clean, score: total, hits }, score: -total - ts / 1e13 };
+    if (miss !== C.LIVES) return null;
+    return { data: { score: hits, hits }, score: -hits - ts / 1e13 };
   }
   return null;
 }
