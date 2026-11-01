@@ -423,7 +423,7 @@ function labHtml() {
   head += '</div>' + (mineView ? '<div id="pubbox"></div>' : S.play.view === 'stats' ? '<p class="hint">올려 둔 실험의 집계예요. 정답은 만든 친구가 정한 확률이에요. 아래에서 직접 던져 볼 수도 있어요.</p>' : '<p class="hint">던진 결과만 볼 수 있어요. 🎲 던지기로 한 번씩, ▶ 계속 던지기로 빠르게 던져 볼 수 있어요. 확신이 들 때 ⏸ 멈추고 가능성이 같은지 판단해 주세요.</p>') + '</div>';
   if (remote) {
     if (S.play.view === 'stats') return head + '<div id="statsbox"></div>' + liveHtml('🎲 던져 보기');
-    const showLive = !S.play.my || S.once;
+    const showLive = !S.play.my || S.once || S.play.practice;
     if (S.play.preview) head += '<div class="card" style="background:#FFF4D6;border-color:#eda100"><b>👀 관리자 미리보기</b> — 아직 판정하지 않은 학생에게 보이는 화면이에요. 여기서 한 판정은 기록되지 않아요.</div>';
     return head + (showLive ? liveHtml() : '') + '<div id="judge"></div>';
   }
@@ -455,7 +455,7 @@ function liveHtml(title) {
 }
 function syncLive() {
   const L = S.live, go = $('#livego'), st = $('#livestop'), one = $('#liveone'); if (!go) return;
-  const done = !!S.play.my, full = L.n >= MAX_LIVE;
+  const done = !!S.play.my && !S.play.practice, full = L.n >= MAX_LIVE;
   go.disabled = L.running || done || full; st.disabled = !L.running; one.disabled = L.running || L.busy || done || full;
   go.innerHTML = L.running ? '<span class="spin"></span> 던지는 중' : '▶ 계속 던지기';
   const c = $('#livecnt'); if (c) c.textContent = fmt(L.n);
@@ -495,7 +495,7 @@ function revealOne() {
   return true;
 }
 async function startLive() {
-  const L = S.live; if (L.running || L.busy || S.play.my || L.n >= MAX_LIVE) return;
+  const L = S.live; if (L.running || L.busy || (S.play.my && !S.play.practice) || L.n >= MAX_LIVE) return;
   const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
   L.running = true; L.msg = ''; syncLive(); paintJudge();
   L.timer = setInterval(() => {
@@ -506,7 +506,7 @@ async function startLive() {
   }, STEP_MS);
 }
 async function throwOnce() {
-  const L = S.live; if (L.running || L.busy || S.play.my || L.n >= MAX_LIVE) return;
+  const L = S.live; if (L.running || L.busy || (S.play.my && !S.play.practice) || L.n >= MAX_LIVE) return;
   const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
   L.msg = ''; await fetchBatch(1);
   if (revealOne()) { flushLive(); syncLive(); paintJudge(); }
@@ -826,7 +826,7 @@ function judgeHtml() {
     return '<div class="card judge"><div class="reveal ' + (ok ? 'ok' : 'bad') + '"><h2>정답: 각 경우가 일어날 가능성이 ' + (rv.eq ? '같아요' : '같지 않아요') + '</h2>' +
       '<p>내 판단은 ‘' + (P.my === 'e' ? '같다' : '같지 않다') + '’ → <b>' + (ok ? '맞았어요! 🎉' : '아쉽게 틀렸어요') + '</b>' + (rv.n != null ? ' · 내가 던진 횟수 ' + fmt(rv.n) + '번' : '') + '</p></div>' +
       '<p class="hint">' + CAVEAT + '</p>' + tallyHtml(P.tally, P.my) +
-      '<div><button class="btn" data-act="list">← 목록으로</button></div></div>';
+      '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="list">← 목록으로</button>' + (P.practice ? '<span class="hint" style="align-self:center">정답을 알고 다시 던져 보는 중이에요. 이 결과는 기록되지 않아요.</span>' : '<button class="btn primary" data-act="practice">🎲 다시 던져 보기</button>') + '</div></div>';
   }
   const dis = L.n < 1 || L.running || L.busy || P.busy;
   const guide = L.n < 1 ? '<b>먼저 던져 본 뒤</b> 판단해 보세요.' : L.running ? '확신이 들면 <b>⏸ 멈춤</b>을 누르고 판단해 보세요.' : '지금까지 던진 ' + fmt(L.n) + '번의 결과를 바탕으로 골라 보세요. 한 번 제출하면 바꿀 수 없어요. (던진 횟수도 함께 기록돼요)';
@@ -957,6 +957,7 @@ app.addEventListener('click', async ev => {
   else if (a === 'liveone') throwOnce();
   else if (a === 'livego') startLive();
   else if (a === 'livestop') stopLive();
+  else if (a === 'practice') { liveReset(); S.once = null; S.ran = false; S.play.practice = true; render(); const lc = $('#livecard'); if (lc) lc.scrollIntoView({ block: 'start' }); }
   else if (a === 'run1') runOnce();
   else if (a === 'run2') runRep();
   else if (a === 'pub-open') { S.pub.open = true; S.pub.msg = ''; paintPub(); }
