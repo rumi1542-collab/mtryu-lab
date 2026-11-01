@@ -77,6 +77,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .icoin{display:flex;flex-direction:column;align-items:center;gap:8px}
 .icwrap{height:150px;display:flex;justify-content:center;align-items:center}
 .imsg{margin:0;text-align:center;font-size:18px;min-height:3em}
+.icalc{padding:12px 16px;border-radius:12px;background:var(--panel);font-size:22px;text-align:center;line-height:1.6}.icalc b{color:var(--yellow)}
+.ihist{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;font-size:15px}.ihist span{padding:5px 10px;border-radius:8px;background:var(--panel);color:var(--muted)}.ihist span.now{background:var(--yellow);color:var(--ink);font-weight:700}
 .iarrow{font-size:34px;color:var(--yellow);text-align:center}
 .istage .seq{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;min-height:30px}.istage .cc{width:28px;max-width:28px;font-size:13px}
 @media(max-width:700px){.igrid{grid-template-columns:minmax(0,1fr)}.iarrow{transform:rotate(90deg);height:30px}}
@@ -432,7 +434,7 @@ async function loadList() {
 /* ---------- 상태 ---------- */
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
 const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
-const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2, intro: true };
+const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.speed1) ? prefs.speed1 : 1, intro: true };
 let ME = null;           // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
 const viewSchool = () => S.vschool || S.school;   // 순위표를 볼 학교
 let G = null;           // 진행 중인 게임
@@ -449,7 +451,7 @@ function checkName() {
   }
   S.name = name; savePrefs(); return true;
 }
-function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, speed1: S.speed })); } catch (e) {} }
 const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
 function fixSelection() {
   const cy = curYear(); if (!LIST.years.includes(cy)) LIST.years.unshift(cy);
@@ -694,9 +696,10 @@ function paintSetup() {
     <button type="button" class="go" data-act="t-start" style="width:100%;margin-bottom:14px">예측 확정! 던지기 시작</button>`;
   } else {
     el.innerHTML = `<div class="panel sumbar" style="padding:12px 16px"><span>상대도수 범위 <b>${wText(g.w)}</b></span><span>예상 횟수 <b>${g.pred}번</b></span></div>${g.step === 'run1' && g.intro && !g.skipIntro ? `<div id="istage" class="panel istage"><h3>동전을 던질 때마다 그래프에 점이 하나씩 찍혀요</h3>
-      <div class="igrid"><div class="icoin"><div class="icwrap"><div style="transform:scale(.8);width:190px;height:190px;flex:none;margin:-19px 0">${coinHTML(false, 'icoin')}</div></div><p class="imsg" id="i-msg">처음 ${INTRO_N}번은 천천히 던져 볼게요.</p><div id="i-chips" class="seq mini"></div></div>
+      <div class="igrid"><div class="icoin"><div class="icwrap"><div style="transform:scale(.8);width:190px;height:190px;flex:none;margin:-19px 0">${coinHTML(false, 'icoin')}</div></div><button type="button" class="go" id="i-btn" data-act="t-ithrow" style="min-width:210px">동전 던지기 (1/${INTRO_N})</button><p class="imsg" id="i-msg">버튼을 눌러 동전을 던져 보세요.</p><div id="i-chips" class="seq mini"></div></div>
       <div class="iarrow" aria-hidden="true">→</div>
       <div class="igraph"><div id="i-mini"></div><p class="hint" style="margin:4px 0 0">세로: 앞면의 비율(앞면 수 ÷ 던진 횟수) · 가로: 던진 횟수</p></div></div>
+      <div id="i-calc" class="icalc" aria-live="polite">던질 때마다 <b>앞면의 비율 = 앞면 수 ÷ 던진 횟수</b>를 계산해서 그래프에 점으로 찍어요.</div><div id="i-hist" class="ihist"></div>
       <button type="button" class="ghost" data-act="t-introskip">이 과정 건너뛰기</button></div>` : ''}`;
   }
 }
@@ -743,18 +746,29 @@ async function tuneRun() {
     let i = 0;
     for (; i < INTRO_N; i++) {
       if (g.skipIntro || g.skip) break;
-      const msg = $('#i-msg'), coin = $('#icoin'); if (!msg) break;
-      msg.innerHTML = `<b>${i + 1}번째</b> 던지는 중…`;
-      await flipCoin(coin, bits[i] === 0, 750);
+      const msg = $('#i-msg'), coin = $('#icoin'), btn = $('#i-btn'); if (!msg || !btn) break;
+      btn.disabled = false; btn.textContent = `동전 던지기 (${i + 1}/${INTRO_N})`;
+      msg.innerHTML = `<b>${i + 1}번째</b> 던지기 — 버튼을 눌러요.`;
+      await new Promise(r => { g.introWait = r; });   // 학생이 버튼을 누를 때까지 기다려요
+      g.introWait = null;
+      if (G !== g || t !== token) return;
+      if (g.skipIntro || g.skip) break;
+      btn.disabled = true; msg.innerHTML = `<b>${i + 1}번째</b> 던지는 중…`;
+      await flipCoin(coin, bits[i] === 0, 900);
       if (G !== g || t !== token) return;
       if (g.skipIntro || g.skip || !$('#i-mini')) break;
       heads += bits[i]; hp = i + 1;
       path.setAttribute('d', 'M' + P.slice(0, hp).join('L'));
       const p = heads / hp, nn = $('#c-n'); if (nn) { nn.textContent = hp; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); }
       $('#i-mini').innerHTML = miniSVG(bits, hp); $('#i-chips').innerHTML = Array.from({ length: hp }, (_, q) => chip(bits[q] === 1, 's')).join('');
-      msg.innerHTML = `<b>${hp}번째: ${bits[i] ? '앞면' : '뒷면'}</b> → 앞면 ${heads}번 ÷ ${hp}번 = <b>${p.toFixed(2)}</b>`;
-      await sleep(i < 3 ? 1200 : 700);
-      if (G !== g || t !== token) return;
+      msg.innerHTML = `<b>${hp}번째: ${bits[i] ? '앞면' : '뒷면'}</b>`;
+      $('#i-calc').innerHTML = `${hp}번 던졌고 앞면이 ${heads}번<br><b>${heads} ÷ ${hp} = ${p.toFixed(2)}</b> → 그래프의 점 (${hp}, ${p.toFixed(2)})`;
+      const hist = $('#i-hist'); hist.querySelectorAll('.now').forEach(x => x.classList.remove('now'));
+      hist.insertAdjacentHTML('beforeend', `<span class="now">${hp}번째 ${bits[i] ? '앞' : '뒤'}: ${heads} ÷ ${hp} = ${p.toFixed(2)}</span>`);
+    }
+    if (i >= INTRO_N && !g.skipIntro && !g.skip && $('#i-msg')) {
+      $('#i-msg').innerHTML = '<b>10번 완료!</b> 이제 쭉 던져서 1000번까지 그려 볼게요.'; $('#i-btn').textContent = '곧 이어서 던져요…';
+      await sleep(3000); if (G !== g || t !== token) return;
     }
     const box = $('#istage'); if (box) box.remove(); const tw = $('#twoWrap'); if (tw) tw.style.display = '';
     const ci = $('#c-in'); if (ci) ci.textContent = '이제 쭉 던져서 1000번까지 그려 볼게요. 초록 범위 안과 밖을 오가는 모습을 지켜보세요.';
@@ -984,8 +998,9 @@ document.addEventListener('click', e => {
   else if (act === 'again') startRun();
   else if (act === 'record') autoRecord();
   else if (act === 't-start') tuneRun();
-  else if (act === 't-skip') G.skip = true;
-  else if (act === 't-introskip') { G.skipIntro = true; const bx = $('#istage'); if (bx) bx.remove(); const tw = $('#twoWrap'); if (tw) tw.style.display = ''; }
+  else if (act === 't-skip') { G.skip = true; if (G.introWait) G.introWait(); }
+  else if (act === 't-ithrow') { if (G.introWait) G.introWait(); }
+  else if (act === 't-introskip') { G.skipIntro = true; if (G.introWait) G.introWait(); const bx = $('#istage'); if (bx) bx.remove(); const tw = $('#twoWrap'); if (tw) tw.style.display = ''; }
   else if (act === 't-again') tuneRun();
   else if (act === 't-reset') startTune(true);
   else if (act === 's-mode') { startSpot(v); }
