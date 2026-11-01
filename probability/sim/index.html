@@ -111,8 +111,15 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font
 th:first-child,td:first-child{text-align:left}
 th{font-size:14px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--ink)}
 tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
-.compact .logbox{height:110px}
-.compact .scrolltbl{max-height:150px}
+.livegrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:18px;align-items:stretch}
+.livegrid .side{position:relative;min-width:0}
+.livegrid .sidein{position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;min-height:0}
+.livegrid .side .card{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+.livegrid .side h3{margin:0;font-size:16px}.livegrid .side h3 small{font-size:13px;font-weight:500;color:var(--muted)}
+.livegrid .side .logbox{flex:1 1 0;height:auto;min-height:0}
+.livegrid .side .scrolltbl{flex:1 1 0;max-height:none;min-height:0}
+.livegrid .side th,.livegrid .side td{padding:4px 8px;font-size:14px}
+@media(max-width:820px){.livegrid{grid-template-columns:minmax(0,1fr)}.livegrid .sidein{position:static}.livegrid .side .logbox{height:120px;flex:none}.livegrid .side .scrolltbl{max-height:170px;flex:none}.livegrid .side .card{flex:none}}
 #livecard .ctl{position:sticky;top:var(--labbar-h,0px);z-index:5;background:#fff;padding:10px 0 8px;border-bottom:2px solid var(--line);align-items:center}
 #livecard .msg:empty{display:none}
 .scrolltbl{max-height:260px;overflow:auto;border:2px solid var(--line);border-radius:12px}
@@ -503,7 +510,7 @@ function analyzeOnce(idx, m) {
 function niceStep(raw) { const e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
 
 /* ---------- 그래프 (SVG, 화면 폭에 맞춰 글자 크기를 유지해요) ---------- */
-const chartH = () => (S.exp && S.exp.remote ? 260 : 320);
+const chartH = () => (S.exp && S.exp.remote ? 300 : 320);
 function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
   const names = labels, m0 = vals.length, mc = Math.max(2, Math.floor(((w - 64) / m0) / 8));
   if (idxMode && mc < 3 && labels.some(l => String(l).length > mc)) { labels = labels.map((_, i) => String(i + 1)); xTitle = xTitle || '경우 번호 (표의 순서)'; }   // 이름이 안 들어갈 만큼 많으면 번호로
@@ -608,20 +615,23 @@ function paintOnce() {
     const tables =
       '<div class="grid2"><section class="card"><h3 id="h1"></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div><p class="hint">칸에 마우스를 올리면 몇 번째인지 보여요.<span id="cap1"></span></p></section>' +
       '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>설정한 확률</th>' : '') + '</tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div>';
-    const graphs =
-      '<div class="grid2"><section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>' +
+    const barSec = '<section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>';
+    const lineSec =
       '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="opts"><label>세로축 <select id="ymode" aria-label="세로축 범위"><option value="full"' + (S.ymode === 'full' ? ' selected' : '') + '>0 ~ 1 전체</option><option value="auto"' + (S.ymode === 'auto' ? ' selected' : '') + '>자동 확대</option></select></label>' +
       (m > PAL ? '<label>강조할 경우 <select id="hl" aria-label="강조할 경우"><option value="-1">없음</option>' + names.map((n, i) => '<option value="' + i + '"' + (S.hl === i ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' : '') + '</div><div class="chart" data-chart="line1"></div>' +
-      (m > PAL ? '<p class="hint"><span style="color:#7719AA">■</span> 보라색 선: 각 경우 · <span style="color:#D81B7A">■</span> 분홍색 선: 강조한 경우</p>' : legendHtml(names, null, false)) + '<p class="hint">던진 횟수가 늘수록 상대도수가 어떻게 변하는지 살펴봐요. 처음에는 크게 흔들려서 그래프 위로 벗어날 수 있어요.</p></section></div>';
-    // 학생 화면: 버튼 바로 아래에 그래프를 두고, 던진 결과·도수 표는 작게 그 아래에
-    box.classList.toggle('compact', live);
-    box.innerHTML = live ? graphs + tables : tables + graphs;
+      (m > PAL ? '<p class="hint"><span style="color:#7719AA">■</span> 보라색 선: 각 경우 · <span style="color:#D81B7A">■</span> 분홍색 선: 강조한 경우</p>' : legendHtml(names, null, false)) + '<p class="hint">던진 횟수가 늘수록 상대도수가 어떻게 변하는지 살펴봐요. 처음에는 크게 흔들려서 그래프 위로 벗어날 수 있어요.</p></section>';
+    // 학생 화면: 왼쪽에 상대도수 변화 그래프, 오른쪽에 던진 결과와 도수 표를 작게 위아래로 (그래프 높이를 넘지 않게)
+    const sideSec =
+      '<div class="side"><div class="sidein"><section class="card"><h3><span id="h1"></span><small id="cap1"></small></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div></section>' +
+      '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th></tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div></div>';
+    box.classList.remove('compact');
+    box.innerHTML = live ? '<div class="livegrid">' + lineSec + sideSec + '</div>' : tables + '<div class="grid2">' + barSec + lineSec + '</div>';
   }
   const from = live ? Math.max(0, R.n - LIVE_CHIPS) : 0;
   let chips = ''; for (let i = from; i < R.n; i++) { const c = R.idx[i]; chips += '<i class="rc ' + cls(c, m) + '" title="' + (i + 1) + '번째: ' + esc(names[c]) + '">' + esc(lab[c]) + '</i>'; }
   const lg = $('#lg1'), stick = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 30;
   lg.innerHTML = chips; if (live ? stick : true) lg.scrollTop = live ? lg.scrollHeight : 0;
-  $('#cap1').textContent = from > 0 ? ' (최근 ' + LIVE_CHIPS + '번만 보여요. 도수와 그래프에는 모두 들어가요.)' : '';
+  $('#cap1').textContent = from > 0 ? (live ? ' · 최근 ' + LIVE_CHIPS + '번만' : ' (최근 ' + LIVE_CHIPS + '번만 보여요. 도수와 그래프에는 모두 들어가요.)') : '';
   $('#h1').textContent = '던진 결과 (' + fmt(R.n) + '번)';
   let rows = '', tot = 0;
   names.forEach((nm, i) => { rows += '<tr class="' + cls(i, m) + '"><td><span class="chip ' + cls(i, m) + '"><i></i>' + esc(nm) + '</span></td><td>' + fmt(R.counts[i]) + '</td><td>' + r3(R.counts[i] / R.n) + '</td>' + (showP ? '<td>' + r3(E.p[i]) + '</td>' : '') + '</tr>'; tot += R.counts[i]; });
