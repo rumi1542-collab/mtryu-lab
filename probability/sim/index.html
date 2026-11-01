@@ -568,6 +568,7 @@ function lineSvg(w, R0, names, p, showP, vis, colf) {
   const shown = c => !vis || vis.indexOf(c) >= 0, faint = m > PAL && !vis;
   if (showP && p) p.forEach((v, c) => { if (shown(c)) s += '<line x1="' + L + '" x2="' + (w - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + colf(c) + '" stroke-width="1.5" stroke-dasharray="6 5" opacity=".55"/>'; });
   for (let c = 0; c < m; c++) { if (!shown(c)) continue; s += '<polyline fill="none" stroke="' + colf(c) + '" stroke-width="' + (faint ? 1.5 : 2) + '" opacity="' + (faint ? '.4' : '1') + '" stroke-linejoin="round" points="' + pts(c) + '"/>'; }
+  if (n <= 10) for (let c = 0; c < m; c++) { if (!shown(c)) continue; R0.xs.forEach((x, i) => { s += '<circle cx="' + X(x).toFixed(1) + '" cy="' + Y(R0.ys[c][i]).toFixed(1) + '" r="4" fill="' + colf(c) + '" stroke="#fff" stroke-width="1"' + (faint ? ' opacity=".6"' : '') + '/>'; }); }   // 10번까지는 점으로도 보여 줘요
   s += '</g><line id="cross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ph) + '" stroke="#2B0F3F" stroke-width="1" opacity="0"/>';
   s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '" fill="transparent"/></svg>';
   return { svg: s, L: L, pw: pw, T: T, xmax: xmax };
