@@ -72,7 +72,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .intro p{margin:0;color:var(--muted);max-width:640px}
 .who{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 24px}
 .who label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
-.lives{display:flex;align-items:center;gap:8px;padding:2px 14px;border-radius:999px;background:var(--deep);border:2px solid var(--bad)}.lives small{font-size:14px;color:var(--muted)}.lives span{font-size:38px;line-height:1.2;letter-spacing:4px;color:var(--bad)}.lives i{font-style:normal;opacity:.45}
+.lives{display:flex;align-items:center;gap:6px;padding:4px 14px 4px 12px;border-radius:999px;background:var(--deep);border:2px solid #FF8FB8}.lives small{font-size:14px;color:var(--muted);margin-right:2px}.hrt{width:44px;height:42px;display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}.hrt.off{filter:none}
 .ptop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ptop h2{margin:0}
 .istage{background:var(--deep);margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
 .igrid{display:grid;grid-template-columns:minmax(220px,1fr) 40px minmax(0,1.6fr);align-items:center;gap:8px}
@@ -802,7 +802,11 @@ function tunePayload() { const g = G; return { w: g.w, pred: g.pred, bits: bitsT
 
 /* ================= 3. 동전 조작 탐정 ================= */
 const LIVES = 3;
-const livesBadge = w => `<div class="lives" aria-label="남은 목숨 ${Math.max(0, LIVES - w)}개"><small>목숨</small><span>${'♥'.repeat(Math.max(0, LIVES - w))}${'<i>♡</i>'.repeat(Math.min(LIVES, w))}</span></div>`;
+const HEART_PATH = 'M32 56C10 40 4 28 4 19C4 11 10 5 18 5C24 5 29 8 32 13C35 8 40 5 46 5C54 5 60 11 60 19C60 28 54 40 32 56Z';
+const heartSVG = on => on
+  ? `<svg class="hrt" viewBox="0 0 64 62" aria-hidden="true"><defs><radialGradient id="hg" cx="35%" cy="28%" r="75%"><stop offset="0" stop-color="#FFB3D1"/><stop offset=".55" stop-color="#FF5C9D"/><stop offset="1" stop-color="#E8337A"/></radialGradient></defs><path d="${HEART_PATH}" fill="url(#hg)" stroke="#fff" stroke-width="3" stroke-linejoin="round"/><ellipse cx="19" cy="18" rx="6" ry="3.4" fill="#fff" opacity=".75" transform="rotate(-35 19 18)"/><circle cx="23" cy="30" r="2.6" fill="#7A1F4D"/><circle cx="41" cy="30" r="2.6" fill="#7A1F4D"/><path d="M26 37Q32 43 38 37" fill="none" stroke="#7A1F4D" stroke-width="2.6" stroke-linecap="round"/><circle cx="16" cy="36" r="3.4" fill="#FF8FB8" opacity=".8"/><circle cx="48" cy="36" r="3.4" fill="#FF8FB8" opacity=".8"/></svg>`
+  : `<svg class="hrt off" viewBox="0 0 64 62" aria-hidden="true"><path d="${HEART_PATH}" fill="#2A3070" stroke="#7F8BD8" stroke-width="3" stroke-dasharray="5 5" stroke-linejoin="round"/><path d="M22 28L28 34M28 28L22 34M36 28L42 34M42 28L36 34" stroke="#7F8BD8" stroke-width="2.6" stroke-linecap="round"/><path d="M26 42Q32 37 38 42" fill="none" stroke="#7F8BD8" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+const livesBadge = w => { const left = Math.max(0, LIVES - w); return `<div class="lives" role="img" aria-label="남은 목숨 ${left}개"><small>목숨</small>${heartSVG(true).repeat(left)}${heartSVG(false).repeat(Math.min(LIVES, w))}</div>`; };
 const heartsHTML = w => `<span aria-label="남은 목숨 ${Math.max(0, LIVES - w)}개" style="color:var(--bad);letter-spacing:2px">${'♥'.repeat(Math.max(0, LIVES - w))}${'♡'.repeat(Math.min(LIVES, w))}</span>`;
 function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, wrong: 0, over: false, rounds: [], recorded: false, mine: [] }; if (G.mode !== 'mine') newSpotRound(); go('spot'); }
 function newSpotRound() {
