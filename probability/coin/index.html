@@ -72,6 +72,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .intro p{margin:0;color:var(--muted);max-width:640px}
 .who{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 24px}
 .who label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.lives{display:flex;align-items:center;gap:8px;padding:2px 14px;border-radius:999px;background:var(--deep);border:2px solid var(--bad)}.lives small{font-size:14px;color:var(--muted)}.lives span{font-size:38px;line-height:1.2;letter-spacing:4px;color:var(--bad)}.lives i{font-style:normal;opacity:.45}
+.ptop{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.ptop h2{margin:0}
 .istage{background:var(--deep);margin-bottom:14px;display:flex;flex-direction:column;gap:10px}
 .igrid{display:grid;grid-template-columns:minmax(220px,1fr) 40px minmax(0,1.6fr);align-items:center;gap:8px}
 .icoin{display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -800,6 +802,7 @@ function tunePayload() { const g = G; return { w: g.w, pred: g.pred, bits: bitsT
 
 /* ================= 3. 동전 조작 탐정 ================= */
 const LIVES = 3;
+const livesBadge = w => `<div class="lives" aria-label="남은 목숨 ${Math.max(0, LIVES - w)}개"><small>목숨</small><span>${'♥'.repeat(Math.max(0, LIVES - w))}${'<i>♡</i>'.repeat(Math.min(LIVES, w))}</span></div>`;
 const heartsHTML = w => `<span aria-label="남은 목숨 ${Math.max(0, LIVES - w)}개" style="color:var(--bad);letter-spacing:2px">${'♥'.repeat(Math.max(0, LIVES - w))}${'♡'.repeat(Math.min(LIVES, w))}</span>`;
 function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, wrong: 0, over: false, rounds: [], recorded: false, mine: [] }; if (G.mode !== 'mine') newSpotRound(); go('spot'); }
 function newSpotRound() {
@@ -837,8 +840,8 @@ function spotHTML() {
   }
   const btn = (k) => `<button type="button" class="go" data-act="s-pick" data-v="${k}" ${rev ? 'disabled' : ''}>${k}가 진짜</button>`;
   const card = (k) => `<div class="panel" style="background:var(--deep);${rev && c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${rev ? (c.real === k ? '(진짜)' : '(지어냄)') : ''}</h3>${seqGrid(c[k])}</div>`;
-  const status = play ? `<b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.correct}개</b> · 목숨 ${heartsHTML(g.wrong)}` : `<b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}개 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
-  return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs(g.mode)}
+  const status = play ? `<b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.correct}개</b>` : `<b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}개 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
+  return `<div class="panel"><div class="ptop"><h2>3. 동전 조작 탐정</h2>${play ? livesBadge(g.wrong) : ''}</div>${spotTabs(g.mode)}
     <p class="hint">한쪽은 진짜 동전을 ${SPOT_LEN}번 던진 결과이고, 다른 쪽은 사람이 "랜덤처럼" 지어낸 배열이에요. 진짜는 어느 쪽일까요? ${status}</p>
     <div class="betgrid">${card('A')}${card('B')}</div>
     <div class="row">${btn('A')}${btn('B')}</div>${res}</div>`;
@@ -913,8 +916,8 @@ function betHTML() {
     body = `<div class="betgrid">${grid('A', A)}${grid('B', B)}</div>
       <div id="betres"></div>`;
   }
-  const status = play ? `<b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.hits}개</b> · 목숨 ${heartsHTML(g.wrong)}` : `<b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
-  return `<div class="panel"><h2>4. 내기 시뮬레이터</h2>${betTabs(g.mode)}
+  const status = play ? `<b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.hits}개</b>` : `<b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
+  return `<div class="panel"><div class="ptop"><h2>4. 내기 시뮬레이터</h2>${play ? livesBadge(g.wrong) : ''}</div>${betTabs(g.mode)}
     <p class="hint">같은 종류의 두 가지 내기가 있어요. ${esc(R.note)} ${status}</p>${body}</div>`;
 }
 async function betRun() {
