@@ -160,14 +160,14 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function fmt(n) { return Number(n || 0).toLocaleString('ko-KR'); }
 
   /* ── 메뉴: 실험실 순서대로 ── */
-  var UNIT_NAME = { home: '메인 페이지', math: '대수 기하 실험실', stat: '통계 실험실', prob: '확률 실험실 첫 화면', river: '강 건너기', coin: '동전 실험실', game: '게임 수학 실험실' };
+  var UNIT_NAME = { home: '메인 페이지', math: '대수 기하 실험실', stat: '통계 실험실', prob: '확률 실험실 첫 화면', river: '강 건너기', coin: '동전 실험실', sim: '확률 실험 시뮬레이터', game: '게임 수학 실험실' };
   var NODES = [
     { id: 'overview', label: '전체 현황', ic: '📊', units: null },
     { grp: '실험실' },
     { id: 'home', label: '메인 페이지', ic: '🏠', units: ['home'] },
     { id: 'math', label: '대수 기하 실험실', ic: '➕', units: ['math'] },
     { id: 'stat', label: '통계 실험실', ic: '📈', units: ['stat'] },
-    { id: 'prob', label: '확률 실험실', ic: '🎲', units: ['prob', 'river', 'coin'] },
+    { id: 'prob', label: '확률 실험실', ic: '🎲', units: ['prob', 'river', 'coin', 'sim'] },
     { id: 'river', label: '강 건너기', lvl: 1, units: ['river'], game: 'river' },
     { id: 'coin', label: '동전 실험실', lvl: 1, units: ['coin'] },
     { id: 'run', label: '1 연속 맞추기', lvl: 2, game: 'run', parent: 'coin' },
@@ -176,6 +176,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     { id: 'tune2', label: '2 상대도수 줄타기 ±0.02', lvl: 2, game: 'tune2', parent: 'coin' },
     { id: 'spot', label: '3 동전 조작 탐정', lvl: 2, game: 'spot', parent: 'coin' },
     { id: 'bet', label: '4 내기 시뮬레이터', lvl: 2, game: 'bet', parent: 'coin' },
+    { id: 'sim', label: '확률 실험 시뮬레이터', lvl: 1, units: ['sim'] },
     { id: 'game', label: '게임 수학 실험실', ic: '🎮', units: ['game'] },
     { grp: '관리' },
     { id: 'settings', label: '학년도·학교', ic: '⚙️' }
@@ -249,7 +250,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function render() {
     var n = BYID[S.node], main = $('#main');
     if (S.node === 'settings') return renderSettings();
-    var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin') ? '확률 실험실 › ' + n.label : '';
+    var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin' || S.node === 'sim') ? '확률 실험실 › ' + n.label : '';
     var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game;
     var tabs = (hasStats && hasRec) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button><button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button></div>' : '';
     main.innerHTML = '<section class="card">' + (crumb ? '<p class="crumb">' + esc(crumb) + '</p>' : '') + '<h2>' + esc(n.label) + '</h2>' + tabs + '<div id="body"><p class="empty">불러오는 중…</p></div></section>';

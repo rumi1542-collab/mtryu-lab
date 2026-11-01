@@ -129,6 +129,7 @@
     if (h.indexOf('github.io') > 0) return 'math';
     if (p.indexOf('/probability/river') === 0) return 'river';
     if (p.indexOf('/probability/coin') === 0) return 'coin';
+    if (p.indexOf('/probability/sim') === 0) return 'sim';
     if (p.indexOf('/probability') === 0) return 'prob';
     if (onHome && (p === '/' || p === '/index.html')) return 'home';
     return '';

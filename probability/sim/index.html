@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>확률 실험 시뮬레이터 · 확률 실험실</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7719AA">
+<meta name="description" content="내가 만드는 확률 실험 — 도구와 경우를 정하고 던져 보며 도수·상대도수를 살펴봐요. 우리 학교 친구들의 실험은 결과만 보고 가능성이 같은지 판단해요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#2B0F3F;--muted:#5A4670;--line:#E6D8F2;--bg:#F8F2FC;--purple:#7719AA;--pink:#D81B7A;--tint:#F0DDFA;--ok:#0F7B4B;--bad:#B3261E;
+  /* 경우별 색: 검증된 범주형 팔레트 8색 (순서 고정) */
+  --s0:#2a78d6;--s1:#eb6834;--s2:#1baf7a;--s3:#eda100;--s4:#e87ba4;--s5:#008300;--s6:#6250d6;--s7:#e34948;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:calc(100vh - var(--labbar-h,0px));background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;font-family:'Noto Sans KR','Malgun Gothic',system-ui,sans-serif;color:var(--ink);padding:28px 16px 64px}
+button,input,select{font-family:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{width:100%;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+#app{display:flex;flex-direction:column;gap:20px;min-width:0}
+#res1,#res2{display:flex;flex-direction:column;gap:18px}
+#res1:empty,#res2:empty,#pubbox:empty,#judge:empty{display:none}
+[hidden]{display:none!important}
+
+/* 머리글 */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.crumb{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:999px;background:#fff;border:2px solid var(--ink);color:var(--ink);text-decoration:none;font-size:15px;font-weight:700}
+.crumb:hover{background:var(--tint)}
+.hero{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+.ic{display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:16px;background:var(--tint);border:2px solid var(--ink)}
+h1{margin:0;font-size:clamp(26px,4.6vw,36px);line-height:1.25;font-weight:900}
+h1 em{font-style:normal;color:var(--purple)}
+.hero p{margin:0;font-size:17px;line-height:1.6;color:var(--muted)}
+h2{margin:0;font-size:20px;line-height:1.35;font-weight:900}
+h3{margin:0;font-size:17px;font-weight:700}
+.hint{margin:0;font-size:15px;line-height:1.6;color:var(--muted)}
+
+/* 카드·버튼 */
+.card{background:#fff;border:2px solid var(--ink);border-radius:16px;padding:20px;box-shadow:4px 4px 0 var(--purple);display:flex;flex-direction:column;gap:14px;min-width:0}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.choice{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;padding:22px;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--purple);transition:transform .15s,box-shadow .15s}
+.choice:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--pink)}
+.choice .tag{font-size:13px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--tint);color:var(--purple)}
+.choice b{font-size:19px;line-height:1.4;font-weight:900}
+.choice span.ex{font-size:15px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:8px 20px;border:2px solid var(--ink);border-radius:12px;background:#fff;font-size:16px;font-weight:700;color:var(--ink);text-decoration:none}
+.btn:hover:not(:disabled){background:var(--tint)}
+.btn.primary{background:var(--purple);color:#fff;box-shadow:3px 3px 0 var(--pink)}
+.btn.primary:hover:not(:disabled){background:#650F91}
+.btn.pink{background:var(--pink);color:#fff}
+.btn.pink:hover:not(:disabled){background:#B5155F}
+.btn.sm{min-height:40px;padding:4px 14px;font-size:15px}
+.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+:is(button,input,select,a,[tabindex]):focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.actions .grp{display:flex;gap:10px;flex-wrap:wrap}
+.msg{margin:0;font-size:15px;line-height:1.5;min-height:1.5em}
+.msg.err{color:var(--bad);font-weight:500}
+.msg.ok{color:var(--ok);font-weight:500}
+
+/* 입력 */
+input[type=text],input[type=number],input:not([type]),select{height:46px;border:2px solid var(--ink);border-radius:10px;background:#fff;padding:0 12px;font-size:17px;min-width:0}
+input[type=number]{width:120px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700;color:var(--muted)}
+.ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.quick button{min-height:36px;padding:2px 12px;border:2px solid var(--line);border-radius:999px;background:#fff;font-size:14px;font-weight:700;color:var(--muted)}
+.quick button:hover{border-color:var(--purple);color:var(--purple)}
+
+/* 경우 목록 */
+.crow{display:flex;align-items:center;gap:8px}
+.crow .badge{flex:none;width:34px;height:34px;border-radius:10px;background:var(--c);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;text-shadow:0 0 2px rgba(0,0,0,.35)}
+.crow input.cn{flex:1;min-width:0}
+.crow input.cw{width:104px;flex:none;text-align:right}
+.crow .del{flex:none;width:40px;height:40px;border:2px solid var(--line);border-radius:10px;background:#fff;font-size:18px;color:var(--muted)}
+.crow .del:hover:not(:disabled){border-color:var(--bad);color:var(--bad)}
+.crow .del:disabled{opacity:.35;cursor:not-allowed}
+.colh{display:flex;gap:8px;font-size:13px;font-weight:700;color:var(--muted)}
+.sumline{font-size:15px;font-weight:700;padding:8px 12px;border-radius:10px;background:var(--tint);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sumline.ok{color:var(--ok)}.sumline.bad{color:var(--bad)}
+.eqbox{padding:12px 14px;border-radius:12px;background:var(--tint);font-size:16px;line-height:1.6}
+
+/* 경우 색 */
+.k0{--c:var(--s0)}.k1{--c:var(--s1)}.k2{--c:var(--s2)}.k3{--c:var(--s3)}.k4{--c:var(--s4)}.k5{--c:var(--s5)}.k6{--c:var(--s6)}.k7{--c:var(--s7)}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 6px;border-radius:999px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,#fff);font-size:15px;font-weight:500;line-height:1.3}
+.chip i{width:12px;height:12px;border-radius:4px;background:var(--c);flex:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+
+/* 실험하기 */
+.exphead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.exphead .ttl{display:flex;flex-direction:column;gap:8px;min-width:0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tab{min-height:46px;padding:8px 18px;border:2px solid var(--ink);border-radius:12px 12px 0 0;background:#fff;font-size:16px;font-weight:700;color:var(--muted)}
+.tab[aria-selected=true]{background:var(--purple);color:#fff;border-color:var(--purple)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:18px;align-items:start}
+.logbox{display:flex;gap:6px;flex-wrap:wrap;align-content:flex-start;height:200px;overflow-y:auto;padding:10px;border:2px solid var(--line);border-radius:12px;background:#FCFAFE;scrollbar-width:thin;scrollbar-color:var(--purple) transparent}
+.logbox::-webkit-scrollbar{width:8px}.logbox::-webkit-scrollbar-thumb{background:var(--purple);border-radius:4px}
+.rc{font-style:normal;font-size:14px;font-weight:700;line-height:1;padding:6px 8px;border-radius:8px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,#fff);white-space:nowrap}
+.rc.w{font-weight:500}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-size:14px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--ink)}
+tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
+.scrolltbl{max-height:260px;overflow:auto;border:2px solid var(--line);border-radius:12px}
+.chart{position:relative;width:100%;min-height:120px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font-family:inherit;fill:var(--muted);font-size:12px}
+.chart .val{fill:var(--ink);font-weight:700;font-size:13px}
+.chart .gridl{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--ink);stroke-width:1.5}
+.tip{position:absolute;pointer-events:none;background:#fff;border:2px solid var(--ink);border-radius:10px;padding:8px 10px;font-size:13px;line-height:1.5;box-shadow:3px 3px 0 var(--purple);z-index:3;white-space:nowrap}
+.tip b{font-weight:900}
+.opts{display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:15px}
+.opts label{display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.opts input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{padding:12px 14px;border-radius:12px;background:var(--tint);display:flex;flex-direction:column;gap:2px}
+.stat span{font-size:13px;font-weight:700;color:var(--muted)}
+.stat b{font-size:22px;font-weight:900}
+
+/* 판정 */
+.judge .opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:56px;padding:12px 16px;border:2px solid var(--ink);border-radius:12px;background:#fff;font-size:17px;font-weight:700}
+.judge .opt[aria-pressed=true]{background:var(--purple);color:#fff;box-shadow:3px 3px 0 var(--pink)}
+.judge .opt:disabled{opacity:.5;cursor:not-allowed}
+.vbar{display:grid;grid-template-columns:minmax(110px,170px) 1fr 96px;gap:10px;align-items:center;font-size:16px}
+.vbar .track{height:26px;border-radius:8px;background:var(--tint);overflow:hidden}
+.vbar .fill{height:100%;background:var(--purple);border-radius:0 8px 8px 0;min-width:2px}
+.vbar.n .fill{background:var(--pink)}
+.vbar .num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.mark{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--ink);color:#fff;margin-left:6px;vertical-align:middle}
+
+/* 목록 */
+.items{display:flex;flex-direction:column;gap:14px}
+.item{display:flex;flex-direction:column;gap:10px;padding:16px 18px;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--purple)}
+.item .row1{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.item .meta{font-size:14px;color:var(--muted)}
+.badge2{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--tint);color:var(--purple);margin-left:6px;vertical-align:middle}
+.badge2.done{background:#D8F2E4;color:var(--ok)}
+.empty{padding:28px;text-align:center;color:var(--muted);font-size:16px;line-height:1.7}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:12px;font-size:15px;font-weight:500;max-width:calc(100vw - 32px);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+.spin{display:inline-block;width:16px;height:16px;border:3px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:560px){
+  body{padding:16px 10px 56px}
+  .card{padding:14px}
+  .vbar{grid-template-columns:1fr 80px;}
+  .vbar .track{grid-column:1 / -1;order:3}
+  input[type=number]{width:100px}
+  .crow input.cw{width:84px}
+}
+@media (prefers-reduced-motion:reduce){.choice,#toast{transition:none}.spin{animation-duration:2s}}
+</style>
+<script src="/me-sync.js"></script>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><a class="crumb" href="/probability/">← 확률 실험실</a></div>
+  <div class="hero">
+    <span class="ic"><svg width="28" height="28" viewBox="0 0 40 40" fill="none" stroke="#7719AA" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 33V7"/><path d="M6 33h28"/><rect x="11" y="20" width="5" height="13" rx="1.5"/><rect x="19" y="12" width="5" height="21" rx="1.5"/><rect x="27" y="24" width="5" height="9" rx="1.5"/></svg></span>
+    <h1>MT RYU의 <em>확률 실험 시뮬레이터</em></h1>
+    <p id="sub">내가 만드는 확률 실험</p>
+  </div>
+  <div id="app"></div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+'use strict';
+
+/* ---------- 도구 ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const SC = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948'];
+const MAX_CASES = 8, MIN_CASES = 2, MAX_ROLL = 10000, MAX_REP_N = 1000, MAX_REP_K = 1000, MAX_REP_TOTAL = 200000;
+const fmt = n => Number(n).toLocaleString('ko-KR');
+const r3 = x => (Math.round(x * 1000) / 1000).toFixed(3);
+const short = (s, n) => { s = String(s); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+const clampInt = (v, lo, hi) => { const x = Number(String(v).trim()); return Number.isInteger(x) && x >= lo && x <= hi ? x : null; };
+let toastT = 0;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 3200); }
+
+/* ---------- 난수: 브라우저의 암호용 난수 ---------- */
+function randU32(count) {
+  const out = new Uint32Array(count);
+  for (let i = 0; i < count; i += 16384) crypto.getRandomValues(out.subarray(i, Math.min(count, i + 16384)));
+  return out;
+}
+function localRoll(p, count) {
+  const cum = []; let a = 0;
+  for (let i = 0; i < p.length; i++) { a += p[i]; cum.push(a); }
+  cum[cum.length - 1] = Infinity;
+  const r = randU32(count), out = new Uint8Array(count);
+  for (let i = 0; i < count; i++) { const u = r[i] / 4294967296; let k = 0; while (u >= cum[k]) k++; out[i] = k; }
+  return out;
+}
+
+/* ---------- 서버 ---------- */
+const ERR = {
+  'too-many': '잠깐 너무 많이 눌렀어요. 조금 뒤에 다시 해 주세요.',
+  'bad-experiment': '올릴 수 없는 말이 들어 있거나 값이 맞지 않아요. 이름과 값을 다시 확인해 주세요.',
+  'too-many-mine': '올려 둘 수 있는 실험은 10개까지예요. 하나를 지우고 다시 올려 주세요.',
+  'bad-name': '내 별명을 쓸 수 없어요. 이름표에서 별명을 바꿔 주세요.',
+  'own-experiment': '내가 올린 실험은 친구들이 판정해요.',
+  'not-found': '지워졌거나 찾을 수 없는 실험이에요.',
+  'bad-count': '던지는 횟수가 너무 많아요. 숫자를 줄여 주세요.',
+  'bad-request': '학교 정보가 맞지 않아요. 이름표에서 학교를 다시 골라 주세요.'
+};
+const errText = e => (e && ERR[e.code]) || '서버와 연결하지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.';
+async function api(body) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const r = await fetch('/api/sim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) { const er = new Error('http ' + r.status); er.code = (j && j.error) || ''; er.status = r.status; throw er; }
+    return j;
+  } finally { clearTimeout(t); }
+}
+
+/* ---------- 내 정보 · 학교 · 학년도 (동전 실험실과 같은 방식) ---------- */
+const LIST = { years: [2026], schools: ['선운중학교'], regions: {} };
+let ME = null, YEAR = 2026;
+function schoolYear() { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; }
+const okList = c => c && Array.isArray(c.years) && Array.isArray(c.schools) && c.years.length && c.schools.length;
+function takeList(j) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); LIST.regions = j.regions || {}; const sy = schoolYear(); YEAR = LIST.years.includes(sy) ? sy : LIST.years[0]; }
+async function loadList() { try { const r = await fetch('/api/config'); if (r.ok) { const j = await r.json(); if (okList(j)) takeList(j); } } catch (e) {} }
+const cleanNick = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
+async function syncMe() {
+  ME = null;
+  const m = window.MtryuMeSync && MtryuMeSync.read();
+  if (!m) return;
+  let r; try { r = await MtryuMeSync.resolve(LIST.schools, LIST.regions, '/api/config'); } catch (e) { r = null; }
+  if (r && r.list && okList(r.list)) takeList(r.list);
+  if (r && r.label) ME = { nick: cleanNick(m.nick), uid: m.uid, label: r.label };
+}
+// 올리기·목록·판정 전에 서버와 내 정보를 확인해요. 문제가 있으면 안내 글을 돌려줘요. (만들기·실험하기는 서버 없이도 돼요)
+async function needReady() {
+  if (location.protocol === 'file:') return '이 기능은 인터넷에 올라간 주소에서만 써요. 파일로 열면 만들기와 실험하기만 할 수 있어요.';
+  if (!ME) { await loadList(); await syncMe(); }
+  if (!ME) return '내 정보(학교·별명)가 필요해요. 위쪽 이름표에서 학교를 나이스로 검색해 골라 주세요.';
+  return '';
+}
+
+/* ---------- 상태 ---------- */
+const S = {
+  screen: 'home', mode: null,
+  tool: '', cases: [],
+  exp: null,          // { tool, names, p (만든 사람만), remote:{id}|null }
+  tab: 'once', n1: 100, n2: 20, k2: 50, pick: 0,
+  once: null, rep: null, ymode: 'auto', showTrue: false,
+  busy: false, ran: false,
+  pub: { open: false, busy: false, id: null, key: '', msg: '', err: false },
+  list: { items: null, msg: '', err: false, loading: false },
+  play: { id: '', my: null, tally: null, mine: false, pick: null, busy: false, msg: '', err: false }
+};
+let listCount = null;   // 홈에 보여줄 우리 학교 실험 수
+
+const app = $('#app');
+const colorCls = i => 'k' + (i % 8);
+
+/* ---------- 만들기 도우미 ---------- */
+function defaults(mode) {
+  if (mode === 'equal') { S.tool = '정사면체 주사위'; S.cases = ['1', '2', '3', '4'].map(n => ({ name: n, w: '' })); }
+  else { S.tool = '압정'; S.cases = [{ name: '침이 위', w: '0.4' }, { name: '침이 아래', w: '0.6' }]; }
+}
+function parseW(s) {
+  s = String(s).trim().replace(/,/g, '.');
+  if (!s) return NaN;
+  const fr = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (fr) return Number(fr[2]) > 0 ? Number(fr[1]) / Number(fr[2]) : NaN;
+  return /^\d*\.?\d+$/.test(s) ? Number(s) : NaN;
+}
+function checkBuild() {
+  const errs = [], names = S.cases.map(c => c.name.trim());
+  if (!S.tool.trim()) errs.push('도구 이름을 써 주세요.');
+  if (names.some(n => !n)) errs.push('이름이 빈 경우가 있어요.');
+  else if (new Set(names).size !== names.length) errs.push('같은 이름의 경우가 있어요. 서로 다르게 써 주세요.');
+  let p = null, sum = null;
+  if (S.mode === 'equal') p = S.cases.map(() => 1 / S.cases.length);
+  else {
+    const w = S.cases.map(c => parseW(c.w));
+    if (w.some(x => !(x > 0 && x <= 1))) errs.push('상대도수는 0보다 크고 1 이하인 수로 써 주세요. (예: 0.25 또는 1/4)');
+    else {
+      sum = w.reduce((a, c) => a + c, 0);
+      if (Math.abs(sum - 1) > 0.001) errs.push('상대도수의 합이 1이 되어야 해요.');
+      else p = w.map(x => x / sum);
+    }
+  }
+  return { ok: !errs.length && !!p, errs, p, sum };
+}
+function sumHtml(ck) {
+  if (S.mode !== 'unequal') return '';
+  if (ck.sum == null) return '<div class="sumline">상대도수의 합: —</div>';
+  const good = Math.abs(ck.sum - 1) <= 0.001;
+  return '<div class="sumline ' + (good ? 'ok' : 'bad') + '">상대도수의 합: ' + (Math.round(ck.sum * 10000) / 10000) + (good ? ' ✓' : ' → 합이 1이 되어야 해요') + '</div>';
+}
+function updateBuild() {
+  const ck = checkBuild();
+  const go = $('#go'); if (go) go.disabled = !ck.ok;
+  const sm = $('#sumline'); if (sm) sm.innerHTML = sumHtml(ck);
+  const m = $('#bmsg'); if (m) { m.textContent = ck.errs[0] || ''; m.className = 'msg' + (ck.errs.length ? ' err' : ''); }
+  const eq = $('#eqp'); if (eq) eq.textContent = '1/' + S.cases.length;
+  const fix = $('#fix'); if (fix) fix.hidden = S.mode !== 'unequal';
+}
+
+/* ---------- 화면 ---------- */
+function setSub(t) { $('#sub').textContent = t; }
+
+function homeHtml() {
+  const n = listCount == null ? '' : ' (' + listCount + '개)';
+  return '<div class="choices">' +
+    '<button class="choice" data-act="mode" data-v="equal"><span class="tag">동등한 경우</span><b>각 경우가 발생할 가능성이 동등한 경우</b><span class="ex">예) 정사면체 주사위, 동전, 정육면체 주사위</span></button>' +
+    '<button class="choice" data-act="mode" data-v="unequal"><span class="tag">동등하지 않은 경우</span><b>각 경우가 발생할 가능성이 동등하지 않은 경우</b><span class="ex">예) 압정, 찌그러진 주사위, 눌린 병뚜껑</span></button>' +
+    '</div>' +
+    '<div class="card"><h2>🏫 우리 학교 실험 판정하기' + esc(n) + '</h2><p class="hint">친구들이 올린 실험을 직접 던져 보고, 각 경우가 일어날 가능성이 같은지 판단해요. 결과만 볼 수 있고 정답은 숨겨져 있어요.</p>' +
+    '<div><button class="btn primary" data-act="list">친구들의 실험 보러 가기</button></div></div>';
+}
+
+function buildHtml() {
+  const eq = S.mode === 'equal', ck = checkBuild();
+  let rows = '';
+  S.cases.forEach((c, i) => {
+    rows += '<div class="crow ' + colorCls(i) + '"><span class="badge">' + (i + 1) + '</span>' +
+      '<input class="cn" data-i="' + i + '" maxlength="12" value="' + esc(c.name) + '" aria-label="' + (i + 1) + '번째 경우 이름" autocomplete="off">' +
+      (eq ? '' : '<input class="cw" data-i="' + i + '" inputmode="decimal" value="' + esc(c.w) + '" placeholder="0.25" aria-label="' + (i + 1) + '번째 경우의 상대도수" autocomplete="off">') +
+      '<button class="del" data-act="del" data-i="' + i + '" aria-label="' + (i + 1) + '번째 경우 삭제"' + (S.cases.length <= MIN_CASES ? ' disabled' : '') + '>✕</button></div>';
+  });
+  return '<div class="card"><h2>① 도구 이름</h2>' +
+    '<input id="tool" maxlength="16" value="' + esc(S.tool) + '" aria-label="도구 이름" autocomplete="off" style="max-width:420px">' +
+    '<p class="hint">예) 정사면체 주사위, 동전, 압정</p></div>' +
+    '<div class="card"><h2>② 경우 ' + (eq ? '(모두 같은 가능성)' : '(상대도수로 가능성 정하기)') + '</h2>' +
+    (eq ? '<div class="eqbox">모든 경우가 <b>똑같이 일어나도록</b> 정해져요. 각 경우의 확률은 <b id="eqp">1/' + S.cases.length + '</b> 이에요.</div>'
+        : '<p class="hint">각 경우의 <b>상대도수</b>를 써서 가능성을 다르게 만들어요. 상대도수의 합은 1이 되어야 해요.</p>') +
+    '<div class="colh"><span style="width:34px"></span><span style="flex:1">경우의 이름</span>' + (eq ? '' : '<span style="width:104px;text-align:right">상대도수</span>') + '<span style="width:40px"></span></div>' +
+    '<div id="rows" style="display:flex;flex-direction:column;gap:8px">' + rows + '</div>' +
+    '<div class="actions"><div class="grp"><button class="btn sm" data-act="add"' + (S.cases.length >= MAX_CASES ? ' disabled' : '') + '>＋ 경우 추가</button>' +
+    '<button class="btn sm" id="fix" data-act="fix"' + (eq ? ' hidden' : '') + ' title="마지막 경우의 값을 합이 1이 되도록 채워요">합이 1이 되게 마지막 값 채우기</button></div>' +
+    '<span class="hint">경우는 ' + MIN_CASES + '~' + MAX_CASES + '개까지</span></div>' +
+    '<div id="sumline">' + sumHtml(ck) + '</div></div>' +
+    '<p id="bmsg" class="msg' + (ck.errs.length ? ' err' : '') + '">' + esc(ck.errs[0] || '') + '</p>' +
+    '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn primary" id="go" data-act="start"' + (ck.ok ? '' : ' disabled') + '>확률 실험하기 →</button></div>';
+}
+
+function legendHtml(names, p, showP) {
+  return '<div class="chips">' + names.map((n, i) => '<span class="chip ' + colorCls(i) + '"><i></i>' + esc(n) + (showP && p ? ' · ' + r3(p[i]) : '') + '</span>').join('') + '</div>';
+}
+
+function labHtml() {
+  const E = S.exp, remote = !!E.remote, names = E.names;
+  const mineView = !remote;
+  let head = '<div class="card"><div class="exphead"><div class="ttl"><h2>' + esc(E.tool) + (remote ? ' <span class="badge2">친구가 올린 실험</span>' : '') + '</h2>' + legendHtml(names, E.p, mineView && S.showTrue) + '</div>';
+  if (mineView) head += '<div class="grp" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="rebuild">← 도구 고치기</button><button class="btn sm pink" data-act="pub-open">🏫 우리 학교에 올리기</button></div>';
+  else head += '<div class="grp"><button class="btn sm" data-act="list">← 목록으로</button></div>';
+  head += '</div>' + (mineView ? '<div id="pubbox"></div>' : '<p class="hint">던진 결과만 볼 수 있어요. 아래에서 던져 보고, 맨 아래에서 가능성이 같은지 판단해 주세요.</p>') + '</div>';
+
+  const pickOpts = names.map((n, i) => '<option value="' + i + '"' + (i === S.pick ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+  const tabs = '<div class="tabs" role="tablist" aria-label="실험 방법"><button class="tab" role="tab" id="t-once" data-act="tab" data-v="once" aria-selected="' + (S.tab === 'once') + '">n번 던지기</button><button class="tab" role="tab" id="t-rep" data-act="tab" data-v="rep" aria-selected="' + (S.tab === 'rep') + '">n번씩 k회 반복하기</button></div>';
+
+  const once = '<div id="p-once" role="tabpanel" aria-labelledby="t-once" class="card" style="border-top-left-radius:0"' + (S.tab === 'once' ? '' : ' hidden') + '>' +
+    '<div class="ctl"><label class="f">던지는 횟수 n<input id="n1" type="number" min="1" max="' + MAX_ROLL + '" value="' + S.n1 + '"></label>' +
+    '<div class="quick" aria-label="자주 쓰는 횟수">' + [10, 100, 1000, 10000].map(v => '<button data-act="q1" data-v="' + v + '">' + fmt(v) + '번</button>').join('') + '</div>' +
+    '<button class="btn primary" id="run1" data-act="run1">던지기</button></div>' +
+    '<p id="m1" class="msg"></p><div id="res1"></div></div>';
+
+  const rep = '<div id="p-rep" role="tabpanel" aria-labelledby="t-rep" class="card" style="border-top-left-radius:0"' + (S.tab === 'rep' ? '' : ' hidden') + '>' +
+    '<p class="hint">경우를 하나 고르고, n번 던졌을 때 그 경우가 몇 번 나왔는지(도수)를 k회 모아서 분포로 나타내요.</p>' +
+    '<div class="ctl"><label class="f">살펴볼 경우<select id="pick">' + pickOpts + '</select></label>' +
+    '<label class="f">한 번에 던지는 횟수 n<input id="n2" type="number" min="1" max="' + MAX_REP_N + '" value="' + S.n2 + '"></label>' +
+    '<label class="f">반복 횟수 k<input id="k2" type="number" min="1" max="' + MAX_REP_K + '" value="' + S.k2 + '"></label>' +
+    '<button class="btn primary" id="run2" data-act="run2">반복하기</button></div>' +
+    '<p class="hint">n × k 는 ' + fmt(MAX_REP_TOTAL) + ' 이하로 해 주세요.</p><p id="m2" class="msg"></p><div id="res2"></div></div>';
+
+  const opts = mineView ? '<div class="card"><div class="opts"><label><input type="checkbox" id="showTrue"' + (S.showTrue ? ' checked' : '') + '> 내가 정한 확률 보기 (표·그래프에 표시)</label></div></div>' : '';
+  return head + opts + '<div>' + tabs + once + rep + '</div>' + (remote ? '<div id="judge"></div>' : '');
+}
+
+/* ---------- 실험 결과 계산 ---------- */
+function analyzeOnce(idx, m) {
+  const n = idx.length, counts = new Array(m).fill(0), xs = [], ys = Array.from({ length: m }, () => []);
+  const step = n <= 500 ? 1 : Math.ceil(n / 500);
+  for (let i = 0; i < n; i++) {
+    counts[idx[i]]++; const t = i + 1;
+    if (step === 1 || t <= 20 || t % step === 0 || t === n) { xs.push(t); for (let c = 0; c < m; c++) ys[c].push(counts[c] / t); }
+  }
+  return { n, idx, counts, xs, ys };
+}
+function niceStep(raw) { const e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
+
+/* ---------- 그래프 (SVG, 화면 폭에 맞춰 글자 크기를 유지해요) ---------- */
+function barSvg(w, labels, vals, colors, xTitle, yTitle, markX) {
+  const h = 320, L = 52, R = 12, T = 26, B = 52 + (xTitle ? 18 : 0), pw = w - L - R, ph = h - T - B, m = vals.length;
+  const mx = Math.max(1, Math.max.apply(null, vals)), step = niceStep(mx / 4), ymax = step * Math.ceil(mx / step);
+  let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(yTitle) + ' 막대그래프">';
+  for (let v = 0; v <= ymax + 1e-9; v += step) {
+    const y = T + ph * (1 - v / ymax);
+    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>';
+  }
+  s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+  const slot = pw / m, bw = Math.min(slot * 0.66, 72), maxCh = Math.max(2, Math.floor(slot / 8));
+  const every = slot < 22 ? Math.ceil(22 / slot) : 1;
+  vals.forEach((v, i) => {
+    const x = L + slot * i + (slot - bw) / 2, hh = ph * v / ymax, y = T + ph - hh, r = Math.min(4, hh);
+    const d = hh > 0 ? 'M' + x + ',' + (y + hh) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + r) + 'V' + (y + hh) + 'Z' : '';
+    s += '<g>' + (d ? '<path d="' + d + '" fill="' + colors[i] + '"/>' : '') + '<title>' + esc(labels[i]) + ': ' + fmt(v) + '</title>' +
+      (slot >= 16 || v === mx ? '<text class="val" x="' + (x + bw / 2) + '" y="' + (y - 6) + '" text-anchor="middle">' + fmt(v) + '</text>' : '') +
+      (i % every === 0 ? '<text x="' + (x + bw / 2) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + esc(short(labels[i], maxCh)) + '</text>' : '') + '</g>';
+  });
+  if (markX != null) { const mxp = L + markX * slot; s += '<line x1="' + mxp + '" x2="' + mxp + '" y1="' + T + '" y2="' + (T + ph) + '" stroke="#D81B7A" stroke-width="2" stroke-dasharray="6 4"/><text x="' + mxp + '" y="' + (T - 8) + '" text-anchor="middle" style="fill:#D81B7A;font-weight:700">설정한 기댓값</text>'; }
+  if (xTitle) s += '<text x="' + (L + pw / 2) + '" y="' + (h - 6) + '" text-anchor="middle">' + esc(xTitle) + '</text>';
+  s += '<text x="14" y="' + (T + ph / 2) + '" transform="rotate(-90 14 ' + (T + ph / 2) + ')" text-anchor="middle">' + esc(yTitle) + '</text></svg>';
+  return s;
+}
+
+function lineSvg(w, R0, names, p, showP, ymode) {
+  const h = 320, L = 52, R = 14, T = 16, B = 46, pw = w - L - R, ph = h - T - B, n = R0.n, m = names.length;
+  let ymax = 1;
+  if (ymode === 'auto') {
+    let mx = 0; const from = Math.max(1, Math.ceil(n * 0.1));
+    R0.xs.forEach((x, i) => { if (x >= from) for (let c = 0; c < m; c++) mx = Math.max(mx, R0.ys[c][i]); });
+    if (showP && p) mx = Math.max(mx, Math.max.apply(null, p));
+    const cand = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]; mx = Math.max(mx * 1.12, 0.1);
+    ymax = cand.find(v => v >= mx) || 1;
+  }
+  const X = t => L + pw * (t / n), Y = v => T + ph * (1 - v / ymax);
+  let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="던진 횟수에 따른 상대도수 변화 꺾은선그래프"><defs><clipPath id="clipL"><rect x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
+  const ystep = niceStep(ymax / 4);
+  for (let v = 0; v <= ymax + 1e-9; v += ystep) { const y = Y(v); s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (Math.round(v * 1000) / 1000) + '</text>'; }
+  s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+  for (let i = 0; i <= 4; i++) { const t = Math.round(n * i / 4); s += '<text x="' + X(t) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + fmt(t) + '</text>'; }
+  s += '<text x="' + (L + pw / 2) + '" y="' + (h - 6) + '" text-anchor="middle">던진 횟수(번)</text><text x="14" y="' + (T + ph / 2) + '" transform="rotate(-90 14 ' + (T + ph / 2) + ')" text-anchor="middle">상대도수</text>';
+  s += '<g clip-path="url(#clipL)">';
+  if (showP && p) p.forEach((v, c) => { s += '<line x1="' + L + '" x2="' + (w - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + SC[c] + '" stroke-width="1.5" stroke-dasharray="6 5" opacity=".75"/>'; });
+  for (let c = 0; c < m; c++) s += '<polyline fill="none" stroke="' + SC[c] + '" stroke-width="2" stroke-linejoin="round" points="' + R0.xs.map((x, i) => X(x).toFixed(1) + ',' + Y(R0.ys[c][i]).toFixed(1)).join(' ') + '"/>';
+  s += '</g><line id="cross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ph) + '" stroke="#2B0F3F" stroke-width="1" opacity="0"/>';
+  s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '" fill="transparent"/></svg>';
+  return { svg: s, L: L, pw: pw, T: T };
+}
+
+function histBins(counts, n) {
+  let lo = Math.min.apply(null, counts), hi = Math.max.apply(null, counts);
+  lo = Math.max(0, lo - 1); hi = Math.min(n, hi + 1);
+  const span = hi - lo + 1, wd = Math.max(1, Math.ceil(span / 30)), nb = Math.ceil(span / wd), bins = new Array(nb).fill(0);
+  counts.forEach(c => { bins[Math.min(nb - 1, Math.floor((c - lo) / wd))]++; });
+  const labels = bins.map((_, j) => { const a = lo + j * wd, b = Math.min(hi, a + wd - 1); return wd === 1 ? String(a) : a + '~' + b; });
+  return { lo, hi, wd, bins, labels };
+}
+
+/* ---------- 결과 그리기 ---------- */
+const chartWidth = el => Math.max(300, Math.floor(el.clientWidth || 600));
+function paintOnce() {
+  const box = $('#res1'); if (!box) return;
+  const R = S.once; if (!R) { box.innerHTML = ''; return; }
+  const E = S.exp, names = E.names, m = names.length, mineView = !E.remote, showP = mineView && S.showTrue;
+  const maxCh = m > 5 ? 4 : 6;
+  let chips = ''; const lab = names.map(n => short(n, maxCh));
+  for (let i = 0; i < R.n; i++) { const c = R.idx[i]; chips += '<i class="rc ' + colorCls(c) + '" title="' + (i + 1) + '번째: ' + esc(names[c]) + '">' + esc(lab[c]) + '</i>'; }
+  let rows = '', tot = 0;
+  names.forEach((nm, i) => { rows += '<tr class="' + colorCls(i) + '"><td><span class="chip ' + colorCls(i) + '"><i></i>' + esc(nm) + '</span></td><td>' + fmt(R.counts[i]) + '</td><td>' + r3(R.counts[i] / R.n) + '</td>' + (showP ? '<td>' + r3(E.p[i]) + '</td>' : '') + '</tr>'; tot += R.counts[i]; });
+  box.innerHTML =
+    '<div class="grid2"><section class="card"><h3>던진 결과 (' + fmt(R.n) + '번)</h3><div class="logbox" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요">' + chips + '</div><p class="hint">칸에 마우스를 올리면 몇 번째인지 보여요.</p></section>' +
+    '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>설정한 확률</th>' : '') + '</tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td>합계</td><td>' + fmt(tot) + '</td><td>1</td>' + (showP ? '<td>1</td>' : '') + '</tr></tfoot></table></div></section></div>' +
+    '<div class="grid2"><section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>' +
+    '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="opts"><label>세로축 <select id="ymode" aria-label="세로축 범위"><option value="auto"' + (S.ymode === 'auto' ? ' selected' : '') + '>자동 확대</option><option value="full"' + (S.ymode === 'full' ? ' selected' : '') + '>0 ~ 1 전체</option></select></label></div><div class="chart" data-chart="line1"></div>' + legendHtml(names, null, false) + '<p class="hint">던진 횟수가 늘수록 상대도수가 어떻게 변하는지 살펴봐요. 처음에는 크게 흔들려서 그래프 위로 벗어날 수 있어요.</p></section></div>';
+  drawCharts();
+}
+function paintRep() {
+  const box = $('#res2'); if (!box) return;
+  const R = S.rep; if (!R) { box.innerHTML = ''; return; }
+  const sum = R.counts.reduce((a, c) => a + c, 0), mean = sum / R.k, mn = Math.min.apply(null, R.counts), mx = Math.max.apply(null, R.counts);
+  const H = histBins(R.counts, R.n); R.h = H;
+  const nm = esc(R.name);
+  let tr = ''; H.bins.forEach((c, j) => { tr += '<tr><td>' + esc(H.labels[j]) + '</td><td>' + c + '</td><td>' + r3(c / R.k) + '</td></tr>'; });
+  let chips = ''; R.counts.forEach((c, i) => { chips += '<i class="rc w ' + colorCls(R.pick) + '" title="' + (i + 1) + '회">' + (i + 1) + '회: ' + c + '번</i>'; });
+  box.innerHTML =
+    '<div class="stats"><div class="stat"><span>살펴본 경우</span><b>' + nm + '</b></div><div class="stat"><span>한 회에 던진 횟수 · 반복</span><b>' + fmt(R.n) + '번 × ' + fmt(R.k) + '회</b></div>' +
+    '<div class="stat"><span>도수의 평균</span><b>' + (Math.round(mean * 100) / 100) + '번</b></div><div class="stat"><span>평균 상대도수</span><b>' + r3(mean / R.n) + '</b></div><div class="stat"><span>가장 적게 ~ 많이 나온 도수</span><b>' + mn + ' ~ ' + mx + '번</b></div></div>' +
+    '<section class="card"><h3>‘' + nm + '’ 도수의 분포</h3><div class="chart" data-chart="hist"></div><p class="hint">가로: ' + fmt(R.n) + '번 던졌을 때 나온 ‘' + nm + '’의 도수, 세로: 그 도수가 나온 횟수(회)</p></section>' +
+    '<div class="grid2"><section class="card"><h3>회마다 나온 도수 (' + fmt(R.k) + '회)</h3><div class="logbox" tabindex="0" role="region" aria-label="회마다 나온 도수 목록">' + chips + '</div></section>' +
+    '<section class="card"><h3>도수의 분포표</h3><div class="scrolltbl"><table><thead><tr><th>도수(번)</th><th>횟수(회)</th><th>상대도수</th></tr></thead><tbody>' + tr + '</tbody></table></div></section></div>';
+  drawCharts();
+}
+function drawCharts() {
+  $$('[data-chart]').forEach(el => {
+    const w = chartWidth(el), E = S.exp; if (!E) return;
+    const kind = el.dataset.chart;
+    if (kind === 'bar1' && S.once) el.innerHTML = barSvg(w, E.names, S.once.counts, E.names.map((_, i) => SC[i]), '', '도수(번)');
+    else if (kind === 'line1' && S.once) {
+      const L = lineSvg(w, S.once, E.names, E.p, !E.remote && S.showTrue, S.ymode); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
+      wireLine(el, L, w);
+    } else if (kind === 'hist' && S.rep) {
+      const R = S.rep, H = R.h || histBins(R.counts, R.n);
+      const mark = (!E.remote && S.showTrue && E.p) ? ((R.n * E.p[R.pick] - (H.lo - 0.5)) / H.wd) : null;
+      el.innerHTML = barSvg(w, H.labels, H.bins, H.bins.map(() => '#7719AA'), '‘' + R.name + '’의 도수(번)', '횟수(회)', mark != null && mark >= 0 && mark <= H.bins.length ? mark : null);
+    }
+  });
+}
+function wireLine(el, L, w) {
+  const hit = $('#hit', el), cross = $('#cross', el), tip = $('.tip', el), R = S.once, names = S.exp.names;
+  if (!hit) return;
+  const move = ev => {
+    const rect = el.getBoundingClientRect(), px = (ev.clientX - rect.left) * (w / rect.width);
+    const t = Math.min(R.n, Math.max(1, Math.round((px - L.L) / L.pw * R.n)));
+    let bi = 0, bd = 1e12; for (let i = 0; i < R.xs.length; i++) { const d = Math.abs(R.xs[i] - t); if (d < bd) { bd = d; bi = i; } }
+    const x = L.L + L.pw * (R.xs[bi] / R.n);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('opacity', '.5');
+    tip.innerHTML = '<b>' + fmt(R.xs[bi]) + '번째까지</b><br>' + names.map((n, c) => '<span style="color:' + SC[c] + '">■</span> ' + esc(short(n, 8)) + ' ' + r3(R.ys[c][bi])).join('<br>');
+    tip.hidden = false;
+    const tw = tip.offsetWidth, left = (x / w) * rect.width + 12;
+    tip.style.left = (left + tw > rect.width ? Math.max(0, left - tw - 24) : left) + 'px'; tip.style.top = '12px';
+  };
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { cross.setAttribute('opacity', '0'); tip.hidden = true; });
+}
+
+/* ---------- 던지기 실행 ---------- */
+async function rollIdx(n) {
+  const E = S.exp;
+  if (!E.remote) return localRoll(E.p, n);
+  const j = await api({ act: 'roll', id: E.remote.id, n });
+  const s = String(j.r || ''); if (s.length !== n) throw new Error('bad');
+  const out = new Uint8Array(n); for (let i = 0; i < n; i++) out[i] = s.charCodeAt(i) - 48;
+  return out;
+}
+async function rollRep(n, k, pick) {
+  const E = S.exp;
+  if (!E.remote) {
+    const idx = localRoll(E.p, n * k), c = new Array(k).fill(0);
+    for (let r = 0; r < k; r++) { let x = 0; const b = r * n; for (let i = 0; i < n; i++) if (idx[b + i] === pick) x++; c[r] = x; }
+    return c;
+  }
+  const j = await api({ act: 'rollk', id: E.remote.id, n, k, pick });
+  if (!Array.isArray(j.c) || j.c.length !== k) throw new Error('bad');
+  return j.c;
+}
+function setBusy(b, which) {
+  S.busy = b;
+  ['run1', 'run2'].forEach(id => { const el = $('#' + id); if (el) el.disabled = b; });
+  const el = $('#' + (which === 2 ? 'run2' : 'run1')); if (el) el.innerHTML = b ? '<span class="spin"></span> 던지는 중' : (which === 2 ? '반복하기' : '던지기');
+}
+async function runOnce() {
+  const n = clampInt($('#n1').value, 1, MAX_ROLL), m = $('#m1');
+  if (!n) { m.textContent = '던지는 횟수는 1부터 ' + fmt(MAX_ROLL) + '까지의 자연수로 써 주세요.'; m.className = 'msg err'; return; }
+  S.n1 = n; m.textContent = ''; m.className = 'msg'; setBusy(true, 1);
+  try { const idx = await rollIdx(n); S.once = analyzeOnce(idx, S.exp.names.length); S.ran = true; paintOnce(); paintJudge(); }
+  catch (e) { m.textContent = errText(e); m.className = 'msg err'; }
+  setBusy(false, 1);
+}
+async function runRep() {
+  const n = clampInt($('#n2').value, 1, MAX_REP_N), k = clampInt($('#k2').value, 1, MAX_REP_K), m = $('#m2');
+  const pick = clampInt($('#pick').value, 0, S.exp.names.length - 1);
+  let err = '';
+  if (!n) err = 'n은 1부터 ' + fmt(MAX_REP_N) + '까지의 자연수로 써 주세요.';
+  else if (!k) err = 'k는 1부터 ' + fmt(MAX_REP_K) + '까지의 자연수로 써 주세요.';
+  else if (n * k > MAX_REP_TOTAL) err = 'n × k 가 너무 커요 (' + fmt(n * k) + '). ' + fmt(MAX_REP_TOTAL) + ' 이하로 줄여 주세요.';
+  if (err) { m.textContent = err; m.className = 'msg err'; return; }
+  S.n2 = n; S.k2 = k; S.pick = pick; m.textContent = ''; m.className = 'msg'; setBusy(true, 2);
+  try { const c = await rollRep(n, k, pick); S.rep = { n, k, pick, name: S.exp.names[pick], counts: c }; S.ran = true; paintRep(); paintJudge(); }
+  catch (e) { m.textContent = errText(e); m.className = 'msg err'; }
+  setBusy(false, 2);
+}
+
+/* ---------- 학교에 올리기 (만든 사람) ---------- */
+function paintPub() {
+  const box = $('#pubbox'); if (!box) return;
+  const P = S.pub;
+  if (P.id && P.key === curKey()) { box.innerHTML = '<div class="sumline ok" style="margin-top:4px">✓ 우리 학교에 올렸어요. 친구들은 ‘우리 학교 실험 판정하기’에서 볼 수 있어요. <button class="btn sm" data-act="copy" data-id="' + esc(P.id) + '">링크 복사</button> <button class="btn sm" data-act="list">내 실험 · 집계 보기</button></div>'; return; }
+  if (!P.open) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="eqbox" style="margin-top:4px"><b>이렇게 올라가요</b><br>친구들에게는 <b>도구 이름과 경우의 이름, 던진 결과</b>만 보여요. 각 경우가 일어날 <b>가능성(확률)은 숨겨져요.</b> 친구들은 결과를 보고 “가능성이 같다/같지 않다”를 판단해요.' +
+    '<div class="actions" style="margin-top:10px;justify-content:flex-start"><button class="btn pink" data-act="pub-do"' + (P.busy ? ' disabled' : '') + '>' + (P.busy ? '<span class="spin"></span> 올리는 중' : '올리기') + '</button><button class="btn" data-act="pub-cancel">취소</button></div>' +
+    '<p class="msg ' + (P.err ? 'err' : '') + '">' + esc(P.msg) + '</p></div>';
+}
+const curKey = () => S.exp ? JSON.stringify([S.exp.tool, S.exp.names, S.exp.p]) : '';
+async function publish() {
+  const P = S.pub; P.busy = true; P.msg = ''; P.err = false; paintPub();
+  const bad = await needReady();
+  if (bad) { P.busy = false; P.msg = bad; P.err = true; paintPub(); return; }
+  try {
+    const E = S.exp;
+    const j = await api({ act: 'publish', year: YEAR, school: ME.label, uid: ME.uid, nick: ME.nick, tool: E.tool, cases: E.names, w: E.p });
+    P.id = j.id; P.key = curKey(); P.open = false; listCount = null; toast('우리 학교에 올렸어요!');
+  } catch (e) { P.msg = errText(e); P.err = true; }
+  P.busy = false; paintPub();
+}
+
+/* ---------- 목록 · 판정 (친구들) ---------- */
+function listHtml() {
+  const L = S.list;
+  let body;
+  if (L.loading) body = '<div class="empty"><span class="spin"></span> 불러오는 중…</div>';
+  else if (L.err) body = '<div class="empty">' + esc(L.msg) + '<br><button class="btn sm" data-act="list">다시 시도</button></div>';
+  else if (!L.items || !L.items.length) body = '<div class="empty">아직 올라온 실험이 없어요.<br>내가 먼저 실험을 만들어 올려 보세요!</div>';
+  else body = '<div class="items">' + L.items.map(it => {
+    const done = it.my, tally = it.tally;
+    let extra = '';
+    if (tally) { const tot = tally.e + tally.n; extra = '<div class="meta">판정 ' + fmt(tot) + '명 · 같다 ' + tally.e + '명 · 같지 않다 ' + tally.n + '명</div>'; }
+    else extra = '<div class="meta">판정한 친구 ' + fmt(it.voters) + '명 (내가 판정하면 결과를 볼 수 있어요)</div>';
+    return '<article class="item"><div class="row1"><h3>' + esc(it.tool) + (it.mine ? '<span class="badge2">내가 올림</span>' : '') + (done ? '<span class="badge2 done">판정 완료</span>' : '') + '</h3><span class="meta">만든 친구: ' + esc(it.nick) + ' · ' + new Date(it.ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) + '</span></div>' +
+      legendHtml(it.cases, null, false) + extra +
+      '<div class="grp" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="open" data-id="' + esc(it.id) + '">' + (it.mine ? '실험·집계 보기' : done ? '결과 다시 보기' : '실험하고 판정하기') + '</button>' +
+      (it.mine ? '<button class="btn sm" data-act="copy" data-id="' + esc(it.id) + '">링크 복사</button><button class="btn sm danger" data-act="remove" data-id="' + esc(it.id) + '">지우기</button>' : '') + '</div></article>';
+  }).join('') + '</div>';
+  return '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn sm" data-act="list">↻ 새로고침</button></div>' +
+    '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 실험을 던져 보고, 각 경우가 일어날 가능성이 같은지 판단해 보세요.</p></div>' + body;
+}
+async function loadItems() {
+  const L = S.list; L.loading = true; L.err = false; L.msg = ''; render();
+  const bad = await needReady();
+  if (bad) { L.loading = false; L.err = true; L.msg = bad; if (S.screen === 'list') render(); return; }
+  try { const j = await api({ act: 'list', year: YEAR, school: ME.label, uid: ME.uid }); L.items = j.items || []; listCount = L.items.length; }
+  catch (e) { L.err = true; L.msg = errText(e); }
+  L.loading = false; if (S.screen === 'list') render();
+}
+function openPlay(it) {
+  S.exp = { tool: it.tool, names: it.cases.slice(), p: null, remote: { id: it.id } };
+  S.play = { id: it.id, my: it.my || null, tally: it.tally || null, mine: !!it.mine, pick: null, busy: false, msg: '', err: false };
+  S.once = null; S.rep = null; S.pick = 0; S.ran = false; S.tab = 'once'; S.screen = 'play'; render(); window.scrollTo(0, 0);
+}
+function judgeHtml() {
+  const P = S.play, E = S.exp;
+  const showRes = P.my || P.mine;
+  if (showRes && P.tally) {
+    const t = P.tally, tot = t.e + t.n, pe = tot ? Math.round(t.e / tot * 100) : 0, pn = tot ? Math.round(t.n / tot * 100) : 0;
+    return '<div class="card judge"><h2>친구들의 판단 (누적 ' + fmt(tot) + '명)</h2>' +
+      '<div class="vbar"><span>같다고 생각해요' + (P.my === 'e' ? '<span class="mark">내 선택</span>' : '') + '</span><div class="track"><div class="fill" style="width:' + pe + '%"></div></div><span class="num">' + t.e + '명 · ' + pe + '%</span></div>' +
+      '<div class="vbar n"><span>같지 않다고 생각해요' + (P.my === 'n' ? '<span class="mark">내 선택</span>' : '') + '</span><div class="track"><div class="fill" style="width:' + pn + '%"></div></div><span class="num">' + t.n + '명 · ' + pn + '%</span></div>' +
+      '<p class="hint">' + (P.mine ? '내가 올린 실험이에요. 정답은 내가 알고 있으니, 친구들의 생각이 어떤지 살펴봐요.' : '정답은 만든 친구가 알려 줄 거예요. 내 생각과 친구들의 생각을 비교해 보세요.') + '</p>' +
+      '<div><button class="btn" data-act="list">← 목록으로</button></div></div>';
+  }
+  const dis = !S.ran || P.busy;
+  return '<div class="card judge"><h2>가능성이 같을까요?</h2><p class="hint">‘' + esc(E.tool) + '’의 각 경우(' + E.names.map(esc).join(', ') + ')가 일어날 가능성이 모두 같다고 생각하나요? ' + (S.ran ? '던져 본 결과를 바탕으로 골라 보세요. 한 번 제출하면 바꿀 수 없어요.' : '<b>먼저 위에서 던져 본 뒤</b> 판단해 보세요.') + '</p>' +
+    '<button class="opt" data-act="pickv" data-v="e" aria-pressed="' + (P.pick === 'e') + '"' + (dis ? ' disabled' : '') + '>🟰 모든 경우가 일어날 가능성이 같다고 생각해요</button>' +
+    '<button class="opt" data-act="pickv" data-v="n" aria-pressed="' + (P.pick === 'n') + '"' + (dis ? ' disabled' : '') + '>↔️ 일어날 가능성이 같지 않다고 생각해요</button>' +
+    '<div class="actions" style="justify-content:flex-start"><button class="btn primary" data-act="vote"' + (dis || !P.pick ? ' disabled' : '') + '>' + (P.busy ? '<span class="spin"></span> 제출 중' : '판단 제출하고 결과 보기') + '</button><button class="btn" data-act="list">← 목록으로</button></div>' +
+    '<p class="msg ' + (P.err ? 'err' : '') + '">' + esc(P.msg) + '</p></div>';
+}
+function paintJudge() { const b = $('#judge'); if (b) b.innerHTML = judgeHtml(); }
+async function vote() {
+  const P = S.play; if (!P.pick || P.busy) return;
+  P.busy = true; P.msg = ''; P.err = false; paintJudge();
+  const bad = await needReady(); if (bad) { P.busy = false; P.msg = bad; P.err = true; paintJudge(); return; }
+  try { const j = await api({ act: 'vote', id: P.id, uid: ME.uid, choice: P.pick }); P.my = j.my; P.tally = j.tally; listCount = null; S.list.items = null; if (j.already) toast('이미 판단한 실험이에요. 처음 고른 것으로 보여 줄게요.'); }
+  catch (e) { P.msg = errText(e); P.err = true; }
+  P.busy = false; paintJudge();
+}
+
+/* ---------- 화면 전환 ---------- */
+function render() {
+  let html = '';
+  if (S.screen === 'home') { setSub('내가 만드는 확률 실험'); html = homeHtml(); }
+  else if (S.screen === 'build') { setSub(S.mode === 'equal' ? '각 경우가 발생할 가능성이 동등한 경우' : '각 경우가 발생할 가능성이 동등하지 않은 경우'); html = buildHtml(); }
+  else if (S.screen === 'lab') { setSub('확률 실험하기'); html = labHtml(); }
+  else if (S.screen === 'list') { setSub('우리 학교 실험 판정하기'); html = listHtml(); }
+  else if (S.screen === 'play') { setSub('친구가 올린 실험'); html = labHtml(); }
+  app.innerHTML = html;
+  if (S.screen === 'lab' || S.screen === 'play') { paintOnce(); paintRep(); paintPub(); paintJudge(); }
+}
+function startExperiment() {
+  const ck = checkBuild(); if (!ck.ok) return;
+  S.exp = { tool: S.tool.trim(), names: S.cases.map(c => c.name.trim()), p: ck.p, remote: null };
+  S.once = null; S.rep = null; S.pick = 0; S.ran = false; S.tab = 'once'; S.showTrue = false; S.pub = { open: false, busy: false, id: null, key: '', msg: '', err: false };
+  S.screen = 'lab'; render(); window.scrollTo(0, 0);
+}
+
+app.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const a = b.dataset.act, v = b.dataset.v, i = Number(b.dataset.i);
+  if (a === 'mode') { S.mode = v; defaults(v); S.screen = 'build'; render(); window.scrollTo(0, 0); }
+  else if (a === 'home') { S.screen = 'home'; render(); }
+  else if (a === 'add') { if (S.cases.length < MAX_CASES) { S.cases.push({ name: String(S.cases.length + 1), w: '' }); render(); const r = $$('.cn'); r[r.length - 1].focus(); r[r.length - 1].select(); } }
+  else if (a === 'del') { if (S.cases.length > MIN_CASES) { S.cases.splice(i, 1); render(); } }
+  else if (a === 'fix') {
+    const w = S.cases.map(c => parseW(c.w)), last = S.cases.length - 1;
+    const others = w.slice(0, last).reduce((x, y) => x + (y > 0 ? y : 0), 0), rest = Math.round((1 - others) * 1e6) / 1e6;
+    if (rest > 0) { S.cases[last].w = String(rest); render(); } else toast('앞의 값들의 합이 이미 1 이상이에요. 값을 줄여 주세요.');
+  }
+  else if (a === 'start') startExperiment();
+  else if (a === 'rebuild') { S.screen = 'build'; render(); }
+  else if (a === 'tab') { S.tab = v; $('#p-once').hidden = v !== 'once'; $('#p-rep').hidden = v !== 'rep'; $$('.tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === v))); drawCharts(); }
+  else if (a === 'q1') { $('#n1').value = v; }
+  else if (a === 'run1') runOnce();
+  else if (a === 'run2') runRep();
+  else if (a === 'pub-open') { S.pub.open = true; S.pub.msg = ''; paintPub(); }
+  else if (a === 'pub-cancel') { S.pub.open = false; paintPub(); }
+  else if (a === 'pub-do') publish();
+  else if (a === 'list') { S.screen = 'list'; setSub('우리 학교 실험 판정하기'); loadItems(); window.scrollTo(0, 0); }
+  else if (a === 'open') { const it = (S.list.items || []).find(x => x.id === b.dataset.id); if (it) openPlay(it); }
+  else if (a === 'pickv') { S.play.pick = v; paintJudge(); }
+  else if (a === 'vote') vote();
+  else if (a === 'copy') {
+    const url = location.origin + '/probability/sim/?e=' + b.dataset.id;
+    try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요.'); } catch (e) { window.prompt('이 링크를 복사해 주세요', url); }
+  }
+  else if (a === 'remove') {
+    if (!window.confirm('이 실험을 지울까요? 친구들의 판단 결과도 함께 지워져요.')) return;
+    try { await api({ act: 'remove', id: b.dataset.id, uid: ME.uid }); toast('지웠어요.'); listCount = null; await loadItems(); } catch (e) { toast(errText(e)); }
+  }
+});
+app.addEventListener('input', ev => {
+  const t = ev.target;
+  if (t.id === 'tool') { S.tool = t.value; updateBuild(); }
+  else if (t.classList.contains('cn')) { S.cases[Number(t.dataset.i)].name = t.value; updateBuild(); }
+  else if (t.classList.contains('cw')) { S.cases[Number(t.dataset.i)].w = t.value; updateBuild(); }
+});
+app.addEventListener('change', ev => {
+  const t = ev.target;
+  if (t.id === 'showTrue') { S.showTrue = t.checked; const lg = $('.exphead .chips'); if (lg) lg.outerHTML = legendHtml(S.exp.names, S.exp.p, S.showTrue); paintOnce(); paintRep(); }
+  else if (t.id === 'ymode') { S.ymode = t.value; drawCharts(); }
+  else if (t.id === 'pick') { S.pick = Number(t.value); }
+});
+app.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter') return;
+  if (ev.target.id === 'n1') runOnce();
+  else if (ev.target.id === 'n2' || ev.target.id === 'k2') runRep();
+  else if (ev.target.id === 'tool' || ev.target.classList.contains('cn') || ev.target.classList.contains('cw')) { const g = $('#go'); if (g && !g.disabled) g.click(); }
+});
+let rz = 0;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawCharts, 150); });
+if (window.MtryuMeSync) MtryuMeSync.watch(async () => { await syncMe(); if (S.screen === 'list') loadItems(); });
+
+/* ---------- 시작 ---------- */
+(async function init() {
+  render();
+  if (location.protocol === 'file:') return;
+  await loadList(); await syncMe();
+  const e = new URLSearchParams(location.search).get('e');
+  if (e && /^[a-f0-9]{10}$/.test(e)) {
+    try { const j = await api({ act: 'get', id: e, uid: ME ? ME.uid : '' }); openPlay(j.item); } catch (er) { toast(errText(er)); }
+    return;
+  }
+  if (ME) { try { const j = await api({ act: 'list', year: YEAR, school: ME.label, uid: ME.uid }); listCount = (j.items || []).length; if (S.screen === 'home') render(); } catch (er) {} }
+})();
+})();
+</script>
+</body>
+</html>

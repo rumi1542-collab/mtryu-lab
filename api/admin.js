@@ -6,7 +6,7 @@
 //                                                           → 기록 목록 (순위·별명·기록·시각·익명 번호 앞 8자리)
 // 기록 삭제는 기존 DELETE /api/scores · /api/coin 을 그대로 써요 (같은 관리자 암호).
 const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay } = require('./_lib');
-const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'game'];
+const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'game'];
 const COIN_GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet'];
 const GAMES = ['river'].concat(COIN_GAMES);
 const MAX_RANGE = 90;

@@ -6,7 +6,7 @@
 //   hs                    해시  학교코드 → 학교 이름
 //   hu:<날짜>:u:<실험실>  사용자 수 (실험실별)   hu:<날짜>:s:<학교코드> (학교별)   hu:<날짜>:all (전체)
 const { configured, redisMulti, send, rateLimit, kstDay } = require('./_lib');
-const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'game'];
+const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'game'];
 const TTL = 400 * 86400;
 
 
