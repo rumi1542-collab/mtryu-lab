@@ -8,11 +8,12 @@
 //   {act:'publish', year, school, uid, nick, tool, cases:[…], w:[…]}  실험 올리기 → { id }
 //   {act:'list',    year, school, uid}                                 우리 학교 실험 목록 → { items }
 //   {act:'get',     id, uid}                                           실험 하나 → { item }
-//   {act:'step',    id, uid, n(1~200), reset?}                         학생이 던지기 → { r: '0132…', total }  (경우 번호를 한 글자씩. 던진 횟수는 서버가 학생별로 세요)
-//   {act:'vote',    id, uid, choice:'e'|'n'}                           판정하기 (e=동등하다, n=동등하지 않다) → { tally, my, eq, ok, n }  (정답 eq·맞았는지 ok·던진 횟수 n)
+//   {act:'step',    id, uid, n(1~200), total?, tok?}                   학생이 던지기 → { r: '0132…', total, tok }  (경우 번호를 한 글자씩. 던진 횟수는 서버가 서명해서 이어 줘요)
+//   {act:'vote',    id, uid, choice:'e'|'n', total, tok}                           판정하기 (e=동등하다, n=동등하지 않다) → { tally, my, eq, ok, n }  (정답 eq·맞았는지 ok·던진 횟수 n)
 //   {act:'stats',   id, uid}                                           집계(만든 사람·관리자만) → { eq, tally, items:[{ok,n}], legacy }
 //   {act:'remove',  id, uid}                                           내가 올린 실험 지우기 (관리자는 헤더 x-admin-key 로 누구 것이든)
 //   {act:'feature', id, on:true|false}                                 추천 실험으로 올리기/내리기 (관리자만, 헤더 x-admin-key)
+//   {act:'resetvotes', id}                                             판단 기록만 지우기 (관리자만)
 //   {act:'adminping'}                                                  관리자 암호 확인 (관리자만)
 //
 // 목록 순서: 추천 실험(최근에 추천한 순) → 판정한 친구가 많은 순 → 최근에 올린 순
@@ -34,7 +35,6 @@ const TTL = 400 * 86400;        // 약 13개월 뒤 저절로 지워져요
 
 const kE = id => 'sm:e:' + id;          // 실험 본문(JSON)
 const kV = id => 'sm:v:' + id;          // 판정 집계(해시 e, n)
-const kC = id => 'sm:rn:' + id;          // 학생별로 던진 횟수(서버가 세요) — 해시 uid → 횟수
 const kU = id => 'sm:vu:' + id;         // 누가 판정했는지(해시 uid → e|n) — 한 사람이 한 번만
 const kIdx = (y, s) => 'sm:idx:' + Number(y) + ':' + s;   // 학교·학년도별 실험 번호(시간순)
 const kOwn = uid => 'sm:own:' + uid;    // 내가 올린 실험 번호
@@ -55,6 +55,32 @@ function parseVote(raw) {
   if (raw === 'e' || raw === 'n') return { c: raw, n: null, ok: null };
   try { const o = JSON.parse(raw); if (o && (o.c === 'e' || o.c === 'n')) return o; } catch (e) {}
   return null;
+}
+// 던진 횟수 서명 (Redis에 쓰지 않고도 서버가 센 값임을 확인해요). 비밀값은 서버 환경 변수에서 만들어요.
+const SECRET = () => 'sim|' + (process.env.RD_ADMIN_KEY || process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || 'dev');
+const signTok = (id, uid, total) => crypto.createHmac('sha256', SECRET()).update(id + '|' + uid + '|' + total).digest('hex').slice(0, 32);
+function okTok(id, uid, total, tok) {
+  if (typeof tok !== 'string' || tok.length !== 32) return false;
+  const a = Buffer.from(signTok(id, uid, total)), c = Buffer.from(tok);
+  return a.length === c.length && crypto.timingSafeEqual(a, c);
+}
+// 실험 본문은 서버 메모리에 잠깐 두고 써요 (던질 때마다 Redis를 읽지 않게)
+const expCache = new Map(), EXP_TTL = 60000;
+async function getExp(id) {
+  const hit = expCache.get(id), now = Date.now();
+  if (hit && hit.t > now) return hit.e;
+  const e = parse(await redis(['GET', kE(id)]));
+  if (expCache.size > 200) expCache.clear();
+  if (e) expCache.set(id, { e, t: now + EXP_TTL }); else expCache.delete(id);
+  return e;
+}
+// 이 서버 인스턴스 안에서만 세는 간단한 호출 제한 (Redis를 쓰지 않아요)
+const localHits = new Map();
+function rateLocal(req, name, limit, windowSec) {
+  const key = name + ':' + String(req.headers['x-forwarded-for'] || '').split(',')[0].trim(), now = Date.now(), h = localHits.get(key);
+  if (localHits.size > 2000) localHits.clear();
+  if (!h || h.t < now) { localHits.set(key, { t: now + windowSec * 1000, n: 1 }); return true; }
+  return ++h.n <= limit;
 }
 function parse(raw) { try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
 const num = v => Number(v) || 0;
@@ -86,8 +112,9 @@ async function loadItems(ids, uid) {
 }
 
 async function dropExperiment(e) {
-  const cmds = [['DEL', kE(e.id)], ['DEL', kV(e.id)], ['DEL', kU(e.id)], ['DEL', kC(e.id)], ['ZREM', kIdx(e.year, e.school), e.id]];
+  const cmds = [['DEL', kE(e.id)], ['DEL', kV(e.id)], ['DEL', kU(e.id)], ['ZREM', kIdx(e.year, e.school), e.id]];
   if (e.uid) cmds.push(['ZREM', kOwn(e.uid), e.id]);
+  expCache.delete(e.id);
   await redisMulti(cmds);
 }
 
@@ -102,26 +129,23 @@ module.exports = async function handler(req, res) {
     const act = String(b.act || '');
     const uid = okUid(b.uid) ? b.uid : '';
 
-    // ── 던지기(학생): 서버가 확률대로 던지고, 학생별로 던진 횟수를 서버가 세요 ──
-    //   횟수를 정해서 던질 수는 없고, 조금씩 계속 던져요. reset:true 는 이번에 처음 던질 때(횟수를 0부터 다시 세요)
+    // ── 던지기(학생): 서버가 확률대로 던지고, 던진 횟수는 서명(tok)으로 이어 가요 ──
+    //   Redis에 횟수를 쓰지 않아요(요청량 절약). 서버가 {total, tok}을 돌려주면 다음 요청에 그대로 보내고,
+    //   판정할 때도 보내요. 서명이 맞지 않으면 인정하지 않아요. 처음 던질 때는 tok 없이 total 0.
     if (act === 'step') {
       if (!okId(b.id) || !okUid(b.uid) || !L.isInt(b.n, 1, STEP_MAX)) return send(res, 400, { error: 'bad-request' });
-      // 학교는 같은 IP를 쓰는 경우가 많아서 넉넉하게
-      if (!(await rateLimit(req, 'simstep', 6000, 60))) return send(res, 429, { error: 'too-many' });
-      const r0 = await redisMulti([['GET', kE(b.id)], ['HGET', kC(b.id), b.uid]]);
-      const e = parse(r0[0]);
+      const total0 = b.tok ? b.total : 0;
+      if (!L.isInt(total0, 0, MAX_LIVE) || (b.tok && !okTok(b.id, b.uid, total0, b.tok))) return send(res, 400, { error: 'bad-token' });
+      if (!rateLocal(req, 'step', 1500, 60)) return send(res, 429, { error: 'too-many' });
+      const e = await getExp(b.id);
       if (!e) return send(res, 404, { error: 'not-found' });
       if (e.uid === b.uid) return send(res, 400, { error: 'own-experiment' });
-      if (await redis(['HEXISTS', kU(b.id), b.uid]) === 1) return send(res, 400, { error: 'already-voted' });
-      const cur = b.reset === true ? 0 : num(r0[1]);
-      if (cur + b.n > MAX_LIVE) return send(res, 400, { error: 'limit' });
+      if (total0 + b.n > MAX_LIVE) return send(res, 400, { error: 'limit' });
       const idx = L.roll(e.p, b.n);
       let s = '';
       for (let i = 0; i < idx.length; i++) s += String.fromCharCode(48 + idx[i]);
-      const cmds = b.reset === true ? [['HSET', kC(b.id), b.uid, cur + b.n]] : [['HINCRBY', kC(b.id), b.uid, b.n]];
-      cmds.push(['EXPIRE', kC(b.id), 86400]);
-      await redisMulti(cmds);
-      return send(res, 200, { r: s, total: cur + b.n });
+      const total = total0 + b.n;
+      return send(res, 200, { r: s, total, tok: signTok(b.id, b.uid, total) });
     }
 
     // ── 올리기 ──
@@ -181,13 +205,16 @@ module.exports = async function handler(req, res) {
       const e = parse(await redis(['GET', kE(b.id)]));
       if (!e) return send(res, 404, { error: 'not-found' });
       if (e.uid === uid) return send(res, 400, { error: 'own-experiment' });
-      // 던진 횟수는 서버가 센 값이에요 (한 번도 안 던졌으면 판정할 수 없어요)
-      const thrown = num(await redis(['HGET', kC(b.id), uid]));
+      // 던진 횟수는 서버가 서명한 값(tok)으로만 인정해요 (한 번도 안 던졌으면 판정할 수 없어요)
       const had = await redis(['HGET', kU(b.id), uid]);
-      if (!had && thrown < 1) return send(res, 400, { error: 'no-throws' });
+      let thrown = 0;
+      if (!had) {
+        if (!L.isInt(b.total, 1, MAX_LIVE) || !okTok(b.id, uid, b.total, b.tok)) return send(res, 400, { error: b.total ? 'bad-token' : 'no-throws' });
+        thrown = b.total;
+      }
       const rec = JSON.stringify({ c: b.choice, n: thrown, ok: (b.choice === 'e') === !!e.eq });
       const first = Number(await redis(['HSETNX', kU(b.id), uid, rec])) === 1;
-      if (first) await redisMulti([['HINCRBY', kV(b.id), b.choice, 1], ['EXPIRE', kV(b.id), TTL], ['EXPIRE', kU(b.id), TTL], ['HDEL', kC(b.id), uid]]);
+      if (first) await redisMulti([['HINCRBY', kV(b.id), b.choice, 1], ['EXPIRE', kV(b.id), TTL], ['EXPIRE', kU(b.id), TTL]]);
       const r = await redisMulti([['HMGET', kV(b.id), 'e', 'n'], ['HGET', kU(b.id), uid]]);
       const v = parseVote(r[1]) || { c: b.choice, n: thrown, ok: false };
       // 판정한 뒤에는 정답(같다/같지 않다)과 맞았는지를 알려 줘요
@@ -226,6 +253,17 @@ module.exports = async function handler(req, res) {
       if (b.on) e.feat = Date.now(); else delete e.feat;
       await redis(['SET', kE(b.id), JSON.stringify(e), 'EX', TTL]);
       return send(res, 200, { ok: true, feat: !!e.feat });
+    }
+
+    // ── 관리자: 판단 기록만 지우기 (실험은 그대로 두고 모든 판단·집계를 0으로) ──
+    if (act === 'resetvotes') {
+      if (!okId(b.id)) return send(res, 400, { error: 'bad-request' });
+      if (!(await rateLimit(req, 'simadm', 30, 600))) return send(res, 429, { error: 'too-many' });
+      if (!isAdmin(req)) return send(res, 401, { error: 'unauthorized' });
+      const e = await getExp(b.id);
+      if (!e) return send(res, 404, { error: 'not-found' });
+      await redisMulti([['DEL', kV(b.id)], ['DEL', kU(b.id)]]);
+      return send(res, 200, { ok: true });
     }
 
     // ── 지우기 ──
