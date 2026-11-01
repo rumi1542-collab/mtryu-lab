@@ -3,7 +3,7 @@
 const crypto = require('crypto');
 
 const MIN_CASES = 2;
-const MAX_CASES = 8;
+const MAX_CASES = 30;
 const MAX_ROLL = 10000;       // n번 던지기 한 번에 던질 수 있는 최대 횟수
 const MAX_REP_N = 1000;       // n번씩 k회 반복하기에서 한 회에 던지는 최대 횟수
 const MAX_REP_K = 1000;       // 반복 횟수
