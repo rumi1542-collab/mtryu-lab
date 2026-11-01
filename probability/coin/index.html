@@ -93,7 +93,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .card .tag{font-size:13px;font-weight:700;color:var(--yellow);letter-spacing:.02em}
 .card p{margin:0;color:var(--muted);font-size:15px;flex:1}
 .card .row{margin-top:6px}
-.card .acts{margin-top:auto;display:flex;flex-direction:column;gap:8px}.card .prow{min-height:46px;display:flex}.card .prow .ghost{width:100%}
+.card .acts{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}.card .acts button{width:100%;min-height:46px;font-size:17px;padding:0 10px}.card .acts .prow{grid-column:1/3;min-height:46px}
 .foot{margin-top:28px;font-size:14px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
 .foot a{color:var(--muted)}
 
@@ -564,7 +564,7 @@ function homeHTML() {
   const cards = GKEYS.map(k => {
     const g = GAMES[k];
     return `<section class="card"><span class="no" aria-hidden="true">${g.no}</span><span class="tag">${esc(g.tag)}</span><h3>${esc(g.title)}</h3><p>${esc(g.desc)}</p>
-      <div class="acts"><div class="row"><button type="button" class="go sm" data-act="start" data-g="${k}">시작하기</button><button type="button" class="ghost" data-act="board" data-g="${k}">순위 보기</button></div>${k === 'spot' || k === 'bet' ? `<div class="prow"><button type="button" class="ghost" data-act="practice" data-g="${k}">연습하기 (순위 없음)</button></div>` : '<div class="prow" aria-hidden="true"></div>'}</div></section>`;
+      <div class="acts"><button type="button" class="go" data-act="start" data-g="${k}">시작하기</button><button type="button" class="ghost" data-act="board" data-g="${k}">순위 보기</button>${k === 'spot' || k === 'bet' ? `<button type="button" class="ghost" data-act="practice" data-g="${k}">연습하기</button>` : '<span class="prow" aria-hidden="true"></span>'}</div></section>`;
   }).join('');
   return `<div class="intro"><h1>동전 하나로 배우는 확률</h1>
     <p>동전을 한 번 던지면 앞이 나올지 뒤가 나올지 아무도 몰라요. 그런데 많이 던지면 규칙이 보여요. 1번부터 4번까지 순서대로 해 보세요.</p></div>
