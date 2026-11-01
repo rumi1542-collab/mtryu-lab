@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>의견함</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7719AA">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2B0F3F;--muted:#5A4670;--line:#E6D8F2;--bg:#F8F2FC;--purple:#7719AA;--pink:#D81B7A;--tint:#F0DDFA}
+*{box-sizing:border-box}
+body{margin:0;min-height:calc(100vh - var(--labbar-h,0px));background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;font-family:'Noto Sans KR','Malgun Gothic',system-ui,sans-serif;color:var(--ink);display:flex;justify-content:center;padding:40px 16px 56px}
+.wrap{width:100%;max-width:640px;display:flex;flex-direction:column;gap:24px}
+.hero{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.ic{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:16px;background:var(--tint);border:2px solid var(--ink);font-size:28px}
+h1{margin:0;font-size:clamp(28px,5vw,38px);line-height:1.25;font-weight:900}
+.hero p{margin:0;font-size:16px;line-height:1.7;color:var(--muted);word-break:keep-all}
+.card{display:flex;flex-direction:column;gap:16px;background:#fff;border:2px solid var(--ink);border-radius:16px;padding:20px;box-shadow:4px 4px 0 var(--purple)}
+.kinds{display:flex;gap:10px;flex-wrap:wrap;border:0;margin:0;padding:0}
+.kinds legend{padding:0;margin-bottom:8px;font-size:14px;font-weight:700;color:var(--muted)}
+.kinds label{position:relative;flex:1 1 150px}
+.kinds input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.kinds span{display:flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 14px;border:2px solid var(--line);border-radius:999px;background:#fff;font-weight:700;font-size:15px;transition:background .15s,border-color .15s}
+.kinds input:checked+span{background:var(--tint);border-color:var(--purple);color:var(--purple)}
+.kinds input:focus-visible+span{outline:3px solid var(--pink);outline-offset:2px}
+label.f{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700;color:var(--muted)}
+textarea{width:100%;min-height:140px;padding:12px;border:2px solid var(--ink);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-size:16px;line-height:1.6;resize:vertical}
+textarea:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.cnt{align-self:flex-end;font-size:13px;font-weight:500;color:var(--muted)}
+.who{margin:0;font-size:13.5px;line-height:1.6;color:var(--muted)}
+.go{display:flex;align-items:center;justify-content:center;min-height:48px;border:0;border-radius:10px;background:var(--purple);color:#fff;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.go:hover:not(:disabled){background:#5f1388}
+.go:disabled{opacity:.5;cursor:not-allowed}
+.go:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.msg{margin:0;min-height:1.4em;font-size:14.5px;font-weight:700}
+.msg.err{color:#C0125F}
+.done{text-align:center;display:flex;flex-direction:column;gap:12px;align-items:center}
+.done b{font-size:20px}
+.done p{margin:0;color:var(--muted);line-height:1.6}
+.again{min-height:44px;padding:0 20px;border:2px solid var(--ink);border-radius:10px;background:#fff;font:inherit;font-weight:700;cursor:pointer}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){.kinds span{transition:none}}
+</style>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+</head>
+<body>
+<main class="wrap">
+  <div class="hero">
+    <span class="ic" aria-hidden="true">💬</span>
+    <h1>의견함</h1>
+    <p>자유롭게 남겨 주세요! 쓰다가 찾은 오류, 불편한 점, 바라는 기능이나 활동을 편하게 적어 주시면 읽고 반영할게요. (답글은 따로 달지 않아요.)</p>
+  </div>
+
+  <form class="card" id="form" autocomplete="off">
+    <fieldset class="kinds">
+      <legend>어떤 이야기인가요?</legend>
+      <label><input type="radio" name="kind" value="bug"><span>🛠️ 오류 찾았어요</span></label>
+      <label><input type="radio" name="kind" value="idea" checked><span>💡 의견 있어요</span></label>
+    </fieldset>
+    <label class="f">내용
+      <textarea id="text" maxlength="500" placeholder="어느 실험실의 어떤 화면에서, 무슨 일이 있었는지 적어 주면 찾기 쉬워요." required></textarea>
+    </label>
+    <span class="cnt" id="cnt">0 / 500</span>
+    <p class="who" id="who"></p>
+    <button class="go" id="send" type="submit">보내기</button>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </form>
+
+  <section class="card done" id="done" hidden>
+    <b>보냈어요. 고마워요! 🙌</b>
+    <p>남겨 준 이야기는 선생님만 읽을 수 있어요.</p>
+    <button class="again" id="again" type="button">하나 더 쓰기</button>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var form = $('#form'), text = $('#text'), cnt = $('#cnt'), msg = $('#msg'), send = $('#send');
+  function testOn() { try { return Number(localStorage.getItem('mtryu.test')) > Date.now(); } catch (e) { return false; } }
+  function me() { try { return window.MtryuMe && window.MtryuMe.get(); } catch (e) { return null; } }
+  function paintWho() {
+    var m = me();
+    $('#who').textContent = m ? '보내는 사람: ' + m.school.name + ' · ' + m.nick + ' (이름과 학번은 보내지 않아요)' : '';
+  }
+  paintWho(); window.addEventListener('load', paintWho); window.addEventListener('mtryu:me-changed', paintWho);
+  text.addEventListener('input', function () { cnt.textContent = text.value.length + ' / 500'; });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var m = me(), t = text.value.trim();
+    msg.className = 'msg';
+    if (t.length < 2) { msg.className = 'msg err'; msg.textContent = '내용을 두 글자 이상 적어 주세요.'; text.focus(); return; }
+    if (!m) { msg.className = 'msg err'; msg.textContent = '먼저 위쪽 이름표에서 내 정보를 입력해 주세요.'; return; }
+    if (testOn()) { msg.textContent = '🧪 테스트 모드예요. 보내지 않았어요.'; return; }
+    send.disabled = true; msg.textContent = '보내는 중…';
+    var kind = (form.querySelector('input[name="kind"]:checked') || {}).value || 'idea';
+    var ctl = 'AbortController' in window ? new AbortController() : null, to = setTimeout(function () { if (ctl) ctl.abort(); }, 12000);
+    fetch('/api/feedback', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl ? ctl.signal : undefined,
+      body: JSON.stringify({ kind: kind, text: t, nick: m.nick, school: m.school.name }) })
+      .then(function (r) {
+        clearTimeout(to);
+        if (r.status === 429) throw new Error('many');
+        if (!r.ok) throw new Error('fail');
+        form.hidden = true; $('#done').hidden = false; text.value = ''; cnt.textContent = '0 / 500'; msg.textContent = '';
+        try { $('#again').focus(); } catch (er) {}
+      })
+      .catch(function (er) {
+        clearTimeout(to);
+        msg.className = 'msg err';
+        msg.textContent = er && er.message === 'many' ? '너무 자주 보냈어요. 잠시 뒤에 다시 해 주세요.' : '보내지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요. (쓴 내용은 그대로 있어요)';
+      })
+      .then(function () { send.disabled = false; });
+  });
+  $('#again').addEventListener('click', function () { $('#done').hidden = true; form.hidden = false; text.focus(); });
+})();
+</script>
+</body>
+</html>

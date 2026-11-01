@@ -182,6 +182,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     { id: 'river', label: '강 건너기', lvl: 1, units: ['river'], game: 'river' },
     { id: 'game', label: '게임 수학 실험실', ic: '🎮', units: ['game'] },
     { grp: '관리' },
+    { id: 'feedback', label: '의견함', ic: '💬' },
     { id: 'settings', label: '학년도·학교', ic: '⚙️' }
   ];
   var BYID = {}; NODES.forEach(function (n) { if (n.id) BYID[n.id] = n; });
@@ -282,6 +283,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function render() {
     var n = BYID[S.node], main = $('#main');
     if (S.node === 'settings') return renderSettings();
+    if (S.node === 'feedback') return renderFeedback();
     var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin' || S.node === 'sim') ? '확률 실험실 › ' + n.label : '';
     var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game;
     var tabs = (hasStats && hasRec) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button><button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button></div>' : '';
@@ -289,6 +291,31 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     main.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { S.tab = b.getAttribute('data-tab'); render(); }; });
     if (S.tab === 'records' && hasRec) loadRecords(); else if (hasStats) loadStats(n); else $('#body').innerHTML = '<p class="note">이 게임의 접속 분석은 <b>동전 실험실</b> 메뉴에서 함께 볼 수 있어요.</p>';
     if (S.tab === 'records' && !hasStats) return;
+  }
+
+  /* ── 의견함: 학생·선생님이 남긴 의견·오류 (읽는 건 여기서만, 답글 기능은 없어요) ── */
+  var KIND_NAME = { bug: '🛠️ 오류 찾았어요', idea: '💡 의견 있어요' };
+  function renderFeedback() {
+    var main = $('#main'), my = ++S.seq;
+    main.innerHTML = '<section class="card"><h2>의견함</h2><div id="body"><p class="empty">불러오는 중…</p></div></section>';
+    api('/api/feedback').then(function (j) {
+      if (my !== S.seq) return;
+      var items = (j && j.items) || [];
+      if (!items.length) { $('#body').innerHTML = '<p class="empty">아직 남겨진 의견이 없어요.</p>'; return; }
+      $('#body').innerHTML = '<p class="note">총 ' + fmt(items.length) + '건 · 최근순 (최대 500건까지 보관해요)</p>' + items.map(function (it) {
+        var d = new Date(it.ts), when = isNaN(d) ? '' : d.toLocaleString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return '<article class="fbi" data-id="' + esc(it.id) + '" style="border:2px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px">' +
+          '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)"><b style="color:var(--ink)">' + esc(KIND_NAME[it.kind] || it.kind) + '</b><span>' + esc(it.school || '학교 없음') + ' · ' + esc(it.nick || '별명 없음') + '</span><span>' + esc(when) + '</span><span style="flex:1"></span><button type="button" class="bt sm danger" data-del="' + esc(it.id) + '">지우기</button></div>' +
+          '<p style="margin:0;white-space:pre-wrap;word-break:break-word;line-height:1.6;font-size:15px">' + esc(it.text) + '</p></article>';
+      }).join('');
+      $('#body').onclick = function (e) {
+        var b = e.target.closest('[data-del]'); if (!b) return;
+        ask({ title: '이 의견을 지울까요?', text: '지우면 되돌릴 수 없어요.', ok: '지우기', danger: true }).then(function (yes) {
+          if (!yes) return;
+          api('/api/feedback?id=' + encodeURIComponent(b.getAttribute('data-del')), { method: 'DELETE' }).then(function () { toast('지웠어요.'); renderFeedback(); }, function (er) { fail(er, '지우지'); });
+        });
+      };
+    }, function (e) { if (my === S.seq) { $('#body').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
   }
 
   /* ── 접속 분석 ── */
