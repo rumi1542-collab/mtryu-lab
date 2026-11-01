@@ -1,4 +1,4 @@
-/* MT RYU의 실험실 · 공통 상단 바 + 내 정보(필수 입력)
+/* MT RYU의 수학 실험실 · 공통 상단 바 + 내 정보(필수 입력)
    모든 실험실 페이지의 <head>에 이 한 줄만 넣으면 맨 위에 항상 보이는 바가 생기고,
    내 정보(학교·학번·이름·별명)가 없으면 입력할 때까지 쓸 수 없게 막아요.
      <script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
@@ -10,7 +10,7 @@
 
   var HOME = 'https://mtryu-lab.vercel.app/';
   var LABS = [
-    { id: 'math', name: '수학 실험실',      href: 'https://rumi1542-collab.github.io/mathoperation/' },
+    { id: 'math', name: '대수 기하 실험실', href: 'https://rumi1542-collab.github.io/mathoperation/' },
     { id: 'stat', name: '통계 실험실',      href: 'https://dataandstat.vercel.app/' },
     { id: 'prob', name: '확률 실험실',      href: 'https://mtryu-lab.vercel.app/probability/' },
     { id: 'game', name: '게임 수학 실험실', href: 'https://mancala-tutorial.vercel.app/' }
@@ -264,8 +264,8 @@
       '.me.empty:hover{background:rgba(255,255,255,.14)}' +
       '@media (max-width:720px){nav{display:none}.btn{display:inline-flex}.brand span{max-width:26vw;overflow:hidden;text-overflow:ellipsis}.me{max-width:38vw;padding:0 10px}.me .sc{display:none}}' +
       '</style>' +
-      '<div class="bar" role="navigation" aria-label="MT RYU의 실험실">' +
-        '<a class="brand" href="' + HOME + '" title="실험실 첫 화면으로"><img src="' + HOME + 'favicon.svg" alt=""><span>MT RYU의 실험실</span></a>' +
+      '<div class="bar" role="navigation" aria-label="MT RYU의 수학 실험실">' +
+        '<a class="brand" href="' + HOME + '" title="실험실 첫 화면으로"><img src="' + HOME + 'favicon.svg" alt=""><span>MT RYU의 수학 실험실</span></a>' +
         '<nav>' + links + '</nav>' +
         '<div class="right"><span id="me-slot">' + tagHTML() + '</span>' +
         '<button class="btn" type="button" aria-expanded="false" aria-controls="panel">실험실 ▾</button></div>' +
