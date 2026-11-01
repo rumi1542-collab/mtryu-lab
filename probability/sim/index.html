@@ -554,13 +554,14 @@ function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
 
 function lineSvg(w, R0, names, p, showP, vis, colf) {
   const h = chartH(), L = 52, R = 14, T = 16, B = 46, pw = w - L - R, ph = h - T - B, n = R0.n, m = names.length;
-  const ymax = 1;
-  const X = t => L + pw * (t / n), Y = v => T + ph * (1 - v / ymax);
+  const ymax = 1, XS = [10, 50, 100, 500, 1000, 5000, 10000, 20000], xmax = XS.find(v => v >= n) || n;   // 가로축은 10 → 50 → 100 → 500 … 단계로 넓어져요
+  const X = t => L + pw * (t / xmax), Y = v => T + ph * (1 - v / ymax);
   let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="던진 횟수에 따른 상대도수 변화 꺾은선그래프"><defs><clipPath id="clipL"><rect x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
   const ystep = 0.25;
   for (let v = 0; v <= ymax + 1e-9; v += ystep) { const y = Y(v); s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (Math.round(v * 1000) / 1000) + '</text>'; }
   s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
-  for (let i = 0; i <= 4; i++) { const t = Math.round(n * i / 4); s += '<text x="' + X(t) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + fmt(t) + '</text>'; }
+  const xdiv = xmax === 10 || String(xmax)[0] === '5' ? 5 : 4;
+  for (let i = 0; i <= xdiv; i++) { const t = Math.round(xmax * i / xdiv); s += '<text x="' + X(t) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + fmt(t) + '</text>'; }
   s += '<text x="' + (L + pw / 2) + '" y="' + (h - 6) + '" text-anchor="middle">던진 횟수(번)</text><text x="14" y="' + (T + ph / 2) + '" transform="rotate(-90 14 ' + (T + ph / 2) + ')" text-anchor="middle">상대도수</text>';
   s += '<g clip-path="url(#clipL)">';
   const pts = c => R0.xs.map((x, i) => X(x).toFixed(1) + ',' + Y(R0.ys[c][i]).toFixed(1)).join(' ');
@@ -569,7 +570,7 @@ function lineSvg(w, R0, names, p, showP, vis, colf) {
   for (let c = 0; c < m; c++) { if (!shown(c)) continue; s += '<polyline fill="none" stroke="' + colf(c) + '" stroke-width="' + (faint ? 1.5 : 2) + '" opacity="' + (faint ? '.4' : '1') + '" stroke-linejoin="round" points="' + pts(c) + '"/>'; }
   s += '</g><line id="cross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ph) + '" stroke="#2B0F3F" stroke-width="1" opacity="0"/>';
   s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '" fill="transparent"/></svg>';
-  return { svg: s, L: L, pw: pw, T: T };
+  return { svg: s, L: L, pw: pw, T: T, xmax: xmax };
 }
 
 function histBins(counts, n) {
@@ -626,7 +627,7 @@ function paintOnce() {
     const barSec = '<section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>';
     const lineSec =
       '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="chart" data-chart="line1"></div>' + pickHtml(names) +
-      '<p class="hint">이름표를 누르면 그 경우만 보여요. 여러 개를 고를 수 있어요.</p></section>';
+      '<p class="hint">이름표를 누르면 그 경우만 보여요. 던진 횟수가 늘면 가로축이 10 → 50 → 100 → 500 …으로 넓어져요.</p></section>';
     // 학생 화면: 왼쪽에 상대도수 변화 그래프, 오른쪽에 던진 결과와 도수 표를 작게 위아래로 (그래프 높이를 넘지 않게)
     const sideSec =
       '<div class="side"><div class="sidein"><section class="card"><h3><span id="h1"></span><small id="cap1"></small></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div></section>' +
@@ -683,9 +684,9 @@ function wireLine(el, L, w) {
   if (!hit) return;
   const move = ev => {
     const rect = el.getBoundingClientRect(), px = (ev.clientX - rect.left) * (w / rect.width);
-    const t = Math.min(R.n, Math.max(1, Math.round((px - L.L) / L.pw * R.n)));
+    const t = Math.min(R.n, Math.max(1, Math.round((px - L.L) / L.pw * L.xmax)));
     let bi = 0, bd = 1e12; for (let i = 0; i < R.xs.length; i++) { const d = Math.abs(R.xs[i] - t); if (d < bd) { bd = d; bi = i; } }
-    const x = L.L + L.pw * (R.xs[bi] / R.n);
+    const x = L.L + L.pw * (R.xs[bi] / L.xmax);
     cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('opacity', '.5');
     const m = names.length, vals = R.ys.map(a => a[bi]);
     const idx = []; for (let c = 0; c < m; c++) if (!S.vis || S.vis.indexOf(c) >= 0) idx.push(c);
