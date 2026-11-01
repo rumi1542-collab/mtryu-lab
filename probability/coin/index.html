@@ -1019,7 +1019,7 @@ function betHTML() {
     body = `<div class="betgrid"><div class="bet"><span class="ab">A</span><p>${esc(A.t)}</p></div><div class="bet"><span class="ab">B</span><p>${esc(B.t)}</p></div></div>
       <div class="row"><b>어느 쪽이 더 자주 성공할까요?</b><button type="button" class="pick${sel('A')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="A">A</button><button type="button" class="pick${sel('B')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="B">B</button></div>
       ${play ? '' : `<div class="field"><div class="lab"><span>A 내기가 성공할 확률을 예상해 보세요</span><b id="elab">${c.e}%</b></div><input type="range" id="er" min="0" max="100" step="1" value="${c.e}" aria-label="A 내기 성공 확률 예상"></div>`}
-      <div class="row"><button type="button" class="go" data-act="b-go" ${c.p ? '' : 'disabled'}>${c.p ? '1000번씩 시험해 보기' : 'A나 B를 먼저 골라 주세요'}</button></div>`;
+      <div class="row"><button type="button" class="go" data-act="b-go" ${c.p ? '' : 'disabled'}>${c.p ? '1000회 반복 시험해 보기' : 'A나 B를 먼저 골라 주세요'}</button></div>`;
   } else {
     const b = betRound(c);
     const grid = (k, bet, st) => `<div class="bet${(k === 'A') === (b.pA > b.pB) ? ' win' : ''}"><span class="ab">${k}</span><p>${esc(bet.t)}</p>
