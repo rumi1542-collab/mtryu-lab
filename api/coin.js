@@ -62,18 +62,18 @@ function build(game, b, ts) {
     if (!isInt(correct, 0, C.ENDLESS_MAX)) return null;
     return { data: { correct }, score: -correct - ts / 1e13 };
   }
-  if (game === 'bet') {    // 시작하기: 푼 문제를 서버가 다시 채점하고, 문제 번호에 맞는 난이도(확률 차이)인지, 목숨 규칙대로 끝났는지 확인해요.
+  if (game === 'bet') {    // 시작하기: 푼 문제를 서버가 다시 채점하고, 문제 번호에 맞는 난이도인지, 하트 규칙대로 끝났는지 확인해요.
     const rounds = b.rounds;
-    if (!Array.isArray(rounds) || rounds.length < C.LIVES || rounds.length > C.ENDLESS_MAX + 2 * C.LIVES + Math.ceil(C.ENDLESS_MAX / C.LEVEL_LEN)) return null;
-    let hits = 0, lives = C.LIVES;
+    if (!Array.isArray(rounds) || rounds.length < 1 || rounds.length > C.ENDLESS_MAX * 2) return null;
+    let hits = 0, hearts = C.START_HEARTS, dead = false;
     for (let i = 0; i < rounds.length; i++) {
-      const x = C.pairRound(rounds[i]); if (!x) return null;
-      const band = C.gapBand(C.levelOf(i)); if (x.gap < band[0] - 1e-9 || x.gap >= band[1] + 1e-9) return null;
-      if (x.ok) hits++; else lives--;
-      if (lives <= 0) { if (i !== rounds.length - 1) return null; break; }
-      if ((i + 1) % C.LEVEL_LEN === 0) lives = Math.min(C.LIVES, lives + 1);   // 레벨이 오르면 목숨 하나가 돌아와요
+      const x = C.pairFits(rounds[i], i); if (!x) return null;
+      if (x.ok) hits++;
+      else if (hearts > 0) hearts--;
+      else { dead = true; if (i !== rounds.length - 1) return null; break; }   // 하트가 없을 때 틀리면 끝
+      if ((i + 1) % C.LEVEL_LEN === 0) hearts = Math.min(C.MAX_HEARTS, hearts + 1);   // 레벨이 오르면 하트가 하나 채워져요
     }
-    if (lives > 0) return null;                                              // 아직 끝나지 않은 게임은 올릴 수 없어요
+    if (!dead) return null;                                                    // 아직 끝나지 않은 게임은 올릴 수 없어요
     return { data: { score: hits, hits }, score: -hits - ts / 1e13 };
   }
   return null;

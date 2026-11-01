@@ -3,10 +3,11 @@
 
 const MAXRUN = 30;      // 연속 맞추기 최대 횟수
 const FLIPS = 1000;     // 상대도수 줄타기에서 던지는 횟수
-const SPOT_ROUNDS = 8;  // 동전 조작 탐정 연습하기 문제 수 (순위에 올리는 '시작하기'는 끝없이, 3번 틀리면 끝)
-const LIVES = 3;        // 시작하기에서 틀려도 되는 횟수 + 1 (3번 틀리면 끝)
-const ENDLESS_MAX = 600; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
-const LEVEL_LEN = 20;    // 20문제마다 레벨이 올라가요 (레벨이 오르면 목숨이 하나 돌아와요, 최대 LIVES개)
+const SPOT_ROUNDS = 8;  // 동전 조작 탐정 연습하기 문제 수
+const START_HEARTS = 1, MAX_HEARTS = 3;   // 시작하기: 하트 1개로 시작, 레벨이 오를 때마다 하나씩 채워져요(최대 3개). 하트가 없을 때 틀리면 끝나요.
+const ENDLESS_MAX = 1000; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
+const LEVEL_LEN = 10;    // 10문제마다 레벨이 올라가요 (레벨 10까지 난이도가 오르고 그 뒤로는 계속)
+const MAX_LEVEL = 10;
 
 function hexToBits(h) {
   const o = new Uint8Array(h.length * 4);
@@ -59,9 +60,15 @@ function betRound(r) {
   return { pA, pB, ok, pts };
 }
 
-// 내기 시뮬레이터 '시작하기': 레벨별로 두 내기의 성공 확률 차이가 이 범위 안인 문제만 나와요 (작은 차이일수록 어려워요)
-const levelOf = idx => Math.floor(idx / LEVEL_LEN) + 1;
-function gapBand(level) { return level <= 1 ? [0.30, 1] : level === 2 ? [0.15, 0.30] : level === 3 ? [0.05, 0.15] : level === 4 ? [0.02, 0.05] : [0.005, 0.02]; }
+// 내기 시뮬레이터 '시작하기' 레벨표: 던지는 횟수의 범위(ns)와 두 내기의 성공 확률 차이 범위(gap)
+const NS3 = [10, 100, 1000], NS7 = [10, 20, 50, 100, 200, 500, 1000], NS10 = [4, 5, 10, 20, 40, 50, 100, 200, 500, 1000];
+const LEVELS = [
+  { ns: [10, 1000], gap: [0.35, 1] }, { ns: NS3, gap: [0.30, 1] }, { ns: NS3, gap: [0.25, 1] }, { ns: NS3, gap: [0.15, 0.25] },
+  { ns: NS7, gap: [0.10, 0.20] }, { ns: NS7, gap: [0.10, 0.20] }, { ns: NS10, gap: [0.05, 0.12] },
+  { ns: null, gap: [0.03, 0.08] }, { ns: null, gap: [0.015, 0.04] }, { ns: null, gap: [0.005, 0.02] }
+];
+const levelOf = idx => Math.min(MAX_LEVEL, Math.floor(idx / LEVEL_LEN) + 1);
+const levelSpec = level => LEVELS[Math.min(MAX_LEVEL, level) - 1];
 // r = { a:[n,lo,hi], b:[n,lo,hi], p:'A'|'B' }  →  { ok, pA, pB, gap } (모양이 올바르지 않으면 null)
 function pairRound(r) {
   if (!r || !Array.isArray(r.a) || !Array.isArray(r.b) || (r.p !== 'A' && r.p !== 'B')) return null;
@@ -72,4 +79,12 @@ function pairRound(r) {
   const pA = probRange(r.a[0], r.a[1], r.a[2]), pB = probRange(r.b[0], r.b[1], r.b[2]), gap = Math.abs(pA - pB);
   return { ok: (r.p === 'A') === (pA > pB), pA, pB, gap };
 }
-module.exports = { levelOf, gapBand, pairRound, LEVEL_LEN, LIVES, ENDLESS_MAX, MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };
+// 레벨 규칙에 맞는 문제인지 (던지는 횟수 범위, 확률 차이)
+function pairFits(r, idx) {
+  const x = pairRound(r); if (!x) return null;
+  const sp = levelSpec(levelOf(idx));
+  if (x.gap < sp.gap[0] - 1e-9 || x.gap >= sp.gap[1] + 1e-9) return null;
+  if (sp.ns && (!sp.ns.includes(r.a[0]) || !sp.ns.includes(r.b[0]) || r.a[0] === r.b[0])) return null;
+  return x;
+}
+module.exports = { levelOf, levelSpec, pairRound, pairFits, LEVELS, LEVEL_LEN, MAX_LEVEL, START_HEARTS, MAX_HEARTS, ENDLESS_MAX, MAXRUN, FLIPS, SPOT_ROUNDS, BET, hexToBits, settleTime, betRound, probRange };
