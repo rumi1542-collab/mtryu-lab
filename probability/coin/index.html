@@ -72,6 +72,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .intro p{margin:0;color:var(--muted);max-width:640px}
 .who{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:20px 0 24px}
 .who label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.who.mine{align-items:center}.me1{font-size:20px;font-weight:700;padding:8px 14px;border-radius:12px;background:var(--deep);border:2px solid var(--line)}
 .who select{height:46px;border-radius:12px;border:2px solid var(--line);background:var(--deep);padding:0 12px;min-width:160px;font-size:17px}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
 .card{background:var(--panel);border-radius:20px;padding:20px 22px;display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -420,7 +421,7 @@ async function loadList() {
 /* ---------- 상태 ---------- */
 const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}') || {}; } catch (e) { return {}; } };
 const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
-const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2 };
+const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.cspeed) ? prefs.cspeed : 2, intro: prefs.intro !== 0 };
 let ME = null;           // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
 const viewSchool = () => S.vschool || S.school;   // 순위표를 볼 학교
 let G = null;           // 진행 중인 게임
@@ -437,9 +438,11 @@ function checkName() {
   }
   S.name = name; savePrefs(); return true;
 }
-function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed })); } catch (e) {} }
+function savePrefs() { try { localStorage.setItem('cn_prefs', JSON.stringify({ year: S.year, school: S.school, name: S.name, cspeed: S.speed, intro: S.intro ? 1 : 0 })); } catch (e) {} }
+const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
 function fixSelection() {
-  if (!LIST.years.includes(S.year)) S.year = LIST.years.includes(prefs.year) ? prefs.year : LIST.years[0];
+  const cy = curYear(); if (!LIST.years.includes(cy)) LIST.years.unshift(cy);
+  S.year = cy;   // 학년도는 날짜로 저절로 정해져요
   if (!LIST.schools.includes(S.school)) S.school = LIST.schools.includes(prefs.school) ? prefs.school : LIST.schools[0];
 }
 const BAD_WORDS = ['시발','씨발','씨바','시바','쉬발','시팔','씨팔','십팔','씹','병신','븅신','ㅂㅅ','ㅄ','ㅅㅂ','ㅆㅂ','지랄','ㅈㄹ','좆','존나','졸라','개새끼','새끼','섹스','보지','자지','창녀','걸레','꺼져','닥쳐','미친','ㅁㅊ','엿먹','애미','느금','니미','쌍놈','쌍년','썅','뒤져','fuck','shit','bitch','asshole','dick','pussy','porn','sex','nigg','cunt'];
@@ -539,12 +542,14 @@ function homeHTML() {
   }).join('');
   return `<div class="intro"><h1>동전 하나로 배우는 확률</h1>
     <p>동전을 한 번 던지면 앞이 나올지 뒤가 나올지 아무도 몰라요. 그런데 많이 던지면 규칙이 보여요. 1번부터 4번까지 순서대로 해 보세요.</p></div>
-    <div class="who"><label>${ME ? '별명(내 정보)' : '이름'}<input type="text" id="myname" maxlength="8" placeholder="띄어쓰기 없이 8글자" value="${esc(S.name)}" autocomplete="off" style="width:170px"${ME ? ' readonly title="내 별명이에요. 바꾸려면 오른쪽 위 이름표를 눌러요"' : ''}></label><label>학년도<select id="selYear">${yrs}</select></label><label>${ME ? '순위표 학교' : '학교'}<select id="selSchool">${sch}</select></label>
+    ${ME ? `<div class="who mine"><span class="me1">${esc(S.school)} · <b>${esc(S.name)}</b> · ${esc(S.year)}학년도</span><span class="hint" id="modeNote" style="padding-bottom:10px"></span></div>
+    <p class="hint" style="margin:-6px 0 0">게임이 끝나면 기록이 <b>우리 학교 순위</b>에 별명으로 자동으로 올라가요. 내 정보를 바꾸려면 <b>오른쪽 위 이름표</b>를 눌러 주세요.</p>`
+    : `<div class="who"><label>이름<input type="text" id="myname" maxlength="8" placeholder="띄어쓰기 없이 8글자" value="${esc(S.name)}" autocomplete="off" style="width:170px"></label><label>학년도<select id="selYear">${yrs}</select></label><label>학교<select id="selSchool">${sch}</select></label>
       <span class="hint" id="modeNote" style="padding-bottom:10px"></span></div>
     <div class="msg err" id="nameerr" role="alert" style="min-height:0"></div>
-    <p class="hint" style="margin:-6px 0 0">${ME ? `게임이 끝나면 기록이 내 학교(<b>${esc(S.school)}</b>)의 순위에 <b>별명으로 자동으로 올라가요</b>. 학교 칸은 다른 학교 순위를 볼 때 써요. 내 학교나 별명을 바꾸려면 <b>오른쪽 위 이름표</b>를 눌러 주세요.` : '이름을 쓰고 시작하면, 게임이 끝날 때 기록이 <b>자동으로 순위에 올라가요</b>.'}</p>
+    <p class="hint" style="margin:-6px 0 0">이름을 쓰고 시작하면, 게임이 끝날 때 기록이 <b>자동으로 순위에 올라가요</b>.</p>`}
     <div class="cards">${cards}</div>
-    <div class="foot"><span>학교·학년도는 강 건너기의 관리자 모드에서 늘릴 수 있어요.</span><a href="/probability/river/">강 건너기(주사위 두 개) 하러 가기 →</a></div>`;
+    <div class="foot"><span></span><a href="/probability/river/">강 건너기(주사위 두 개) 하러 가기 →</a></div>`;
 }
 async function probeMode() {
   const t = token;
@@ -646,6 +651,16 @@ function paintTune() {
   paintSide();
 }
 function wText(w) { return `${(0.5 - w / 100).toFixed(2)} ~ ${(0.5 + w / 100).toFixed(2)}`; }
+const INTRO_N = 10;
+function miniSVG(bits, k) {
+  const W = 300, H = 140, X = i => 28 + (i - 1) / (INTRO_N - 1) * 262, Y = p => 10 + (1 - p) * 100;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="처음 던진 ${k}번의 상대도수 그래프" style="width:100%;height:auto">`;
+  [0, 0.5, 1].forEach(p => { s += `<line x1="28" x2="${W - 6}" y1="${Y(p)}" y2="${Y(p)}" stroke="#323A8A"${p === 0.5 ? ' stroke-dasharray="5 4"' : ''}/><text x="22" y="${Y(p) + 4}" text-anchor="end" style="font-size:11px">${p}</text>`; });
+  let h = 0, d = '', dots = ''; for (let i = 1; i <= k; i++) { h += bits[i - 1]; const x = X(i), y = Y(h / i); d += (d ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i === k ? 6 : 4}" fill="${bits[i - 1] ? '#FFD23F' : '#8C9BFF'}" stroke="#fff" stroke-width="${i === k ? 2 : 0}"/>`; }
+  for (let i = 1; i <= INTRO_N; i++) s += `<text x="${X(i)}" y="${H - 16}" text-anchor="middle" style="font-size:11px">${i}</text>`;
+  s += `<text x="${W / 2}" y="${H - 2}" text-anchor="middle" style="font-size:11px">던진 횟수</text><path d="${d}" fill="none" stroke="#FFD23F" stroke-width="2"/>${dots}</svg>`;
+  return s;
+}
 const SPEEDS = { 1: '느리게', 2: '보통', 3: '빠르게', 4: '바로 보기' };
 const WHINT = w => w <= 2 ? '범위가 아주 좁아서 1000번을 던져도 못 들어올 때가 많아요. 그럴 땐 "1000번 이후"로 계산해요.' : w <= 5 ? '범위가 좁을수록 더 오래 걸려요.' : '범위가 넓어서 비교적 빨리 들어와요.';
 function paintSetup() {
@@ -662,7 +677,8 @@ function paintSetup() {
       <div class="panel"><h3>던지는 속도</h3>
         <div class="field"><div class="lab"><span>속도</span><b id="slab">${SPEEDS[S.speed]}</b></div>
         <input type="range" id="spr" min="1" max="4" step="1" value="${S.speed}" aria-label="던지는 속도"></div>
-        <p class="hint">오른쪽 끝은 결과를 바로 보여 줘요.</p></div>
+        <p class="hint">오른쪽 끝은 결과를 바로 보여 줘요.</p>
+        <label class="hint" style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="intro"${S.intro ? ' checked' : ''} style="width:20px;height:20px"> 처음 ${INTRO_N}번은 동전 던지는 모습과 함께 보기</label></div>
     </div>
     <button type="button" class="go" data-act="t-start" style="width:100%;margin-bottom:14px">예측 확정! 던지기 시작</button>`;
   } else {
@@ -678,6 +694,7 @@ function paintSide() {
   const n = g.runs.length;
   if (g.step === 'run1') {
     el.innerHTML = `<h3>${n ? '연습 실험 ' + n + '번째' : '② 첫 번째 실험'}</h3><div class="stat"><div>던진 횟수<b id="c-n">0</b></div><div>앞면 수<b id="c-h">0</b></div><div>상대도수<b id="c-p">-</b></div></div>
+      ${g.intro ? `<div id="intro" class="panel" style="background:var(--deep);padding:10px"><div style="height:100px;display:flex;justify-content:center;align-items:center"><div style="transform:scale(.5);width:190px;height:190px;flex:none;margin:-47px 0">${coinHTML(false, 'icoin')}</div></div><p class="hint" id="i-msg" style="min-height:2.6em;margin:4px 0"><b>처음 ${INTRO_N}번</b>은 천천히 던져 볼게요.</p><div id="i-mini"></div><button type="button" class="ghost" data-act="t-introskip">이 과정 건너뛰기</button></div>` : ''}
       <p class="hint" id="c-in">초록 범위 안과 밖을 오가는 모습을 지켜보세요.</p><button type="button" class="ghost" data-act="t-skip">바로 끝까지 보기</button>`;
   } else {
     const L = g.runs[n - 1], cen = L > FLIPS, diff = Math.abs(g.pred - L);
@@ -699,14 +716,37 @@ async function tuneRun() {
     if (d) $('#gruns').insertAdjacentHTML('beforeend', `<path d="${d}" fill="none" stroke="#8C9BFF" stroke-opacity=".5" stroke-width="1.3"/>`);
     gm.setAttribute('d', ''); $('#gmarks').innerHTML = markLines(g, true);
   }
+  g.intro = S.intro; g.skipIntro = false;
   g.step = 'run1'; paintSide();
   const bits = randBits(FLIPS); if (first) g.bits0 = bits;
   const P = ptsOf(bits), path = $('#gmain'); g.skip = false;
   const dur = [0, 11000, 5000, 2000, 0][S.speed];
   const t0 = performance.now();
-  let k = 0, heads = 0, hp = 0;
+  let k = 0, heads = 0, hp = 0, t0b = t0;
+  if (g.intro) {
+    let i = 0;
+    for (; i < INTRO_N; i++) {
+      if (g.skipIntro || g.skip) break;
+      const msg = $('#i-msg'), coin = $('#icoin'); if (!msg) break;
+      msg.innerHTML = `<b>${i + 1}번째</b> 던지는 중…`;
+      await flipCoin(coin, bits[i] === 0, 750);
+      if (G !== g || t !== token) return;
+      if (g.skipIntro || g.skip || !$('#i-mini')) break;
+      heads += bits[i]; hp = i + 1;
+      path.setAttribute('d', 'M' + P.slice(0, hp).join('L'));
+      const p = heads / hp, nn = $('#c-n'); if (nn) { nn.textContent = hp; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); }
+      $('#i-mini').innerHTML = miniSVG(bits, hp);
+      msg.innerHTML = `<b>${hp}번째: ${bits[i] ? '앞면' : '뒷면'}</b> → 앞면 ${heads}번 ÷ ${hp}번 = <b>${p.toFixed(2)}</b>`;
+      await sleep(i < 3 ? 1200 : 700);
+      if (G !== g || t !== token) return;
+    }
+    if (i >= INTRO_N) { S.intro = false; savePrefs(); }   // 한 번 끝까지 보면 다음부터는 바로 쭉 보여 줘요 (설정에서 다시 켤 수 있어요)
+    const box = $('#intro'); if (box) box.remove();
+    const ci = $('#c-in'); if (ci) ci.textContent = '이제 쭉 던져서 1000번까지 그려 볼게요. 초록 범위 안과 밖을 오가는 모습을 지켜보세요.';
+    if (dur) t0b = performance.now() - hp / FLIPS * dur;
+  }
   while (k < FLIPS) {
-    if (dur) { await frame(); if (G !== g || t !== token) return; if (g.skip) k = FLIPS; else k = Math.min(FLIPS, Math.floor((performance.now() - t0) / dur * FLIPS)); if (k < 1) continue; } else k = FLIPS;
+    if (dur) { await frame(); if (G !== g || t !== token) return; if (g.skip) k = FLIPS; else k = Math.min(FLIPS, Math.floor((performance.now() - t0b) / dur * FLIPS)); if (k < 1) continue; } else k = FLIPS;
     for (; hp < k; hp++) heads += bits[hp];
     path.setAttribute('d', 'M' + P.slice(0, k).join('L'));
     const p = heads / k, nn = $('#c-n'); if (nn) { nn.textContent = k; $('#c-h').textContent = heads; $('#c-p').textContent = p.toFixed(3); const inb = Math.abs(p - 0.5) * 100 <= g.w; $('#c-in').textContent = inb ? '지금은 범위 안이에요.' : '지금은 범위 밖이에요.'; }
@@ -854,7 +894,9 @@ const bk = g => (g === 'tune' ? 'tune' + B.w : g);   // 서버에 저장되는 �
 function boardShell() {
   const tabs = GKEYS.map(k => `<button type="button" class="tab${k === B.game ? ' on' : ''}" data-act="b-tab" data-g="${k}">${GAMES[k].no}. ${esc(GAMES[k].title)}</button>`).join('');
   const wt = B.game === 'tune' ? `<div class="tabs" role="tablist" aria-label="상대도수 범위">` + [10, 5, 2].map(w => `<button type="button" class="tab${w === B.w ? ' on' : ''}" data-act="b-w" data-v="${w}">상대도수 범위 ${wText(w)}</button>`).join('') + `</div>` : '';
-  return `<div class="panel"><h2>순위표</h2><div class="tabs">${tabs}</div>${wt}<div id="boardbody" class="msg">불러오는 중…</div></div>`;
+  const sch = LIST.schools.map(x => `<option value="${esc(x)}"${x === viewSchool() ? ' selected' : ''}>${esc(x)}${x === S.school ? ' (우리 학교)' : ''}</option>`).join('');
+  const ss = ME ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:4px 0 10px">순위를 볼 학교 <select id="bSchool" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px">${sch}</select></label>` : '';
+  return `<div class="panel"><h2>순위표</h2>${ss}<div class="tabs">${tabs}</div>${wt}<div id="boardbody" class="msg">불러오는 중…</div></div>`;
 }
 const fmtPts = n => runPoints(n).toLocaleString('ko-KR') + '점';
 const th = a => '<thead><tr>' + a.map(x => `<th>${x}</th>`).join('') + '</tr></thead>';
@@ -914,7 +956,7 @@ document.addEventListener('click', e => {
   const act = b.dataset.act, v = b.dataset.v, gk = b.dataset.g;
   if (act === 'home') go('home');
   else if (act === 'start') { if (!checkName()) return; if (gk === 'run') startRun(); else if (gk === 'tune') startTune(); else if (gk === 'spot') startSpot(); else startBet(); }
-  else if (act === 'board') { B.game = gk; B.q = ''; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
+  else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
   else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (act === 'b-tab') { B.game = gk; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (act === 'b-page') loadBoard(Math.max(0, parseInt(b.dataset.o, 10) || 0));
@@ -928,6 +970,7 @@ document.addEventListener('click', e => {
   else if (act === 'record') autoRecord();
   else if (act === 't-start') tuneRun();
   else if (act === 't-skip') G.skip = true;
+  else if (act === 't-introskip') { G.skipIntro = true; const bx = $('#intro'); if (bx) bx.remove(); }
   else if (act === 't-again') tuneRun();
   else if (act === 't-reset') startTune(true);
   else if (act === 's-mode') { startSpot(v); }
@@ -956,7 +999,9 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
+  if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (el.id === 'intro') { S.intro = el.checked; savePrefs(); }
+  else if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
   else if (el.id === 'selSchool') { if (ME) S.vschool = el.value === S.school ? null : el.value; else S.school = el.value; savePrefs(); probeMode(); }
 });
 document.addEventListener('keydown', e => {
@@ -997,7 +1042,7 @@ MtryuMeSync.watch(refreshMe);
 (async function init() {
   render();
   await loadList(); await syncMe();
-  if (LIST.years.includes(prefs.year)) S.year = prefs.year;           // 지난번에 고른 학년도·학교로 시작해요
+  
   if (!ME && LIST.schools.includes(prefs.school)) S.school = prefs.school;
   fixSelection(); enforceMine();
   if (S.screen === 'home') render();

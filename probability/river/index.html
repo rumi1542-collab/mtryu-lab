@@ -472,9 +472,10 @@ function badName(s) {
 }
 const cleanName = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);   // 띄어쓰기 없이, 최대 8글자
 /* 목록이 바뀐 뒤에도 고른 학년도·학교가 목록 안에 있게 맞춰요 */
+const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
 function fixSelection(usePrefs) {
-  if (usePrefs && LIST.years.includes(prefs.year)) state.year = prefs.year;
-  else if (!LIST.years.includes(state.year)) state.year = LIST.years[0];
+  const cy = curYear(); if (!LIST.years.includes(cy)) LIST.years.unshift(cy);
+  state.year = cy;   // 학년도는 날짜로 저절로 정해져요
   if (usePrefs && LIST.schools.includes(prefs.school)) state.school = prefs.school;
   else if (!LIST.schools.includes(state.school)) state.school = LIST.schools[0];
 }
@@ -767,8 +768,7 @@ function setupHTML() {
       ${step(3, '먼저 모두 부수면 승리', '굴린 횟수가 적을수록 순위가 높아요')}
     </section>
     <section class="pick">
-      <div class="years"><h2>학년도</h2>${years}</div>
-      <div class="schools"><div class="shead"><h2>학교 서버</h2>${ME ? '' : `<input id="schoolQ" type="text" maxlength="20" placeholder="학교 이름 검색" autocomplete="off" value="${esc(SQ.q)}">`}</div>
+      <div class="schools"><div class="shead"><h2>학교 서버 · ${state.year}학년도</h2>${ME ? '' : `<input id="schoolQ" type="text" maxlength="20" placeholder="학교 이름 검색" autocomplete="off" value="${esc(SQ.q)}">`}</div>
         ${ME ? `<p class="myhint" id="myhint">내 학교(<b>${esc(ME.label)}</b>)로 기록돼요. 다른 학교는 <b>순위 보기</b>만 할 수 있어요. 학교를 바꾸려면 <b>오른쪽 위 이름표</b>를 눌러 주세요.</p>` : ''}
         <div class="sgrid" id="sgrid">${schoolCards()}</div><div id="ssugg" class="sugg"></div></div>
     </section>

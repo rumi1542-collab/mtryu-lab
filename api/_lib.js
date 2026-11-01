@@ -44,12 +44,19 @@ function okConfig(c) {
     && c.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20 && !/[\u0000-\u001f<>]/.test(s));
 }
 
+// 지금 학년도(한국 시간, 3월 1일에 바뀌어요)는 늘 목록에 들어 있어요. 학년도를 따로 추가하지 않아도 새 학년도가 저절로 시작돼요.
+function schoolYear(ms) { const d = new Date((ms == null ? Date.now() : ms) + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; }
+function withCurrentYear(c) {
+  const y = schoolYear();
+  if (!c.years.includes(y)) c.years = [y].concat(c.years).sort((a, b) => b - a).slice(0, 12);
+  return c;
+}
 async function getConfig() {
   try {
     const raw = await redis(['GET', CONFIG_KEY]);
-    if (raw) { const c = JSON.parse(raw); if (okConfig(c)) return c; }
+    if (raw) { const c = JSON.parse(raw); if (okConfig(c)) return withCurrentYear(c); }
   } catch (e) {}
-  return { years: DEFAULT_CONFIG.years.slice(), schools: DEFAULT_CONFIG.schools.slice() };
+  return withCurrentYear({ years: DEFAULT_CONFIG.years.slice(), schools: DEFAULT_CONFIG.schools.slice() });
 }
 
 function isAdmin(req) {
@@ -92,4 +99,4 @@ async function neisSearch(q) {
   } finally { clearTimeout(t); }
 }
 
-module.exports = { kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
+module.exports = { schoolYear, kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
