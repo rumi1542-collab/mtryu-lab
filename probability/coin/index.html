@@ -485,8 +485,8 @@ const cleanName = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice
 const GAMES = {
   run:  { no: 1, title: '연속 맞추기',      tag: '패턴이 있을까?',        desc: '앞일까 뒤일까? 연속으로 맞힐 때마다 점수가 2배가 돼요. 동전에 패턴이 있는지 시험해 봐요.' },
   tune: { no: 2, title: '상대도수 줄타기',  tag: '상대도수의 변화',      desc: '앞면의 비율이 언제부터 0.5 근처에 머물까요? 먼저 예측하고, 1000번 던져서 확인해요.' },
-  spot: { no: 3, title: '동전 조작 탐정',   tag: '진짜 무작위의 모양',    desc: '두 배열 중 하나는 사람이 지어낸 거예요. 진짜를 찾아내는 탐정이 되어 보세요. 시작하기는 문제가 끝없이 나와요. 하트 1개로 시작해서 레벨이 오를 때마다 하나씩 채워지고, 하트가 없을 때 틀리면 끝나요. 맞힌 개수가 순위가 돼요.' },
-  bet:  { no: 4, title: '내기 시뮬레이터',  tag: '적게 던지기 vs 많이 던지기', desc: '적게 던지기와 많이 던지기, 어느 쪽 내기가 더 자주 성공할까요? 시작하기는 문제가 끝없이 나와요. 하트 1개로 시작해서 레벨이 오를 때마다 하나씩 채워지고, 하트가 없을 때 틀리면 끝나요. 맞힌 개수가 순위가 돼요.' }
+  spot: { no: 3, title: '동전 조작 탐정',   tag: '진짜 무작위의 모양',    desc: '두 배열 중 하나는 사람이 지어낸 거예요. 진짜를 찾아내는 탐정이 되어 보세요. 시작하기는 문제가 끝없이 나와요. 하트 1개로 시작해서 레벨이 오를 때마다 하나씩 채워지고, 하트가 없을 때 틀리면 끝나요. 맞힌 문제 수가 순위가 돼요.' },
+  bet:  { no: 4, title: '내기 시뮬레이터',  tag: '적게 던지기 vs 많이 던지기', desc: '적게 던지기와 많이 던지기, 어느 쪽 내기가 더 자주 성공할까요? 시작하기는 문제가 끝없이 나와요. 하트 1개로 시작해서 레벨이 오를 때마다 하나씩 채워지고, 하트가 없을 때 틀리면 끝나요. 맞힌 문제 수가 순위가 돼요.' }
 };
 const GKEYS = ['run', 'tune', 'spot', 'bet'];
 
@@ -934,7 +934,7 @@ function spotHTML() {
     const msg = play ? (g.correct >= 15 ? '대단한 탐정이에요! 진짜 무작위의 모양이 눈에 익었네요.' : g.correct >= 8 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.')
       : (g.correct >= 7 ? '훌륭한 탐정이에요! 단서를 잘 찾았어요.' : g.correct >= 5 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.');
     return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs(g.mode)}
-      <div class="row" style="gap:24px"><div><div class="rowlab">맞힌 개수</div><div class="bigscore">${g.correct}${play ? '개' : ' / ' + SPOT_ROUNDS}</div></div></div>
+      <div class="row" style="gap:24px"><div><div class="rowlab">맞힌 문제</div><div class="bigscore">${g.correct}${play ? '문제' : ' / ' + SPOT_ROUNDS}</div></div></div>
       <p class="hint">${msg}<br>진짜 동전 던지기는 <b>같은 면이 길게 이어지기도</b> 하고, 앞뒤가 <b>생각보다 덜 번갈아</b> 나와요.</p>
       ${play ? recBox() : '<p class="hint">연습하기는 순위에 올라가지 않아요. 도전하려면 <b>시작하기</b>를 눌러요.</p>'}
       <div class="row">${play ? '<button type="button" class="go" data-act="s-again">다시 도전</button><button type="button" class="ghost" data-act="board" data-g="spot">순위표 보기</button>' : '<button type="button" class="go" data-act="s-mode" data-v="play">시작하기 (순위 도전)</button><button type="button" class="ghost" data-act="s-mode" data-v="practice">연습 한 번 더</button>'}</div></div>`;
@@ -953,7 +953,7 @@ function spotHTML() {
   }
   const btn = (k) => `<button type="button" class="go" data-act="s-pick" data-v="${k}" ${rev ? 'disabled' : ''}>${k}가 진짜</button>`;
   const card = (k) => `<div class="panel" style="background:var(--deep);${rev && c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${rev ? (c.real === k ? '(진짜)' : '(지어냄)') : ''}</h3>${seqGrid(c[k])}</div>`;
-  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.correct}개</b>` : `<b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}개 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
+  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.correct}문제</b> 맞힘` : `<b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}문제 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
   return `<div class="panel"><div class="ptop"><h2>3. 동전 조작 탐정</h2>${play ? livesBadge(g.hearts) : ''}</div>${spotTabs(g.mode)}
     ${play ? levelBanner(g) : ''}<p class="hint">한쪽은 진짜 동전을 ${c.A.length}번 던진 결과이고, 다른 쪽은 사람이 "랜덤처럼" 지어낸 배열이에요. 진짜는 어느 쪽일까요? ${status}</p>
     <div class="betgrid">${card('A')}${card('B')}</div>
@@ -1007,8 +1007,8 @@ function betHTML() {
   if (play ? g.over : g.round >= BET_PRACTICE) {
     let score = 0, hits = 0; g.rounds.forEach(r => { const b = betRound(r); score += b.pts; if (b.ok) hits++; });
     return `<div class="panel"><h2>4. 내기 시뮬레이터</h2>${betTabs(g.mode)}
-      ${play ? `<div class="row" style="gap:24px"><div><div class="rowlab">맞힌 개수</div><div class="bigscore">${hits}개</div></div></div>`
-             : `<div class="row" style="gap:24px"><div><div class="rowlab">내 점수</div><div class="bigscore">${score} / ${BET_MAX}</div></div><div class="stat"><div>맞힌 선택<b>${hits} / ${BET_PRACTICE}</b></div></div></div>`}
+      ${play ? `<div class="row" style="gap:24px"><div><div class="rowlab">맞힌 문제</div><div class="bigscore">${hits}문제</div></div></div>`
+             : `<div class="row" style="gap:24px"><div><div class="rowlab">내 점수</div><div class="bigscore">${score} / ${BET_MAX}</div></div><div class="stat"><div>맞힌 문제<b>${hits} / ${BET_PRACTICE}</b></div></div></div>`}
       <p class="hint"><b>적게 던질수록</b> 결과가 크게 흔들려서 극단적인 일이 자주 일어나요. <b>많이 던질수록</b> 비율은 0.5 근처에 모이지만, 앞면이 <b>정확히</b> 반이 되는 일은 오히려 드물어져요. 큰 수의 법칙은 "비율"에 대한 법칙이에요.</p>
       ${play ? recBox() : '<p class="hint">연습하기는 순위에 올라가지 않아요. 도전하려면 <b>시작하기</b>를 눌러요.</p>'}
       <div class="row">${play ? '<button type="button" class="go" data-act="b-again">다시 도전</button><button type="button" class="ghost" data-act="board" data-g="bet">순위표 보기</button>' : '<button type="button" class="go" data-act="b-mode" data-v="play">시작하기 (순위 도전)</button><button type="button" class="ghost" data-act="b-mode" data-v="practice">연습 한 번 더</button>'}</div></div>`;
@@ -1029,7 +1029,7 @@ function betHTML() {
     body = `<div class="betgrid">${grid('A', A)}${grid('B', B)}</div>
       <div id="betres"></div>`;
   }
-  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · 맞힌 <b>${g.hits}개</b>` : `<b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
+  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.hits}문제</b> 맞힘` : `<b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
   return `<div class="panel"><div class="ptop"><h2>4. 내기 시뮬레이터</h2>${play ? livesBadge(g.hearts) : ''}</div>${betTabs(g.mode)}
     ${play ? levelBanner(g) : ''}<p class="hint">${c.gen ? '' : '같은 종류의 두 가지 내기가 있어요. '}${esc(R.note)} ${status}</p>${body}</div>`;
 }
@@ -1053,8 +1053,8 @@ async function betRun() {
   if (play) { if (b.ok) g.hits++; else if (g.hearts > 0) g.hearts--; else g.dead = true; }
   const last = play && g.dead;
   $('#betres').innerHTML = (play
-      ? `<div class="msg ${b.ok ? 'ok' : 'err'}" style="font-size:20px;color:${b.ok ? 'var(--green)' : 'var(--bad)'}">${b.ok ? '선택이 맞았어요! +1개' : '선택이 달랐어요.'} · 맞힌 ${g.hits}개 · ${heartsHTML(g.hearts)}</div>`
-      : `<div class="msg ${b.ok ? 'ok' : 'err'}" style="font-size:20px;color:${b.ok ? 'var(--green)' : 'var(--bad)'}">${b.ok ? '선택이 맞았어요! +10점' : '선택이 달랐어요. +0점'} · 확률 예상 오차 ${est.toFixed(1)}%p → <b>+${b.pts - (b.ok ? 10 : 0)}점</b></div>`) +
+      ? `<div class="msg ${b.ok ? 'ok' : 'err'}" style="font-size:20px;color:${b.ok ? 'var(--green)' : 'var(--bad)'}">${b.ok ? '정답이에요!' : '아쉬워요, 오답이에요.'} · 지금까지 ${g.hits}문제 맞혔어요 · ${heartsHTML(g.hearts)}</div>`
+      : `<div class="msg ${b.ok ? 'ok' : 'err'}" style="font-size:20px;color:${b.ok ? 'var(--green)' : 'var(--bad)'}">${b.ok ? '정답이에요! +10점' : '아쉬워요, 오답이에요. +0점'} · 확률 예상 오차 ${est.toFixed(1)}%p → <b>+${b.pts - (b.ok ? 10 : 0)}점</b></div>`) +
     `<p class="hint">${c.gen ? betGenLesson(b) : betLesson(c.i)}</p><div class="row"><button type="button" class="go sm" data-act="b-next">${play ? (last ? '결과 보기' : '다음 문제') : (g.round + 1 >= BET_PRACTICE ? '결과 보기' : '다음 문제')}</button></div>`;
 }
 function betGenLesson(b) {
@@ -1111,11 +1111,11 @@ function rowHTML(g, r, rank) {
   const me = r.id && G && G.lastId === r.id ? ' class="me"' : '', n = esc(r.name);
   if (g === 'run') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${fmtPts(r.n)}</td><td>${r.n}번</td><td>${strChips(String(r.seq || ''), r.n < MAXRUN)}</td></tr>`;
   if (g === 'tune') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td>${r.pred}번</td><td class="big">${r.first > FLIPS ? '1000번 이후' : r.first + '번'}</td><td>${r.diff}번</td><td>${spark(r)}</td></tr>`;
-  if (g === 'spot') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.correct}개</td></tr>`;
-  return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.hits}개</td></tr>`;
+  if (g === 'spot') return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.correct}문제</td></tr>`;
+  return `<tr${me}><td class="rk">${rank}</td><td>${n}</td><td class="big">${r.hits}문제</td></tr>`;
 }
-const HEADS = { run: ['순위', '이름', '점수', '맞힌 횟수', '배열 (빨간 테두리 = 마지막으로 틀린 것)'], tune: ['순위', '이름', '예상 횟수', '안정된 횟수', '차이', '꺾은선그래프'], spot: ['순위', '이름', '맞힌 개수'], bet: ['순위', '이름', '맞힌 개수'] };
-const ORDER = { run: '맞힌 횟수가 많을수록', tune: '예상과 안정된 횟수의 차이가 작을수록', spot: '맞힌 개수가 많을수록', bet: '맞힌 개수가 많을수록' };
+const HEADS = { run: ['순위', '이름', '점수', '맞힌 횟수', '배열 (빨간 테두리 = 마지막으로 틀린 것)'], tune: ['순위', '이름', '예상 횟수', '안정된 횟수', '차이', '꺾은선그래프'], spot: ['순위', '이름', '맞힌 문제'], bet: ['순위', '이름', '맞힌 문제'] };
+const ORDER = { run: '맞힌 횟수가 많을수록', tune: '예상과 안정된 횟수의 차이가 작을수록', spot: '맞힌 문제가 많을수록', bet: '맞힌 문제가 많을수록' };
 async function loadBoard(offset) {
   const t = token, g = B.game; B.offset = offset; B.matches = null;
   const pg = await Store.page(bk(g), S.year, viewSchool(), offset, CONFIG.pageSize);

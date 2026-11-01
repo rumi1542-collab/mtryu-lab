@@ -57,7 +57,7 @@ function build(game, b, ts) {
     const first = C.settleTime(C.hexToBits(hex), w), diff = Math.abs(pred - first);
     return { data: { w, pred, bits: hex, first, diff }, score: diff - ts / 1e13 };
   }
-  if (game === 'spot') {   // 시작하기: 끝없이 나오는 문제에서 3번 틀리기 전까지 맞힌 개수
+  if (game === 'spot') {   // 시작하기: 끝없이 나오는 문제에서 하트가 다 떨어지기 전까지 맞힌 개수
     const correct = b.correct;
     if (!isInt(correct, 0, C.ENDLESS_MAX)) return null;
     return { data: { correct }, score: -correct - ts / 1e13 };
