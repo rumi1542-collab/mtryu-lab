@@ -201,7 +201,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function logout() { try { sessionStorage.removeItem('mtryu.adminkey'); } catch (e) {} S.key = ''; $('#app').hidden = true; $('#login').hidden = false; $('#lkey').value = ''; $('#lkey').focus(); }
   function fail(e, what) {
     if (e && e.status === 401) { logout(); $('#lerr').textContent = '암호가 맞지 않거나 연결이 끊어졌어요. 다시 들어와 주세요.'; return; }
-    toast((what || '불러오지') + ' 못했어요. ' + (e && e.status === 429 ? '잠시 뒤에 다시 해 주세요.' : '인터넷을 확인해 주세요.'));
+    var code = e && e.status ? ' (오류 ' + e.status + (e.body && e.body.error ? ' · ' + e.body.error : '') + ')' : ' (서버에 닿지 않았어요)';
+    toast((what || '불러오지') + ' 못했어요.' + (e && e.status === 429 ? ' 잠시 뒤에 다시 해 주세요.' : e && e.status === 500 ? ' 서버의 저장소 설정을 확인해 주세요.' : e && e.status ? '' : ' 인터넷을 확인해 주세요.') + code);
   }
 
   /* ── 안내창 (브라우저 기본 확인창 대신) ── */
