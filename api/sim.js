@@ -8,7 +8,7 @@
 //   {act:'publish', year, school, uid, nick, tool, cases:[…], w:[…]}  실험 올리기 → { id }
 //   {act:'list',    year, school, uid}                                 우리 학교 실험 목록 → { items }
 //   {act:'get',     id, uid}                                           실험 하나 → { item }
-//   {act:'step',    id, uid, n(1~200), total?, tok?}                   학생이 던지기 → { r: '0132…', total, tok }  (경우 번호를 한 글자씩. 던진 횟수는 서버가 서명해서 이어 줘요)
+//   {act:'step',    id, uid, n(1~200), total?, tok?, preview?}                   학생이 던지기 → { r: '0132…', total, tok }  (경우 번호를 한 글자씩. 던진 횟수는 서버가 서명해서 이어 줘요)
 //   {act:'vote',    id, uid, choice:'e'|'n', total, tok}                           판정하기 (e=동등하다, n=동등하지 않다) → { tally, my, eq, ok, n }  (정답 eq·맞았는지 ok·던진 횟수 n)
 //   {act:'stats',   id, uid}                                           집계(만든 사람·관리자만) → { eq, tally, items:[{ok,n}], legacy }
 //   {act:'remove',  id, uid}                                           내가 올린 실험 지우기 (관리자는 헤더 x-admin-key 로 누구 것이든)
@@ -139,7 +139,9 @@ module.exports = async function handler(req, res) {
       if (!rateLocal(req, 'step', 1500, 60)) return send(res, 429, { error: 'too-many' });
       const e = await getExp(b.id);
       if (!e) return send(res, 404, { error: 'not-found' });
-      if (e.uid === b.uid) return send(res, 400, { error: 'own-experiment' });
+      // 만든 사람과 관리자는 preview:true 로 미리 던져 볼 수 있어요 (판정은 못 하고 기록도 남지 않아요)
+      if (b.preview === true) { if (e.uid !== b.uid && !isAdmin(req)) return send(res, 401, { error: 'unauthorized' }); }
+      else if (e.uid === b.uid) return send(res, 400, { error: 'own-experiment' });
       if (total0 + b.n > MAX_LIVE) return send(res, 400, { error: 'limit' });
       const idx = L.roll(e.p, b.n);
       let s = '';
