@@ -771,7 +771,7 @@ function listHtml() {
   else if (!L.items || !L.items.length) body = '<div class="empty">아직 올라온 실험이 없어요.<br>내가 먼저 실험을 만들어 올려 보세요!</div>';
   else body = '<div class="srch"><label>🔍 만든 친구 검색 <input type="search" id="lq" value="' + esc(L.q || '') + '" placeholder="별명" autocomplete="off"></label></div><div id="listitems">' + itemsHtml() + '</div>';
   return '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn sm" data-act="list">↻ 새로고침</button></div>' +
-    '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 실험을 던져 보고, 각 경우가 일어날 가능성이 같은지 판단해 보세요.</p><p class="hint">⭐ 추천 실험이 맨 위에 나와요. 그다음은 판정에 참여한 친구가 많은 실험 순서예요.</p></div>' + body +
+    '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 친구가 만든 실험을 직접 해 보세요. 결과를 보고, 모든 경우가 나올 가능성이 같은지 판단해 보세요.</p><p class="hint">⭐ 추천 실험이 맨 위에 나와요. 그다음은 판정에 참여한 친구가 많은 실험 순서예요.</p></div>' + body +
     '<p class="hint" style="text-align:right;margin-top:14px"><button class="btn sm" data-act="admin">' + (adminKey ? '관리자 모드 끄기' : '관리자') + '</button></p>';
 }
 function itemsHtml() {
