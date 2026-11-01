@@ -145,6 +145,8 @@ tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
 .item .row1{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 .item .meta{font-size:14px;color:var(--muted)}
 .badge2{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--tint);color:var(--purple);margin-left:6px;vertical-align:middle}
+.badge2.feat{background:#FFE9A8;color:#7A5200}
+.item.featured{border-color:#B07A00}
 .badge2.done{background:#D8F2E4;color:var(--ok)}
 .empty{padding:28px;text-align:center;color:var(--muted);font-size:16px;line-height:1.7}
 
@@ -221,10 +223,11 @@ const ERR = {
   'bad-request': '학교 정보가 맞지 않아요. 이름표에서 학교를 다시 골라 주세요.'
 };
 const errText = e => (e && ERR[e.code]) || '서버와 연결하지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.';
+let adminKey = ''; try { adminKey = sessionStorage.getItem('mtryu.adminkey') || ''; } catch (e) {}
 async function api(body) {
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
   try {
-    const r = await fetch('/api/sim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
+    const r = await fetch('/api/sim', { method: 'POST', headers: adminKey ? { 'Content-Type': 'application/json', 'x-admin-key': adminKey } : { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal });
     let j = null; try { j = await r.json(); } catch (e) {}
     if (!r.ok) { const er = new Error('http ' + r.status); er.code = (j && j.error) || ''; er.status = r.status; throw er; }
     return j;
@@ -472,12 +475,41 @@ function lineSvg(w, R0, names, p, showP, ymode, hl) {
 }
 
 function histBins(counts, n) {
-  let lo = Math.min.apply(null, counts), hi = Math.max.apply(null, counts);
-  lo = Math.max(0, lo - 1); hi = Math.min(n, hi + 1);
-  const span = hi - lo + 1, wd = Math.max(1, Math.ceil(span / 30)), nb = Math.ceil(span / wd), bins = new Array(nb).fill(0);
-  counts.forEach(c => { bins[Math.min(nb - 1, Math.floor((c - lo) / wd))]++; });
-  const labels = bins.map((_, j) => { const a = lo + j * wd, b = Math.min(hi, a + wd - 1); return wd === 1 ? String(a) : a + '~' + b; });
-  return { lo, hi, wd, bins, labels };
+  // 가로축은 나올 수 있는 모든 값 0 ~ n (n이 크면 같은 폭의 구간으로 묶어요)
+  const wd = Math.max(1, Math.ceil((n + 1) / 101)), nb = Math.floor(n / wd) + 1, bins = new Array(nb).fill(0);
+  counts.forEach(c => { bins[Math.min(nb - 1, Math.floor(c / wd))]++; });
+  const labels = bins.map((_, j) => { const a = j * wd, b = Math.min(n, a + wd - 1); return wd === 1 ? String(a) : a + '~' + b; });
+  return { lo: 0, hi: n, n, wd, bins, labels };
+}
+
+// 히스토그램: 막대가 서로 붙어 있고, 가로축은 0 ~ n 전체
+function histSvg(w, H, xTitle, yTitle, markV) {
+  const h = 320, L = 52, R = 14, T = 26, B = 52 + 18, pw = w - L - R, ph = h - T - B, nb = H.bins.length, wd = H.wd, off = wd === 1 ? 0.5 : 0, total = nb * wd;
+  const X = v => L + pw * (v + off) / total;
+  const mx = Math.max(1, Math.max.apply(null, H.bins)), step = Math.max(1, niceStep(mx / 4)), ymax = step * Math.ceil(mx / step);
+  let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(yTitle) + ' 히스토그램">';
+  for (let v = 0; v <= ymax + 1e-9; v += step) {
+    const y = T + ph * (1 - v / ymax);
+    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>';
+  }
+  const slot = pw / nb;
+  H.bins.forEach((c, j) => {
+    const x0 = L + pw * j * wd / total, hh = ph * c / ymax, y = T + ph - hh;
+    const t = esc(H.labels[j]) + '번' + ': ' + c + '회';
+    s += '<g><rect x="' + x0 + '" y="' + (T) + '" width="' + slot + '" height="' + ph + '" fill="transparent"/>' + (c > 0 ? '<rect x="' + x0 + '" y="' + y + '" width="' + slot + '" height="' + hh + '" fill="#7719AA" stroke="#fff" stroke-width="' + (slot >= 6 ? 1 : 0.4) + '"/>' : '') + '<title>' + t + '</title>' +
+      (c > 0 && (slot >= 16 || c === mx) ? '<text class="val" x="' + (x0 + slot / 2) + '" y="' + (y - 6) + '" text-anchor="middle">' + c + '</text>' : '') + '</g>';
+  });
+  s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
+  // 가로축 눈금: 0부터 n까지 (구간으로 묶였을 때는 구간 폭의 배수)
+  let ts = niceStep(H.n / Math.max(2, Math.floor(pw / 56)));
+  if (wd > 1) ts = Math.max(wd, Math.ceil(ts / wd) * wd);
+  const ticks = []; for (let v = 0; v <= H.n; v += ts) ticks.push(v);
+  if (H.n - ticks[ticks.length - 1] >= ts * 0.6) ticks.push(H.n);
+  ticks.forEach(v => { const x = X(v); s += '<line x1="' + x + '" x2="' + x + '" y1="' + (T + ph) + '" y2="' + (T + ph + 5) + '" stroke="#7B6B8F"/><text x="' + x + '" y="' + (T + ph + 20) + '" text-anchor="middle">' + fmt(v) + '</text>'; });
+  if (markV != null) { const xm = X(markV); s += '<line x1="' + xm + '" x2="' + xm + '" y1="' + T + '" y2="' + (T + ph) + '" stroke="#D81B7A" stroke-width="2" stroke-dasharray="6 4"/><text x="' + xm + '" y="' + (T - 8) + '" text-anchor="middle" style="fill:#D81B7A;font-weight:700">설정한 기댓값</text>'; }
+  s += '<text x="' + (L + pw / 2) + '" y="' + (h - 6) + '" text-anchor="middle">' + esc(xTitle) + '</text>';
+  s += '<text x="14" y="' + (T + ph / 2) + '" transform="rotate(-90 14 ' + (T + ph / 2) + ')" text-anchor="middle">' + esc(yTitle) + '</text></svg>';
+  return s;
 }
 
 /* ---------- 결과 그리기 ---------- */
@@ -511,7 +543,7 @@ function paintRep() {
   box.innerHTML =
     '<div class="stats"><div class="stat"><span>살펴본 경우</span><b>' + nm + '</b></div><div class="stat"><span>한 회에 던진 횟수 · 반복</span><b>' + fmt(R.n) + '번 × ' + fmt(R.k) + '회</b></div>' +
     '<div class="stat"><span>도수의 평균</span><b>' + (Math.round(mean * 100) / 100) + '번</b></div><div class="stat"><span>평균 상대도수</span><b>' + r3(mean / R.n) + '</b></div><div class="stat"><span>가장 적게 ~ 많이 나온 도수</span><b>' + mn + ' ~ ' + mx + '번</b></div></div>' +
-    '<section class="card"><h3>‘' + nm + '’ 도수의 분포</h3><div class="chart" data-chart="hist"></div><p class="hint">가로: ' + fmt(R.n) + '번 던졌을 때 나온 ‘' + nm + '’의 도수, 세로: 그 도수가 나온 횟수(회)</p></section>' +
+    '<section class="card"><h3>‘' + nm + '’ 도수의 분포 (히스토그램)</h3><div class="chart" data-chart="hist"></div><p class="hint">가로: ' + fmt(R.n) + '번 던졌을 때 나올 수 있는 모든 도수(0 ~ ' + fmt(R.n) + '번)' + (H.wd > 1 ? ', ' + H.wd + '개씩 묶음' : '') + ', 세로: 그 도수가 나온 횟수(회)</p></section>' +
     '<div class="grid2"><section class="card"><h3>회마다 나온 도수 (' + fmt(R.k) + '회)</h3><div class="logbox" tabindex="0" role="region" aria-label="회마다 나온 도수 목록">' + chips + '</div></section>' +
     '<section class="card"><h3>도수의 분포표</h3><div class="scrolltbl"><table><thead><tr><th>도수(번)</th><th>횟수(회)</th><th>상대도수</th></tr></thead><tbody>' + tr + '</tbody></table></div></section></div>';
   drawCharts();
@@ -526,8 +558,8 @@ function drawCharts() {
       wireLine(el, L, w);
     } else if (kind === 'hist' && S.rep) {
       const R = S.rep, H = R.h || histBins(R.counts, R.n);
-      const mark = (!E.remote && S.showTrue && E.p) ? ((R.n * E.p[R.pick] - (H.lo - 0.5)) / H.wd) : null;
-      el.innerHTML = barSvg(w, H.labels, H.bins, H.bins.map(() => '#7719AA'), '‘' + R.name + '’의 도수(번)', '횟수(회)', mark != null && mark >= 0 && mark <= H.bins.length ? mark : null);
+      const mark = (!E.remote && S.showTrue && E.p) ? R.n * E.p[R.pick] : null;
+      el.innerHTML = histSvg(w, H, '‘' + R.name + '’의 도수(번)', '횟수(회)', mark);
     }
   });
 }
@@ -635,13 +667,16 @@ function listHtml() {
     let extra = '';
     if (tally) { const tot = tally.e + tally.n; extra = '<div class="meta">판정 ' + fmt(tot) + '명 · 같다 ' + tally.e + '명 · 같지 않다 ' + tally.n + '명</div>'; }
     else extra = '<div class="meta">판정한 친구 ' + fmt(it.voters) + '명 (내가 판정하면 결과를 볼 수 있어요)</div>';
-    return '<article class="item"><div class="row1"><h3>' + esc(it.tool) + (it.mine ? '<span class="badge2">내가 올림</span>' : '') + (done ? '<span class="badge2 done">판정 완료</span>' : '') + '</h3><span class="meta">만든 친구: ' + esc(it.nick) + ' · ' + new Date(it.ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) + '</span></div>' +
+    return '<article class="item' + (it.feat ? ' featured' : '') + '"><div class="row1"><h3>' + (it.feat ? '<span class="badge2 feat" style="margin:0 6px 0 0">⭐ 추천</span>' : '') + esc(it.tool) + (it.mine ? '<span class="badge2">내가 올림</span>' : '') + (done ? '<span class="badge2 done">판정 완료</span>' : '') + '</h3><span class="meta">만든 친구: ' + esc(it.nick) + ' · ' + new Date(it.ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) + '</span></div>' +
       legendHtml(it.cases, null, false) + extra +
       '<div class="grp" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="open" data-id="' + esc(it.id) + '">' + (it.mine ? '실험·집계 보기' : done ? '결과 다시 보기' : '실험하고 판정하기') + '</button>' +
-      (it.mine ? '<button class="btn sm" data-act="copy" data-id="' + esc(it.id) + '">링크 복사</button><button class="btn sm danger" data-act="remove" data-id="' + esc(it.id) + '">지우기</button>' : '') + '</div></article>';
+      (it.mine ? '<button class="btn sm" data-act="copy" data-id="' + esc(it.id) + '">링크 복사</button>' : '') +
+      (adminKey ? '<button class="btn sm" data-act="feat" data-id="' + esc(it.id) + '" data-on="' + (it.feat ? '0' : '1') + '">' + (it.feat ? '⭐ 추천 해제' : '☆ 추천하기') + '</button>' : '') +
+      (it.mine || adminKey ? '<button class="btn sm danger" data-act="remove" data-id="' + esc(it.id) + '">지우기</button>' : '') + '</div></article>';
   }).join('') + '</div>';
   return '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn sm" data-act="list">↻ 새로고침</button></div>' +
-    '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 실험을 던져 보고, 각 경우가 일어날 가능성이 같은지 판단해 보세요.</p></div>' + body;
+    '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 실험을 던져 보고, 각 경우가 일어날 가능성이 같은지 판단해 보세요.</p><p class="hint">⭐ 추천 실험이 맨 위에 나와요. 그다음은 판정에 참여한 친구가 많은 실험 순서예요.</p></div>' + body +
+    '<p class="hint" style="text-align:right;margin-top:14px"><button class="btn sm" data-act="admin">' + (adminKey ? '관리자 모드 끄기' : '관리자') + '</button></p>';
 }
 async function loadItems() {
   const L = S.list; L.loading = true; L.err = false; L.msg = ''; render();
@@ -731,6 +766,17 @@ app.addEventListener('click', async ev => {
   else if (a === 'copy') {
     const url = location.origin + '/probability/sim/?e=' + b.dataset.id;
     try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요.'); } catch (e) { window.prompt('이 링크를 복사해 주세요', url); }
+  }
+  else if (a === 'admin') {
+    if (adminKey) { adminKey = ''; try { sessionStorage.removeItem('mtryu.adminkey'); } catch (e) {} toast('관리자 모드를 껐어요.'); render(); return; }
+    const k = window.prompt('관리자 암호를 입력해 주세요'); if (!k) return;
+    adminKey = k.trim();
+    try { await api({ act: 'adminping' }); try { sessionStorage.setItem('mtryu.adminkey', adminKey); } catch (e) {} toast('관리자 모드예요. 추천하기·지우기를 할 수 있어요.'); }
+    catch (e) { adminKey = ''; toast(e.status === 401 ? '암호가 맞지 않아요.' : errText(e)); }
+    render();
+  }
+  else if (a === 'feat') {
+    try { await api({ act: 'feature', id: b.dataset.id, on: b.dataset.on === '1' }); toast(b.dataset.on === '1' ? '추천 실험으로 올렸어요.' : '추천을 해제했어요.'); await loadItems(); } catch (e) { toast(errText(e)); }
   }
   else if (a === 'remove') {
     if (!window.confirm('이 실험을 지울까요? 친구들의 판단 결과도 함께 지워져요.')) return;

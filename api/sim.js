@@ -12,8 +12,12 @@
 //   {act:'rollk',   id, n, k, pick}                                    n번씩 k회, 경우 pick의 도수 k개 → { c:[…] }
 //   {act:'vote',    id, uid, choice:'e'|'n'}                           판정하기 (e=동등하다, n=동등하지 않다) → { tally, my }
 //   {act:'remove',  id, uid}                                           내가 올린 실험 지우기 (관리자는 헤더 x-admin-key 로 누구 것이든)
+//   {act:'feature', id, on:true|false}                                 추천 실험으로 올리기/내리기 (관리자만, 헤더 x-admin-key)
+//   {act:'adminping'}                                                  관리자 암호 확인 (관리자만)
 //
-// item = { id, tool, cases, nick, ts, voters, mine, my, tally? }
+// 목록 순서: 추천 실험(최근에 추천한 순) → 판정한 친구가 많은 순 → 최근에 올린 순
+//
+// item = { id, tool, cases, nick, ts, voters, feat, mine, my, tally? }
 //   my: 내가 고른 판정(없으면 null)   tally: {e, n} 은 내가 올린 실험이거나 내가 판정한 뒤에만 보내요
 
 const crypto = require('crypto');
@@ -49,7 +53,7 @@ const num = v => Number(v) || 0;
 // 밖으로 내보낼 모양 (확률 p·정답 eq·올린 사람의 uid는 절대 넣지 않아요)
 function toItem(e, cnt, my, uid) {
   const mine = !!(uid && e.uid === uid);
-  const item = { id: e.id, tool: e.tool, cases: e.cases, nick: e.nick, ts: e.ts, voters: cnt.e + cnt.n, mine, my: my === 'e' || my === 'n' ? my : null };
+  const item = { id: e.id, tool: e.tool, cases: e.cases, nick: e.nick, ts: e.ts, voters: cnt.e + cnt.n, feat: !!e.feat, featTs: e.feat || 0, mine, my: my === 'e' || my === 'n' ? my : null };
   if (mine || item.my) item.tally = { e: cnt.e, n: cnt.n };
   return item;
 }
@@ -142,8 +146,12 @@ module.exports = async function handler(req, res) {
     if (act === 'list') {
       if (!(await validYearSchool(b.year, b.school))) return send(res, 400, { error: 'bad-request' });
       if (!(await rateLimit(req, 'siml', 300, 60))) return send(res, 429, { error: 'too-many' });
-      const ids = await redis(['ZREVRANGE', kIdx(b.year, b.school), 0, LIST_MAX - 1]);
-      return send(res, 200, { items: await loadItems(ids || [], uid) });
+      // 학교·학년도의 실험 전체(최대 KEEP개)를 불러와 추천 → 참여(판정 수) → 최근 순으로 정렬해요
+      const ids = await redis(['ZREVRANGE', kIdx(b.year, b.school), 0, KEEP - 1]);
+      const items = await loadItems(ids || [], uid);
+      items.sort((a, c) => (c.featTs - a.featTs) || (c.voters - a.voters) || (c.ts - a.ts));
+      items.forEach(it => { delete it.featTs; });
+      return send(res, 200, { items: items.slice(0, LIST_MAX) });
     }
     if (act === 'get') {
       if (!okId(b.id)) return send(res, 400, { error: 'bad-request' });
@@ -164,6 +172,22 @@ module.exports = async function handler(req, res) {
       if (first) await redisMulti([['HINCRBY', kV(b.id), b.choice, 1], ['EXPIRE', kV(b.id), TTL], ['EXPIRE', kU(b.id), TTL]]);
       const r = await redisMulti([['HMGET', kV(b.id), 'e', 'n'], ['HGET', kU(b.id), uid]]);
       return send(res, 200, { tally: { e: num(r[0][0]), n: num(r[0][1]) }, my: r[1], already: !first });
+    }
+
+    // ── 관리자: 암호 확인 / 추천 실험 ──
+    if (act === 'adminping') {
+      if (!(await rateLimit(req, 'simadm', 30, 600))) return send(res, 429, { error: 'too-many' });
+      return isAdmin(req) ? send(res, 200, { ok: true }) : send(res, 401, { error: 'unauthorized' });
+    }
+    if (act === 'feature') {
+      if (!okId(b.id) || typeof b.on !== 'boolean') return send(res, 400, { error: 'bad-request' });
+      if (!(await rateLimit(req, 'simadm', 30, 600))) return send(res, 429, { error: 'too-many' });
+      if (!isAdmin(req)) return send(res, 401, { error: 'unauthorized' });
+      const e = parse(await redis(['GET', kE(b.id)]));
+      if (!e) return send(res, 404, { error: 'not-found' });
+      if (b.on) e.feat = Date.now(); else delete e.feat;
+      await redis(['SET', kE(b.id), JSON.stringify(e), 'EX', TTL]);
+      return send(res, 200, { ok: true, feat: !!e.feat });
     }
 
     // ── 지우기 ──
