@@ -94,6 +94,11 @@ label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:70
 .chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 6px;border-radius:999px;border:2px solid var(--c);background:color-mix(in srgb,var(--c) 14%,#fff);font-size:15px;font-weight:500;line-height:1.3}
 .chip i{width:12px;height:12px;border-radius:4px;background:var(--c);flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips.pick{margin-top:8px;max-height:84px;overflow-y:auto;gap:6px}
+.chips.pick .chip{cursor:pointer;font-family:inherit;color:inherit;font-size:14px;padding:2px 9px 2px 6px}
+.chips.pick .chip.off{background:#fff;opacity:.5}
+.chips.pick .allb{border-color:var(--muted);background:#fff;padding-left:10px}
+.chips.pick .allb[aria-pressed=true]{background:#2B0F3F;color:#fff;border-color:#2B0F3F}
 
 /* 실험하기 */
 .exphead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
@@ -283,7 +288,7 @@ const S = {
   tool: '', cases: [],
   exp: null,          // { tool, names, p (만든 사람만), remote:{id}|null }
   tab: 'once', n1: 100, n2: 20, k2: 50, pick: 0,
-  once: null, rep: null, ymode: 'full', hl: -1, showTrue: false, touched: false, exIdx: 0,
+  once: null, rep: null, vis: null, showTrue: false, touched: false, exIdx: 0,
   busy: false, ran: false,
   pub: { open: false, busy: false, id: null, key: '', msg: '', err: false },
   list: { items: null, msg: '', err: false, loading: false },
@@ -297,6 +302,13 @@ const app = $('#app');
 // 경우가 8개 이하면 경우마다 다른 색, 9개 이상이면 색으로는 구분하지 않고 한 가지 색(보라)으로 그려요. (색은 8가지까지만 안전하게 구분돼요)
 const cls = (i, m) => m > PAL ? 'kn' : 'k' + i;
 const col = (i, m) => m > PAL ? '#7719AA' : SC[i];
+// 상대도수 그래프에서 고른 경우만 보기: S.vis = null(모두) 또는 고른 경우 번호 목록(고른 순서)
+const lineCol = c => { const m = S.exp.names.length; if (m <= PAL) return SC[c]; const r = S.vis ? S.vis.indexOf(c) : -1; return r >= 0 && r < PAL ? SC[r] : '#7719AA'; };
+function pickHtml(names) {
+  const all = !S.vis;
+  return '<div class="chips pick" id="pick1" role="group" aria-label="그래프에 보일 경우 고르기"><button type="button" class="chip allb" data-pick="all" aria-pressed="' + all + '">모두 보기</button>' +
+    names.map((n, i) => { const on = all || S.vis.indexOf(i) >= 0; return '<button type="button" class="chip' + (on ? '' : ' off') + '" data-pick="' + i + '" aria-pressed="' + (!all && on) + '" style="--c:' + lineCol(i) + '"><i></i>' + esc(n) + '</button>'; }).join('') + '</div>';
+}
 
 /* ---------- 만들기 도우미 ---------- */
 // 입력칸은 모두 빈칸으로 시작하고, 흐린 글씨(placeholder)로 예시만 보여줘요.
@@ -537,28 +549,21 @@ function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
   return s;
 }
 
-function lineSvg(w, R0, names, p, showP, ymode, hl) {
+function lineSvg(w, R0, names, p, showP, vis, colf) {
   const h = chartH(), L = 52, R = 14, T = 16, B = 46, pw = w - L - R, ph = h - T - B, n = R0.n, m = names.length;
-  let ymax = 1;
-  if (ymode === 'auto') {
-    let mx = 0; const from = Math.max(1, Math.ceil(n * 0.1));
-    R0.xs.forEach((x, i) => { if (x >= from) for (let c = 0; c < m; c++) mx = Math.max(mx, R0.ys[c][i]); });
-    if (showP && p) mx = Math.max(mx, Math.max.apply(null, p));
-    const cand = [0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]; mx = Math.max(mx * 1.12, 0.1);
-    ymax = cand.find(v => v >= mx) || 1;
-  }
+  const ymax = 1;
   const X = t => L + pw * (t / n), Y = v => T + ph * (1 - v / ymax);
   let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="던진 횟수에 따른 상대도수 변화 꺾은선그래프"><defs><clipPath id="clipL"><rect x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '"/></clipPath></defs>';
-  const ystep = ymax === 1 ? 0.25 : niceStep(ymax / 4);
+  const ystep = 0.25;
   for (let v = 0; v <= ymax + 1e-9; v += ystep) { const y = Y(v); s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (Math.round(v * 1000) / 1000) + '</text>'; }
   s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
   for (let i = 0; i <= 4; i++) { const t = Math.round(n * i / 4); s += '<text x="' + X(t) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + fmt(t) + '</text>'; }
   s += '<text x="' + (L + pw / 2) + '" y="' + (h - 6) + '" text-anchor="middle">던진 횟수(번)</text><text x="14" y="' + (T + ph / 2) + '" transform="rotate(-90 14 ' + (T + ph / 2) + ')" text-anchor="middle">상대도수</text>';
   s += '<g clip-path="url(#clipL)">';
-  const many = m > PAL, pts = c => R0.xs.map((x, i) => X(x).toFixed(1) + ',' + Y(R0.ys[c][i]).toFixed(1)).join(' ');
-  if (showP && p) p.forEach((v, c) => { s += '<line x1="' + L + '" x2="' + (w - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + col(c, m) + '" stroke-width="1.5" stroke-dasharray="6 5" opacity="' + (many ? '.35' : '.75') + '"/>'; });
-  for (let c = 0; c < m; c++) { if (many && c === hl) continue; s += '<polyline fill="none" stroke="' + col(c, m) + '" stroke-width="' + (many ? 1.5 : 2) + '" opacity="' + (many ? '.4' : '1') + '" stroke-linejoin="round" points="' + pts(c) + '"/>'; }
-  if (many && hl >= 0 && hl < m) s += '<polyline fill="none" stroke="#D81B7A" stroke-width="3" stroke-linejoin="round" points="' + pts(hl) + '"/>';
+  const pts = c => R0.xs.map((x, i) => X(x).toFixed(1) + ',' + Y(R0.ys[c][i]).toFixed(1)).join(' ');
+  const shown = c => !vis || vis.indexOf(c) >= 0, faint = m > PAL && !vis;
+  if (showP && p) p.forEach((v, c) => { if (shown(c)) s += '<line x1="' + L + '" x2="' + (w - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + colf(c) + '" stroke-width="1.5" stroke-dasharray="6 5" opacity=".55"/>'; });
+  for (let c = 0; c < m; c++) { if (!shown(c)) continue; s += '<polyline fill="none" stroke="' + colf(c) + '" stroke-width="' + (faint ? 1.5 : 2) + '" opacity="' + (faint ? '.4' : '1') + '" stroke-linejoin="round" points="' + pts(c) + '"/>'; }
   s += '</g><line id="cross" x1="0" x2="0" y1="' + T + '" y2="' + (T + ph) + '" stroke="#2B0F3F" stroke-width="1" opacity="0"/>';
   s += '<rect id="hit" x="' + L + '" y="' + T + '" width="' + pw + '" height="' + ph + '" fill="transparent"/></svg>';
   return { svg: s, L: L, pw: pw, T: T };
@@ -617,9 +622,8 @@ function paintOnce() {
       '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>설정한 확률</th>' : '') + '</tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div>';
     const barSec = '<section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>';
     const lineSec =
-      '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="opts"><label>세로축 <select id="ymode" aria-label="세로축 범위"><option value="full"' + (S.ymode === 'full' ? ' selected' : '') + '>0 ~ 1 전체</option><option value="auto"' + (S.ymode === 'auto' ? ' selected' : '') + '>자동 확대</option></select></label>' +
-      (m > PAL ? '<label>강조할 경우 <select id="hl" aria-label="강조할 경우"><option value="-1">없음</option>' + names.map((n, i) => '<option value="' + i + '"' + (S.hl === i ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' : '') + '</div><div class="chart" data-chart="line1"></div>' +
-      (m > PAL ? '<p class="hint"><span style="color:#7719AA">■</span> 보라색 선: 각 경우 · <span style="color:#D81B7A">■</span> 분홍색 선: 강조한 경우</p>' : legendHtml(names, null, false)) + '<p class="hint">던진 횟수가 늘수록 상대도수가 어떻게 변하는지 살펴봐요. 처음에는 크게 흔들려서 그래프 위로 벗어날 수 있어요.</p></section>';
+      '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="chart" data-chart="line1"></div>' + pickHtml(names) +
+      '<p class="hint">이름표를 누르면 그 경우만 보여요. 여러 개를 고를 수 있어요.</p></section>';
     // 학생 화면: 왼쪽에 상대도수 변화 그래프, 오른쪽에 던진 결과와 도수 표를 작게 위아래로 (그래프 높이를 넘지 않게)
     const sideSec =
       '<div class="side"><div class="sidein"><section class="card"><h3><span id="h1"></span><small id="cap1"></small></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div></section>' +
@@ -662,7 +666,7 @@ function drawCharts() {
     if (kind === 'sthist') { const st = S.play.stats; if (st) el.innerHTML = dotSvg(w, statsSel(st), S.play.sf); return; }
     if (kind === 'bar1' && S.once) el.innerHTML = barSvg(w, E.names, S.once.counts, E.names.map((_, i) => col(i, E.names.length)), '', '도수(번)', null, true);
     else if (kind === 'line1' && S.once) {
-      const L = lineSvg(w, S.once, E.names, E.p, !E.remote && S.showTrue, S.ymode, S.hl); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
+      const L = lineSvg(w, S.once, E.names, E.p, !E.remote && S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
       wireLine(el, L, w);
     } else if (kind === 'hist' && S.rep) {
       const R = S.rep, H = R.h || histBins(R.counts, R.n);
@@ -681,9 +685,11 @@ function wireLine(el, L, w) {
     const x = L.L + L.pw * (R.xs[bi] / R.n);
     cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.setAttribute('opacity', '.5');
     const m = names.length, vals = R.ys.map(a => a[bi]);
-    tip.innerHTML = '<b>' + fmt(R.xs[bi]) + '번째까지</b><br>' + (m > PAL
-      ? '상대도수 ' + r3(Math.min.apply(null, vals)) + ' ~ ' + r3(Math.max.apply(null, vals)) + (S.hl >= 0 ? '<br><span style="color:#D81B7A">■</span> ' + esc(short(names[S.hl], 8)) + ' ' + r3(vals[S.hl]) : '<br>강조할 경우를 고르면 값이 보여요')
-      : names.map((n, c) => '<span style="color:' + col(c, m) + '">■</span> ' + esc(short(n, 8)) + ' ' + r3(vals[c])).join('<br>'));
+    const idx = []; for (let c = 0; c < m; c++) if (!S.vis || S.vis.indexOf(c) >= 0) idx.push(c);
+    const line = c => '<span style="color:' + lineCol(c) + '">■</span> ' + esc(short(names[c], 8)) + ' ' + r3(vals[c]);
+    tip.innerHTML = '<b>' + fmt(R.xs[bi]) + '번째까지</b><br>' + (idx.length > PAL
+      ? '상대도수 ' + r3(Math.min.apply(null, idx.map(c => vals[c]))) + ' ~ ' + r3(Math.max.apply(null, idx.map(c => vals[c]))) + '<br>이름표를 눌러 경우를 골라 보세요'
+      : idx.map(line).join('<br>'));
     tip.hidden = false;
     const tw = tip.offsetWidth, left = (x / w) * rect.width + 12;
     tip.style.left = (left + tw > rect.width ? Math.max(0, left - tw - 24) : left) + 'px'; tip.style.top = '12px';
@@ -789,7 +795,7 @@ function openPlay(it) {
   const view = (it.mine || adminKey) ? 'stats' : 'live';
   S.play = { id: it.id, my: it.my || null, tally: it.tally || null, mine: !!it.mine, pick: null, busy: false, msg: '', err: false, view, sf: 'all', stats: null,
     reveal: it.my ? { eq: it.eq, ok: it.ok, n: it.myN } : null };
-  liveReset(); S.once = null; S.rep = null; S.pick = 0; S.hl = -1; S.ran = false; S.tab = 'once'; S.screen = 'play'; render(); window.scrollTo(0, 0);
+  liveReset(); S.once = null; S.rep = null; S.pick = 0; S.vis = null; S.ran = false; S.tab = 'once'; S.screen = 'play'; render(); window.scrollTo(0, 0);
   if (view === 'stats') loadStats();
 }
 const CAVEAT = '만든 친구가 정한 확률이 정답이에요. 0.48과 0.52처럼 거의 비슷한 경우에는 던져서 구분하기가 사실상 어려워요.';
@@ -897,11 +903,19 @@ function render() {
 function startExperiment() {
   const ck = checkBuild(); if (!ck.ok) return;
   S.exp = { tool: S.tool.trim(), names: S.cases.map(c => c.name.trim()), p: ck.p, remote: null };
-  S.once = null; S.rep = null; S.pick = 0; S.hl = -1; S.ran = false; S.tab = 'once'; S.showTrue = false; S.pub = { open: false, busy: false, id: null, key: '', msg: '', err: false };
+  S.once = null; S.rep = null; S.pick = 0; S.vis = null; S.ran = false; S.tab = 'once'; S.showTrue = false; S.pub = { open: false, busy: false, id: null, key: '', msg: '', err: false };
   S.screen = 'lab'; render(); window.scrollTo(0, 0);
 }
 
 app.addEventListener('click', async ev => {
+  const pk = ev.target.closest('[data-pick]');
+  if (pk && S.exp) {
+    const v = pk.dataset.pick, m = S.exp.names.length;
+    if (v === 'all') S.vis = null;
+    else { const i = Number(v), cur = S.vis ? S.vis.slice() : [], k = cur.indexOf(i); if (k >= 0) cur.splice(k, 1); else cur.push(i); S.vis = cur.length && cur.length < m ? cur : null; }
+    const box = $('#pick1'); if (box) box.outerHTML = pickHtml(S.exp.names);
+    drawCharts(); return;
+  }
   const b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
   const a = b.dataset.act, v = b.dataset.v, i = Number(b.dataset.i);
   if (a === 'mode') { S.mode = v; defaults(v); S.screen = 'build'; render(); window.scrollTo(0, 0); }
@@ -963,8 +977,6 @@ app.addEventListener('input', ev => {
 app.addEventListener('change', ev => {
   const t = ev.target;
   if (t.id === 'showTrue') { S.showTrue = t.checked; const lg = $('.exphead .chips'); if (lg) lg.outerHTML = legendHtml(S.exp.names, S.exp.p, S.showTrue); paintOnce(); paintRep(); }
-  else if (t.id === 'ymode') { S.ymode = t.value; drawCharts(); }
-  else if (t.id === 'hl') { S.hl = Number(t.value); drawCharts(); }
   else if (t.id === 'pick') { S.pick = Number(t.value); }
   else if (t.id === 'sf') { S.play.sf = t.value; paintStats(); }
 });
