@@ -111,6 +111,10 @@ th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;font
 th:first-child,td:first-child{text-align:left}
 th{font-size:14px;color:var(--muted);font-weight:700;border-bottom:2px solid var(--ink)}
 tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
+.compact .logbox{height:110px}
+.compact .scrolltbl{max-height:150px}
+#livecard .ctl{position:sticky;top:var(--labbar-h,0px);z-index:5;background:#fff;padding:10px 0 8px;border-bottom:2px solid var(--line);align-items:center}
+#livecard .msg:empty{display:none}
 .scrolltbl{max-height:260px;overflow:auto;border:2px solid var(--line);border-radius:12px}
 .chart{position:relative;width:100%;min-height:120px}
 .chart svg{display:block;width:100%;height:auto;overflow:visible}
@@ -424,8 +428,8 @@ function labHtml() {
 }
 
 function liveHtml(title) {
-  return '<div class="card" id="livecard">' + (title ? '<h2>' + title + '</h2>' : '') + '<div class="ctl"><button class="btn" id="liveone" data-act="liveone">🎲 던지기</button><button class="btn primary" id="livego" data-act="livego">▶ 계속 던지기</button><button class="btn" id="livestop" data-act="livestop">⏸ 멈춤</button></div>' +
-    '<p class="hint" style="margin-top:10px">지금까지 <b id="livecnt">0</b>번 던졌어요. (최대 ' + fmt(MAX_LIVE) + '번까지)</p><p id="livemsg" class="msg"></p><div id="res1"></div></div>';
+  return '<div class="card" id="livecard">' + (title ? '<h2>' + title + '</h2>' : '') + '<div class="ctl"><button class="btn" id="liveone" data-act="liveone">🎲 던지기</button><button class="btn primary" id="livego" data-act="livego">▶ 계속 던지기</button><button class="btn" id="livestop" data-act="livestop">⏸ 멈춤</button><span class="hint" style="align-self:center">지금까지 <b id="livecnt">0</b>번 (최대 ' + fmt(MAX_LIVE) + '번)</span></div>' +
+    '<p id="livemsg" class="msg" style="margin:0"></p><div id="res1" style="margin-top:12px"></div></div>';
 }
 function syncLive() {
   const L = S.live, go = $('#livego'), st = $('#livestop'), one = $('#liveone'); if (!go) return;
@@ -499,10 +503,11 @@ function analyzeOnce(idx, m) {
 function niceStep(raw) { const e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
 
 /* ---------- 그래프 (SVG, 화면 폭에 맞춰 글자 크기를 유지해요) ---------- */
+const chartH = () => (S.exp && S.exp.remote ? 260 : 320);
 function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
   const names = labels, m0 = vals.length, mc = Math.max(2, Math.floor(((w - 64) / m0) / 8));
   if (idxMode && mc < 3 && labels.some(l => String(l).length > mc)) { labels = labels.map((_, i) => String(i + 1)); xTitle = xTitle || '경우 번호 (표의 순서)'; }   // 이름이 안 들어갈 만큼 많으면 번호로
-  const h = 320, L = 52, R = 12, T = 26, B = 52 + (xTitle ? 18 : 0), pw = w - L - R, ph = h - T - B, m = vals.length;
+  const h = chartH(), L = 52, R = 12, T = 26, B = 52 + (xTitle ? 18 : 0), pw = w - L - R, ph = h - T - B, m = vals.length;
   const mx = Math.max(1, Math.max.apply(null, vals)), step = niceStep(mx / 4), ymax = step * Math.ceil(mx / step);
   let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(yTitle) + ' 막대그래프">';
   for (let v = 0; v <= ymax + 1e-9; v += step) {
@@ -526,7 +531,7 @@ function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
 }
 
 function lineSvg(w, R0, names, p, showP, ymode, hl) {
-  const h = 320, L = 52, R = 14, T = 16, B = 46, pw = w - L - R, ph = h - T - B, n = R0.n, m = names.length;
+  const h = chartH(), L = 52, R = 14, T = 16, B = 46, pw = w - L - R, ph = h - T - B, n = R0.n, m = names.length;
   let ymax = 1;
   if (ymode === 'auto') {
     let mx = 0; const from = Math.max(1, Math.ceil(n * 0.1));
@@ -600,13 +605,17 @@ function paintOnce() {
   const sig = (showP ? 'p' : 'n') + m + (live ? 'L' : '');
   if (box.dataset.sig !== sig || !$('#lg1')) {
     box.dataset.sig = sig;
-    box.innerHTML =
+    const tables =
       '<div class="grid2"><section class="card"><h3 id="h1"></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div><p class="hint">칸에 마우스를 올리면 몇 번째인지 보여요.<span id="cap1"></span></p></section>' +
-      '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>설정한 확률</th>' : '') + '</tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div>' +
+      '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>설정한 확률</th>' : '') + '</tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div>';
+    const graphs =
       '<div class="grid2"><section class="card"><h3>도수 막대그래프</h3><div class="chart" data-chart="bar1"></div></section>' +
       '<section class="card"><h3>던진 횟수에 따른 상대도수의 변화</h3><div class="opts"><label>세로축 <select id="ymode" aria-label="세로축 범위"><option value="full"' + (S.ymode === 'full' ? ' selected' : '') + '>0 ~ 1 전체</option><option value="auto"' + (S.ymode === 'auto' ? ' selected' : '') + '>자동 확대</option></select></label>' +
       (m > PAL ? '<label>강조할 경우 <select id="hl" aria-label="강조할 경우"><option value="-1">없음</option>' + names.map((n, i) => '<option value="' + i + '"' + (S.hl === i ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' : '') + '</div><div class="chart" data-chart="line1"></div>' +
       (m > PAL ? '<p class="hint"><span style="color:#7719AA">■</span> 보라색 선: 각 경우 · <span style="color:#D81B7A">■</span> 분홍색 선: 강조한 경우</p>' : legendHtml(names, null, false)) + '<p class="hint">던진 횟수가 늘수록 상대도수가 어떻게 변하는지 살펴봐요. 처음에는 크게 흔들려서 그래프 위로 벗어날 수 있어요.</p></section></div>';
+    // 학생 화면: 버튼 바로 아래에 그래프를 두고, 던진 결과·도수 표는 작게 그 아래에
+    box.classList.toggle('compact', live);
+    box.innerHTML = live ? graphs + tables : tables + graphs;
   }
   const from = live ? Math.max(0, R.n - LIVE_CHIPS) : 0;
   let chips = ''; for (let i = from; i < R.n; i++) { const c = R.idx[i]; chips += '<i class="rc ' + cls(c, m) + '" title="' + (i + 1) + '번째: ' + esc(names[c]) + '">' + esc(lab[c]) + '</i>'; }
