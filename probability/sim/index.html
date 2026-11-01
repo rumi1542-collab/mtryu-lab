@@ -277,9 +277,9 @@ const S = {
   pub: { open: false, busy: false, id: null, key: '', msg: '', err: false },
   list: { items: null, msg: '', err: false, loading: false },
   play: { id: '', my: null, tally: null, mine: false, pick: null, busy: false, msg: '', err: false, view: 'live', reveal: null, stats: null, sf: 'all' },
-  live: { idx: [], n: 0, running: false, rate: 0, timer: null, busy: false, tok: '', msg: '' }
+  live: { idx: [], n: 0, running: false, timer: null, busy: false, tok: '', msg: '', queue: [], fTotal: 0, fTok: '', gen: 0, dirty: false, frame: 0 }
 };
-const MAX_LIVE = 20000, LIVE_CHIPS = 400, TICK = 1, FAST = 20;
+const MAX_LIVE = 20000, LIVE_CHIPS = 400, FAST = 20, STEP_MS = 50, BUF = 30, FLUSH_EVERY = 3;
 let listCount = null;   // 홈에 보여줄 우리 학교 실험 수
 
 const app = $('#app');
@@ -435,31 +435,55 @@ function syncLive() {
   const c = $('#livecnt'); if (c) c.textContent = fmt(L.n);
   const m = $('#livemsg'); if (m) { m.textContent = L.msg || ''; m.className = 'msg' + (L.msg ? ' err' : ''); }
 }
-function stopLive() { const L = S.live; if (L.timer) { clearInterval(L.timer); L.timer = null; } L.running = false; syncLive(); paintJudge(); }
-function liveReset() { stopLive(); S.live = { idx: [], n: 0, running: false, rate: 0, timer: null, busy: false, tok: '', msg: '' }; }
+function flushLive() {
+  const L = S.live; if (!L.dirty || !S.exp) return;
+  L.dirty = false; S.once = analyzeOnce(L.idx, S.exp.names.length); S.ran = true; paintOnce();
+}
+function stopLive(noFlush) {
+  const L = S.live;
+  if (L.timer) { clearInterval(L.timer); L.timer = null; }
+  if (!noFlush) flushLive();
+  L.running = false; L.gen++; L.busy = false; L.queue = []; L.fTotal = L.n; L.fTok = L.tok;   // 아직 안 보여 준 것은 버려요
+  syncLive(); if (!noFlush) paintJudge();
+}
+function liveReset() { stopLive(true); const g = S.live.gen + 1; S.live = { idx: [], n: 0, running: false, timer: null, busy: false, tok: '', msg: '', queue: [], fTotal: 0, fTok: '', gen: g, dirty: false, frame: 0 }; }
+// 서버에서 count번 던진 결과를 받아 줄에 세워 둬요 (하나씩 보여 주려고)
+async function fetchBatch(count) {
+  const L = S.live; if (L.busy) return;
+  const n = Math.min(count, MAX_LIVE - L.fTotal); if (n <= 0) return;
+  const g = L.gen, E = S.exp; L.busy = true; syncLive();
+  try {
+    const j = await api({ act: 'step', id: E.remote.id, uid: ME.uid, n, total: L.fTotal, tok: L.fTok, preview: S.play.view === 'stats' });
+    if (g !== L.gen) return;
+    const r = String(j.r || ''), toks = j.toks;
+    if (r.length !== n || !Array.isArray(toks) || toks.length !== n) throw new Error('bad');
+    for (let i = 0; i < n; i++) L.queue.push({ c: r.charCodeAt(i) - 48, total: L.fTotal + i + 1, tok: toks[i] });
+    L.fTotal += n; L.fTok = toks[n - 1];
+  } catch (e) { if (g !== L.gen) return; stopLive(); L.msg = errText(e); syncLive(); return; }
+  L.busy = false; syncLive();
+}
+function revealOne() {
+  const L = S.live, it = L.queue.shift(); if (!it) return false;
+  L.idx.push(it.c); L.n = it.total; L.tok = it.tok; L.dirty = true;
+  const c = $('#livecnt'); if (c) c.textContent = fmt(L.n);
+  return true;
+}
 async function startLive() {
   const L = S.live; if (L.running || L.busy || S.play.my || L.n >= MAX_LIVE) return;
   const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
-  L.running = true; L.msg = ''; syncLive(); liveStep(FAST); L.timer = setInterval(() => liveStep(FAST), TICK * 1000);
+  L.running = true; L.msg = ''; syncLive(); paintJudge();
+  L.timer = setInterval(() => {
+    if (!L.running) return;
+    if (L.queue.length < BUF && !L.busy && L.fTotal < MAX_LIVE) fetchBatch(FAST);
+    if (revealOne()) { if (++L.frame % FLUSH_EVERY === 0) flushLive(); }
+    else if (L.fTotal >= MAX_LIVE && !L.busy) { stopLive(); L.msg = ERR.limit; syncLive(); }
+  }, STEP_MS);
 }
 async function throwOnce() {
   const L = S.live; if (L.running || L.busy || S.play.my || L.n >= MAX_LIVE) return;
   const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
-  L.msg = ''; await liveStep(1, true);
-}
-async function liveStep(count, single) {
-  const L = S.live; if (!single && !L.running) return; if (L.busy) return;
-  L.busy = true; syncLive();
-  const E = S.exp, m = E.names.length, n = Math.min(count, MAX_LIVE - L.n);
-  try {
-    const j = await api({ act: 'step', id: E.remote.id, uid: ME.uid, n, total: L.n, tok: L.tok, preview: S.play.view === 'stats' });
-    const r = String(j.r || ''); if (r.length !== n) throw new Error('bad');
-    L.tok = j.tok || '';
-    for (let i = 0; i < n; i++) L.idx.push(r.charCodeAt(i) - 48);
-    L.n = L.idx.length; S.once = analyzeOnce(L.idx, m); S.ran = true; paintOnce();
-    if (L.n >= MAX_LIVE) { stopLive(); L.msg = ERR.limit; }
-  } catch (e) { stopLive(); L.msg = errText(e); }
-  L.busy = false; syncLive(); paintJudge();
+  L.msg = ''; await fetchBatch(1);
+  if (revealOne()) { flushLive(); syncLive(); paintJudge(); }
 }
 
 /* ---------- 실험 결과 계산 ---------- */
