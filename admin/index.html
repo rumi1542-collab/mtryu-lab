@@ -187,7 +187,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   ];
   var BYID = {}; NODES.forEach(function (n) { if (n.id) BYID[n.id] = n; });
 
-  var S = { key: '', node: 'overview', tab: 'stats', days: 7, cfg: null, rec: { year: 0, school: '', sort: 'rank', q: '', offset: 0, sel: {}, data: null, seq: 0 }, seq: 0 };
+  var S = { key: '', node: 'overview', tab: 'stats', days: 7, cfg: null, rec: { year: 0, school: '', sort: 'rank', q: '', cls: '', offset: 0, sel: {}, data: null, seq: 0 }, seq: 0 };
   try { S.key = sessionStorage.getItem('mtryu.adminkey') || ''; } catch (e) {}
 
   /* ── 서버 호출 ── */
@@ -242,7 +242,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function go(id) {
     S.node = id; var n = BYID[id];
     S.tab = (n.units || n.id === 'overview') ? 'stats' : (n.game ? 'records' : 'stats');
-    S.rec.offset = 0; S.rec.sel = {}; S.rec.data = null; S.rec.q = '';
+    S.rec.offset = 0; S.rec.sel = {}; S.rec.data = null; S.rec.q = ''; S.rec.cls = ''; S.rec.clsLoaded = '';
     renderNav(); render();
   }
   $('#side').addEventListener('click', function (e) { var b = e.target.closest('.nv'); if (b) go(b.getAttribute('data-id')); });
@@ -366,9 +366,9 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     var n = BYID[S.node];
     ensureCfg().then(function (c) {
       var R = S.rec, my = ++R.seq;
-      var q = '/api/admin?op=records&game=' + n.game + '&year=' + R.year + '&school=' + encodeURIComponent(R.school) + '&sort=' + R.sort + '&offset=' + R.offset + '&limit=' + PAGE + '&q=' + encodeURIComponent(R.q);
+      var q = '/api/admin?op=records&game=' + n.game + '&year=' + R.year + '&school=' + encodeURIComponent(R.school) + '&sort=' + R.sort + '&offset=' + R.offset + '&limit=' + PAGE + '&q=' + encodeURIComponent(R.q) + (R.cls ? '&cls=' + R.cls : '');
       paintRecordsFrame(c, null);
-      return api(q).then(function (d) { if (my !== R.seq) return; R.data = d; paintRecordsFrame(c, d); }, function (e) { if (my === R.seq) { $('#rtable').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
+      return api(q).then(function (d) { if (my !== R.seq) return; R.data = d; paintRecordsFrame(c, d); if (!R.clsLoaded || R.clsLoaded !== R.year + '|' + R.school + '|' + n.game) { R.clsLoaded = R.year + '|' + R.school + '|' + n.game; loadClassOptions(); } }, function (e) { if (my === R.seq) { $('#rtable').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
     }, function (e) { fail(e); });
   }
   function selCount() { return Object.keys(S.rec.sel).length; }
@@ -379,13 +379,16 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
         '<div class="flt"><label>학년도<select id="ry" class="in">' + c.years.map(function (y) { return '<option value="' + y + '"' + (y === R.year ? ' selected' : '') + '>' + y + '학년도</option>'; }).join('') + '</select></label>' +
         '<label>학교<select id="rs" class="in">' + c.schools.map(function (s) { return '<option value="' + esc(s) + '"' + (s === R.school ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>' +
         '<label>정렬<select id="rt" class="in"><option value="recent">최근순</option><option value="rank">순위순</option><option value="oldest">오래된 순</option></select></label>' +
+        '<label>반<select id="rc" class="in"><option value="">전체</option></select></label>' +
         '<label>별명 찾기<span style="display:flex;gap:6px"><input id="rq" class="in" maxlength="8" placeholder="별명" style="width:130px"><button type="button" class="bt" id="rfind">찾기</button></span></label></div>' +
-        '<div class="bar2"><span id="rinfo" class="crumb"></span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="bt danger" id="rdelsel" disabled>선택 삭제</button><button type="button" class="bt danger" id="rdelall">이 학교·학년도 전체 삭제</button></span></div>' +
+        '<div class="bar2"><span id="rinfo" class="crumb"></span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="bt" id="rclssel" disabled>선택한 기록 반 바꾸기</button><button type="button" class="bt danger" id="rdelsel" disabled>선택 삭제</button><button type="button" class="bt danger" id="rdelall">이 학교·학년도 전체 삭제</button></span></div>' +
         '<div id="rtable"></div><div id="rpager" class="pager"></div></div>';
       $('#rt').value = R.sort;
-      $('#ry').onchange = function () { R.year = Number(this.value); R.offset = 0; R.sel = {}; loadRecords(); };
-      $('#rs').onchange = function () { R.school = this.value; R.offset = 0; R.sel = {}; loadRecords(); };
+      $('#ry').onchange = function () { R.year = Number(this.value); R.offset = 0; R.sel = {}; R.cls = ''; loadRecords(); };
+      $('#rs').onchange = function () { R.school = this.value; R.offset = 0; R.sel = {}; R.cls = ''; loadRecords(); };
       $('#rt').onchange = function () { R.sort = this.value; R.offset = 0; loadRecords(); };
+      $('#rc').onchange = function () { R.cls = this.value; R.offset = 0; loadRecords(); };
+      $('#rclssel').onclick = setClassSelected;
       function find() { R.q = $('#rq').value.trim(); R.offset = 0; loadRecords(); }
       $('#rfind').onclick = find; $('#rq').onkeydown = function (e) { if (e.key === 'Enter') find(); };
       $('#rdelsel').onclick = delSelected; $('#rdelall').onclick = delAll;
@@ -395,8 +398,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     if (!d.items.length) $('#rtable').innerHTML = '<p class="empty">' + (R.q ? '찾는 별명이 없어요.' : '이 학교·학년도에는 아직 기록이 없어요.') + '</p>';
     else {
       var allOn = d.items.every(function (x) { return R.sel[x.id]; });
-      $('#rtable').innerHTML = '<div class="tw"><table><thead><tr><th><input type="checkbox" id="rall" aria-label="이 쪽 모두 선택"' + (allOn ? ' checked' : '') + '></th><th class="num">순위</th><th>별명</th><th>기록</th><th>시각</th><th>기기</th></tr></thead><tbody>' +
-        d.items.map(function (x) { return '<tr class="' + (R.sel[x.id] ? 'sel' : '') + '"><td><input type="checkbox" data-id="' + esc(x.id) + '"' + (R.sel[x.id] ? ' checked' : '') + ' aria-label="' + esc(x.name) + ' 선택"></td><td class="num">' + x.rank + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.summary) + '</td><td>' + esc(timeKST(x.ts)) + '</td><td style="color:var(--muted)">' + (x.uid ? esc(x.uid) : '-') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      $('#rtable').innerHTML = '<div class="tw"><table><thead><tr><th><input type="checkbox" id="rall" aria-label="이 쪽 모두 선택"' + (allOn ? ' checked' : '') + '></th><th class="num">순위</th><th>별명</th><th>반</th><th>기록</th><th>시각</th><th>기기</th></tr></thead><tbody>' +
+        d.items.map(function (x) { return '<tr class="' + (R.sel[x.id] ? 'sel' : '') + '"><td><input type="checkbox" data-id="' + esc(x.id) + '"' + (R.sel[x.id] ? ' checked' : '') + ' aria-label="' + esc(x.name) + ' 선택"></td><td class="num">' + x.rank + '</td><td>' + esc(x.name) + '</td><td>' + esc(clsLabel(x.gr, x.cl)) + '</td><td>' + esc(x.summary) + '</td><td>' + esc(timeKST(x.ts)) + '</td><td style="color:var(--muted)">' + (x.uid ? esc(x.uid) : '-') + '</td></tr>'; }).join('') + '</tbody></table></div>';
       $('#rtable').querySelectorAll('input[data-id]').forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute('data-id'); if (cb.checked) R.sel[id] = 1; else delete R.sel[id]; cb.closest('tr').classList.toggle('sel', cb.checked); syncSel(); }; });
       $('#rall').onchange = function () { var on = this.checked; d.items.forEach(function (x) { if (on) R.sel[x.id] = 1; else delete R.sel[x.id]; }); paintRecordsFrame(c, d); };
     }
@@ -405,7 +408,51 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     if ($('#rprev')) { $('#rprev').onclick = function () { R.offset = Math.max(0, R.offset - PAGE); loadRecords(); }; $('#rnext').onclick = function () { R.offset += PAGE; loadRecords(); }; }
     syncSel();
   }
-  function syncSel() { var b = $('#rdelsel'); if (!b) return; var n = selCount(); b.disabled = !n; b.textContent = n ? '선택한 ' + n + '건 삭제' : '선택 삭제'; }
+  function clsLabel(gr, cl) { return gr == null || cl == null ? '반 없음' : gr + '학년 ' + cl + '반'; }
+  function syncSel() {
+    var b = $('#rdelsel'); if (!b) return; var n = selCount(); b.disabled = !n; b.textContent = n ? '선택한 ' + n + '건 삭제' : '선택 삭제';
+    var c = $('#rclssel'); if (c) { c.disabled = !n; c.textContent = n ? '선택한 ' + n + '건 반 바꾸기' : '선택한 기록 반 바꾸기'; }
+  }
+  /* 반 고르기 목록: 이 학교·학년도에 기록이 있는 학년·반 (현재 보는 게임 기준) */
+  function loadClassOptions() {
+    var n = BYID[S.node], R = S.rec, sel = $('#rc'); if (!sel || !n.game) return;
+    var url = (n.game === 'river' ? '/api/scores?' : '/api/coin?game=' + n.game + '&') + 'year=' + R.year + '&school=' + encodeURIComponent(R.school) + '&classes=1';
+    fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      if (!$('#rc')) return;
+      var cur = R.cls, opts = '<option value="">전체</option>' + ((j && j.classes) || []).map(function (c) { var v = c.gr + '-' + c.cl; return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + esc(clsLabel(c.gr, c.cl)) + ' (' + fmt(c.n) + ')</option>'; }).join('');
+      if (cur && opts.indexOf('value="' + cur + '"') < 0) { R.cls = ''; }
+      $('#rc').innerHTML = opts;
+    }, function () {});
+  }
+  /* 고른 기록의 반(과 학년) 바꾸기 — 내 테스트 기록을 0반으로 옮길 때 써요 */
+  function setClassSelected() {
+    var ids = Object.keys(S.rec.sel); if (!ids.length) return;
+    var m = $('#modal'), last = document.activeElement;
+    m.innerHTML = '<div class="mb" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">' + ids.length + '건의 반을 바꿀까요?</h2>' +
+      '<p>순위와 점수는 그대로이고, 반만 바뀌어요. 학년을 비워 두면 각 기록의 학년은 그대로 둬요.</p>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center">학년 <input id="cg" class="in" type="text" inputmode="numeric" maxlength="1" style="width:64px" placeholder="그대로"></label>' +
+      '<label style="display:flex;gap:6px;align-items:center">반 <input id="cc" class="in" type="text" inputmode="numeric" maxlength="2" style="width:64px" value="0"></label></div>' +
+      '<p class="err" id="cerr"></p><div class="row"><button type="button" class="bt" id="mno">취소</button><button type="button" class="bt pri" id="myes">바꾸기</button></div></div>';
+    m.hidden = false;
+    function done() { m.hidden = true; m.innerHTML = ''; document.removeEventListener('keydown', key, true); try { last.focus(); } catch (e) {} }
+    function key(e) { if (e.key === 'Escape') { e.preventDefault(); done(); } }
+    document.addEventListener('keydown', key, true);
+    $('#mno').onclick = done;
+    $('#myes').onclick = function () {
+      var g = $('#cg').value.trim(), c = $('#cc').value.trim(), err = $('#cerr');
+      if (!/^\d{1,2}$/.test(c) || Number(c) > 30) { err.textContent = '반은 0~30 사이 숫자로 써 주세요.'; return; }
+      if (g !== '' && (!/^\d$/.test(g) || Number(g) > 6)) { err.textContent = '학년은 0~6 사이 숫자로 쓰거나 비워 두세요.'; return; }
+      var n = BYID[S.node], R = S.rec, body = { game: n.game, year: R.year, school: R.school, ids: ids, cl: Number(c) };
+      if (g !== '') body.gr = Number(g);
+      $('#myes').disabled = true;
+      var chunks = []; for (var i = 0; i < ids.length; i += 200) chunks.push(ids.slice(i, i + 200));
+      var changed = 0, skipped = 0;
+      chunks.reduce(function (p, ch) { return p.then(function () { var b = Object.assign({}, body, { ids: ch }); return api('/api/admin?op=setclass', { method: 'POST', body: b }).then(function (j) { changed += (j && j.changed) || 0; skipped += (j && j.skipped) || 0; }); }); }, Promise.resolve())
+        .then(function () { done(); R.sel = {}; toast(changed + '건의 반을 바꿨어요.' + (skipped ? ' (학년을 몰라서 못 바꾼 ' + skipped + '건은 학년도 함께 적어 주세요.)' : '')); loadRecords(); loadClassOptions(); },
+              function (e) { done(); fail(e, '바꾸지'); loadRecords(); });
+    };
+    $('#cc').focus(); $('#cc').select();
+  }
   function delUrl(extra) {
     var n = BYID[S.node], R = S.rec;
     return (n.game === 'river' ? '/api/scores?' : '/api/coin?game=' + n.game + '&') + 'year=' + R.year + '&school=' + encodeURIComponent(R.school) + extra;

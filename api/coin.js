@@ -5,16 +5,18 @@
 // game 값: run(연속 맞추기) · tune10 / tune5 / tune2(상대도수 줄타기, 상대도수 범위 0.5±0.10 / 0.05 / 0.02마다 따로) · spot(동전 조작 탐정) · bet(내기 시뮬레이터)
 //
 // GET    /api/coin?game=&year=&school=&offset=0&limit=10 → { top, total }     순위표 (쪽 나누기)
-// GET    /api/coin?game=&year=&school=&q=이름              → { matches, total }  이름 찾기
+// GET    /api/coin?...&cls=2-3                             → 같은 형식인데 2학년 3반 기록만 (rank·total도 그 반 안에서)
+// GET    /api/coin?game=&year=&school=&classes=1           → { classes:[{gr,cl,n}], none, total } 학년·반별 기록 수
+// GET    /api/coin?game=&year=&school=&q=이름              → { matches, total }  이름 찾기 (cls도 같이 쓸 수 있어요)
 // GET    /api/coin?game=run&year=&school=&dist=1           → { counts, total }   맞힌 횟수 분포 (연속 맞추기)
-// POST   /api/coin  {game,year,school,id,name,uid?, ...게임별 값} → { rank, total }     기록 저장 (name은 순위에 보이는 별명, uid는 공개하지 않는 익명 번호)
+// POST   /api/coin  {game,year,school,id,name,uid?,gr?,cl?, ...게임별 값} → { rank, total }     기록 저장 (name은 순위에 보이는 별명, gr·cl은 학년·반, uid는 공개하지 않는 익명 번호)
 // DELETE /api/coin?game=&year=&school=&id=        (헤더 x-admin-key 필요)   기록 1개 삭제
 // DELETE /api/coin?game=&year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)   여러 건 삭제
 // DELETE /api/coin?game=&year=&school=&all=1      (헤더 x-admin-key 필요)   순위 전체 삭제
 //
 // 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑ — 같으면 먼저 기록한 사람이 위
 
-const { configured, redis, send, getConfig, isAdmin, rateLimit } = require('./_lib');
+const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts } = require('./_lib');
 const { badName } = require('./_names');
 const C = require('./_coinlib');
 
@@ -23,10 +25,8 @@ const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
 
-// 저장된 기록(JSON 글자)을 풀어서 돌려줘요. 공개하지 않는 익명 번호(uid)는 빼고 내보내요. (api/scores.js와 같은 방식)
-function parseMembers(list) {
-  return (list || []).map(m => { try { const o = JSON.parse(m); delete o.uid; return o; } catch (e) { return null; } }).filter(Boolean);
-}
+// 저장된 기록(JSON 글자)을 풀어서 돌려줘요. 공개하지 않는 익명 번호(uid)는 빼고, 학년·반을 채워서 내보내요. (api/scores.js와 같은 방식)
+const parseMembers = publicMembers;
 
 async function validYearSchool(year, school) {
   const y = Number(year);
@@ -93,25 +93,37 @@ module.exports = async function handler(req, res) {
       if (!(await validYearSchool(year, school))) return send(res, 400, { error: 'bad-request' });
       const key = 'cn:' + g + ':' + Number(year) + ':' + school;
       const total = Number(await redis(['ZCARD', key])) || 0;
+      if (req.query.classes === '1') {   // 학년·반별 기록 수 (순위표의 반 고르기 목록)
+        const cc = classCounts(parseMembers(await redis(['ZRANGE', key, 0, -1]), school));
+        return send(res, 200, { classes: cc.classes, none: cc.none, total });
+      }
+      const cls = parseCls(req.query.cls);   // 2-3 → 2학년 3반만
       if (req.query.dist === '1') {
         if (g !== 'run') return send(res, 400, { error: 'bad-request' });
         const counts = new Array(C.MAXRUN + 1).fill(0);
-        parseMembers(await redis(['ZRANGE', key, 0, -1])).forEach(m => { if (isInt(m.n, 0, C.MAXRUN)) counts[m.n]++; });
-        return send(res, 200, { counts, total });
+        let all = parseMembers(await redis(['ZRANGE', key, 0, -1]), school);
+        if (cls) all = onlyClass(all, cls);
+        all.forEach(m => { if (isInt(m.n, 0, C.MAXRUN)) counts[m.n]++; });
+        return send(res, 200, { counts, total: cls ? all.length : total });
       }
       const q = String(req.query.q || '').trim();
       if (q) {
         if (q.length > 8) return send(res, 400, { error: 'bad-query' });
-        const all = parseMembers(await redis(['ZRANGE', key, 0, -1]));
+        let all = parseMembers(await redis(['ZRANGE', key, 0, -1]), school);
+        if (cls) all = onlyClass(all, cls);
         const matches = [];
         for (let i = 0; i < all.length && matches.length < 50; i++) {
           if (String(all[i].name).includes(q)) matches.push(Object.assign({ rank: i + 1 }, all[i]));
         }
-        return send(res, 200, { matches, total });
+        return send(res, 200, { matches, total: cls ? all.length : total });
       }
       const offset = Math.min(Math.max(parseInt(req.query.offset, 10) || 0, 0), KEEP);
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || PAGE_DEFAULT, 1), PAGE_MAX);
-      const top = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]));
+      if (cls) {   // 한 반만: 전체를 읽어서 걸러요
+        const mine = onlyClass(parseMembers(await redis(['ZRANGE', key, 0, -1]), school), cls);
+        return send(res, 200, { top: mine.slice(offset, offset + limit), total: mine.length, offset });
+      }
+      const top = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]), school);
       return send(res, 200, { top, total, offset });
     }
 
@@ -129,7 +141,8 @@ module.exports = async function handler(req, res) {
       if (!built) return send(res, 400, { error: 'bad-record' });
       const key = 'cn:' + g + ':' + Number(b.year) + ':' + b.school;
       const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요, 순위표로는 내보내지 않아요)
-      const member = JSON.stringify(Object.assign({ id, name, ts, uid }, built.data));
+      const gr = Number(b.gr), cl = Number(b.cl), cls = isClass(gr, cl) ? { gr, cl } : {};   // 학년·반 (번호는 받지 않아요)
+      const member = JSON.stringify(Object.assign({ id, name, ts, uid }, cls, built.data));
       await redis(['ZADD', key, built.score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);

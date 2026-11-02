@@ -18,11 +18,11 @@
 
   /* ── 내 정보 ──────────────────────────────────────────────────────────
      저장 위치: 이 브라우저의 localStorage 'mtryu.me' (서버로는 보내지 않아요)
-       { v:2, school:{name,region,code,edu}, sid:'학번', name:'실명', nick:'별명', uid:'기기별 익명 번호' }
-     · 실명·학번은 상단 이름표에만 보이고, 순위에는 별명만 올라가요.
+       { v:3, school:{name,region,code,edu}, gr:학년(0~6), cl:반(0~30), no:번호(0~60), name:'실명', nick:'별명', uid:'기기별 익명 번호' }
+     · 실명·번호는 상단 이름표에만 보이고, 순위에는 별명과 학년·반만 올라가요 (번호는 서버로 보내지 않아요).
      · uid는 이름 없는 무작위 번호예요. 순위 기록에 함께 저장되지만 순위표에는 나오지 않고,
-       나중에 로그인이 붙으면 '이 기기에서 한 기록 가져오기'에만 써요. 같은 학교·학번으로 다시 저장하면 그대로 두고,
-       학교나 학번이 바뀌면(다른 학생이 이 컴퓨터를 쓰면) 새로 만들어요.
+       나중에 로그인이 붙으면 '이 기기에서 한 기록 가져오기'에만 써요. 같은 학교·학년·반·번호로 다시 저장하면 그대로 두고,
+       바뀌면(다른 학생이 이 컴퓨터를 쓰면) 새로 만들어요. (예전에 학번으로 저장한 사람은 같은 학교·이름이면 그대로 이어 써요)
      다른 주소(도메인)의 실험실로 넘어갈 때는 주소 끝에 #mtryu-me=... 를 붙여 건네고, 받는 쪽이 저장한 뒤 바로 지워요. */
   var ME_KEY = 'mtryu.me', HASH_KEY = 'mtryu-me=', HOME_ORIGIN = new URL(HOME).origin;
   /* ── 테스트 모드 ──────────────────────────────────────────────────────
@@ -30,6 +30,7 @@
      저장 위치: localStorage 'mtryu.test' = 끝나는 시각(ms). 3시간이 지나면 저절로 꺼지고, 다른 주소의 실험실로 갈 때는 주소 끝에 끝나는 시각만 실어 보내요. */
   var TEST_KEY = 'mtryu.test', TEST_HASH = 'mtryu-test=', TEST_MAX = 3 * 3600 * 1000 + 60000;
   function testLeft() { try { var t = Number(localStorage.getItem(TEST_KEY)) || 0; return t > Date.now() ? t : 0; } catch (e) { return 0; } }
+  function toNum(v, lo, hi) { var n = parseInt(String(v == null ? '' : v).replace(/\D/g, ''), 10); return isFinite(n) && n >= lo && n <= hi ? n : -1; }   // 범위 밖이거나 비어 있으면 -1
   function clean(s, n) { return String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n); }
   function noSpace(s, n) { return clean(s, 60).replace(/\s+/g, '').slice(0, n); }
   function validUid(u) { return typeof u === 'string' && /^[a-f0-9]{32}$/.test(u); }
@@ -41,22 +42,26 @@
     if (!m || typeof m !== 'object') return null;
     var sc = m.school && typeof m.school === 'object' ? m.school : {};
     return {
-      v: 2,
+      v: 3,
       school: { name: clean(sc.name, 40), region: clean(sc.region, 20), code: clean(sc.code, 20), edu: clean(sc.edu, 10) },
-      sid: clean(m.sid, 8).replace(/\D/g, ''),
+      gr: toNum(m.gr, 0, 6), cl: toNum(m.cl, 0, 30), no: toNum(m.no, 0, 60),   // 예전 학번 형식은 여기서 빠져서, 학년·반·번호를 다시 받아요
       name: noSpace(m.name, 10),
       nick: noSpace(m.nick, 8),
       uid: validUid(m.uid) ? m.uid : ''
     };
   }
-  function sanitizeMe(m) {   // 네 가지가 모두 있을 때만 쓸 수 있는 정보로 인정해요 (옛 형식은 별명이 없어서 다시 받아요)
+  function sanitizeMe(m) {   // 학교·학년·반·번호·이름·별명이 모두 있을 때만 쓸 수 있는 정보로 인정해요 (옛 형식은 다시 받아요)
     var o = loose(m);
-    return o && o.school.name && o.sid && o.name && o.nick && o.uid ? o : null;
+    return o && o.school.name && o.gr >= 0 && o.cl >= 0 && o.no >= 0 && o.name && o.nick && o.uid ? o : null;
   }
   function rawMe() { try { return loose(JSON.parse(localStorage.getItem(ME_KEY))); } catch (e) { return null; } }
   function readMe() { return sanitizeMe(rawMe()); }
   function writeMe(m) { try { localStorage.setItem(ME_KEY, JSON.stringify(m)); return true; } catch (e) { return false; } }
-  function sameWho(a, b) { return !!(a && b && a.sid && a.sid === b.sid && (a.school.code || a.school.name) === (b.school.code || b.school.name)); }
+  function sameWho(a, b) {
+    if (!a || !b || (a.school.code || a.school.name) !== (b.school.code || b.school.name)) return false;
+    if (a.gr >= 0) return a.gr === b.gr && a.cl === b.cl && a.no === b.no;   // 같은 학교·학년·반·번호면 같은 사람
+    return !!a.name && a.name === b.name;                                    // 예전 학번 정보는 같은 학교·이름이면 이어 써요
+  }
   function shortSchool(n) { return String(n).replace(/초등학교$/, '초').replace(/고등학교$/, '고').replace(/중학교$/, '중'); }
   // 다른 도메인의 실험실로 갈 때만 내 정보를 주소 끝에 실어 보내요
   function handoff(href) {
@@ -104,7 +109,7 @@
   takeHandoff();
 
   function changed() { try { window.dispatchEvent(new Event('mtryu:me-changed')); } catch (e) {} }
-  // 실험실 쪽 코드가 내 정보를 읽을 때: var me = window.MtryuMe.get();  → 네 가지가 다 있으면 { school, sid, name, nick, uid }, 아니면 null
+  // 실험실 쪽 코드가 내 정보를 읽을 때: var me = window.MtryuMe.get();  → 다 있으면 { school, gr, cl, no, name, nick, uid }, 아니면 null
   window.MtryuMe = {
     get: readMe,
     getRaw: rawMe,
@@ -207,7 +212,7 @@
     } else {
       showGate({
         title: '먼저 내 정보를 입력해 주세요',
-        text: '학교·학번·이름·별명을 한 번만 입력하면 모든 실험실에서 다시 쓰지 않아도 돼요. 입력이 끝나면 지금 보던 곳으로 돌아와요.',
+        text: '학교·학년·반·번호·이름·별명을 한 번만 입력하면 모든 실험실에서 다시 쓰지 않아도 돼요. 입력이 끝나면 지금 보던 곳으로 돌아와요.',
         label: '내 정보 입력하러 가기', href: HOME + '?me=1&back=' + encodeURIComponent(here())
       });
     }
@@ -244,9 +249,9 @@
     }
     function tagHTML() {
       var m = readMe();
-      if (!m) return '<a class="me empty" href="' + esc(meHref()) + '" title="학교·학번·이름·별명을 한 번만 적어 두세요">이름 입력</a>';
-      return '<a class="me" href="' + esc(meHref()) + '" title="별명: ' + esc(m.nick) + ' · 눌러서 내 정보 바꾸기" aria-label="내 정보 ' + esc(m.school.name) + ' ' + esc(m.sid) + ' ' + esc(m.name) + ', 별명 ' + esc(m.nick) + '. 눌러서 바꾸기">' +
-        '<span class="sc">' + esc(shortSchool(m.school.name)) + '</span><span class="id">' + esc(m.sid) + '</span><span class="nm">' + esc(m.name) + '</span></a>';
+      if (!m) return '<a class="me empty" href="' + esc(meHref()) + '" title="학교·학년·반·번호·이름·별명을 한 번만 적어 두세요">이름 입력</a>';
+      return '<a class="me" href="' + esc(meHref()) + '" title="별명: ' + esc(m.nick) + ' · 눌러서 내 정보 바꾸기" aria-label="내 정보 ' + esc(m.school.name) + ' ' + esc(m.gr + '학년 ' + m.cl + '반 ' + m.no + '번') + ' ' + esc(m.name) + ', 별명 ' + esc(m.nick) + '. 눌러서 바꾸기">' +
+        '<span class="sc">' + esc(shortSchool(m.school.name)) + '</span><span class="id">' + esc(m.gr + '-' + m.cl + '-' + m.no) + '</span><span class="nm">' + esc(m.name) + '</span></a>';
     }
 
     root.innerHTML =

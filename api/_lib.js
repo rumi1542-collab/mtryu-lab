@@ -81,6 +81,43 @@ async function neisBudget(limit) {
   if (n === 1) await redis(['EXPIRE', key, 90000]);
   return n <= limit;
 }
+// ── 학년·반 ──────────────────────────────────────────────────────────────
+// 순위 기록에는 학년(gr)·반(cl)이 함께 저장돼요 (번호는 서버로 보내지 않아요).
+// 학년·반을 받기 전에 쌓인 기록은 아래 표의 학교만 그 학년·반으로 봐요 (표에 없는 학교의 옛 기록은 '반 없음').
+const LEGACY_CLASS = { '선운중학교': { gr: 2, cl: 2 } };
+const isClass = (gr, cl) => Number.isInteger(gr) && gr >= 0 && gr <= 6 && Number.isInteger(cl) && cl >= 0 && cl <= 30;
+// 기록 하나의 { gr, cl } (모르면 null)
+function classOf(m, school) {
+  if (m && isClass(m.gr, m.cl)) return { gr: m.gr, cl: m.cl };
+  const l = LEGACY_CLASS[school];
+  return l ? { gr: l.gr, cl: l.cl } : null;
+}
+// 조회 주소의 cls=학년-반 (예: 2-3) 읽기. 없거나 모양이 틀리면 null
+function parseCls(s) {
+  const x = /^(\d{1,2})-(\d{1,2})$/.exec(String(s || '')); if (!x) return null;
+  const gr = Number(x[1]), cl = Number(x[2]); return isClass(gr, cl) ? { gr, cl } : null;
+}
+// 순위표로 내보낼 때: 익명 번호(uid)는 빼고, 학년·반을 채워 줘요 (옛 기록은 위 표대로)
+function publicMembers(list, school) {
+  return (list || []).map(m => {
+    try { const o = JSON.parse(m); delete o.uid; const c = classOf(o, school); if (c) { o.gr = c.gr; o.cl = c.cl; } else { delete o.gr; delete o.cl; } return o; }
+    catch (e) { return null; }
+  }).filter(Boolean);
+}
+// 순위(점수 순서) 그대로, 한 반의 기록만. 각 기록의 rank는 '그 반 안에서의' 순위예요.
+function onlyClass(items, cls) {
+  const out = []; items.forEach(o => { if (o.gr === cls.gr && o.cl === cls.cl) out.push(o); });
+  return out;
+}
+// 학년·반별 기록 수 (옛 기록 포함). 반을 모르는 기록 수는 none
+function classCounts(items) {
+  const map = {}; let none = 0;
+  items.forEach(o => { if (o.gr == null) { none++; return; } const k = o.gr + '-' + o.cl; map[k] = (map[k] || 0) + 1; });
+  const classes = Object.keys(map).map(k => { const [gr, cl] = k.split('-').map(Number); return { gr, cl, n: map[k] }; })
+    .sort((a, b) => a.gr - b.gr || a.cl - b.cl);
+  return { classes, none };
+}
+
 // 나이스 학교기본정보 검색
 async function neisSearch(q) {
   const key = process.env.NEIS_KEY;
@@ -99,4 +136,4 @@ async function neisSearch(q) {
   } finally { clearTimeout(t); }
 }
 
-module.exports = { schoolYear, kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
+module.exports = { LEGACY_CLASS, isClass, classOf, parseCls, publicMembers, onlyClass, classCounts, schoolYear, kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };

@@ -1,7 +1,7 @@
 /* 순위가 있는 게임(강 건너기·동전 실험실)이 내 정보를 읽고, 내 학교를 순위 서버 목록에 맞출 때 쓰는 도구예요.
    게임 페이지의 <head>에서 lab-bar.js보다 먼저(defer 없이) 불러와요.   <script src="/me-sync.js"></script>
 
-     var m = MtryuMeSync.read();                      // { school, sid, name, nick, uid } 또는 null (네 가지가 다 있을 때만)
+     var m = MtryuMeSync.read();                      // { school, gr, cl, no, name, nick, uid } 또는 null (다 있을 때만)
      var r = await MtryuMeSync.resolve(schools, regions, '/api/config');
          // → { me, label, list, retry }   label: 순위 서버에 있는 내 학교 이름 (없으면 null)
          //   list: 학교를 새로 추가했을 때 서버가 돌려준 최신 목록   retry: 잠깐 막힌 것이라 다시 하면 될 수도 있다는 뜻
@@ -15,7 +15,7 @@
   function read() {
     try {
       var m = JSON.parse(localStorage.getItem(ME_KEY));
-      if (m && m.school && m.school.name && m.sid && m.name && m.nick && /^[a-f0-9]{32}$/.test(m.uid || '')) return m;
+      if (m && m.school && m.school.name && Number.isInteger(m.gr) && m.gr >= 0 && Number.isInteger(m.cl) && m.cl >= 0 && Number.isInteger(m.no) && m.no >= 0 && m.name && m.nick && /^[a-f0-9]{32}$/.test(m.uid || '')) return m;
     } catch (e) {}
     return null;
   }

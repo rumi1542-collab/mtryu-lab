@@ -26,6 +26,7 @@
     '.fld{display:flex;flex-direction:column;gap:5px;min-width:0}.fld>label,.fld>.lb{font-size:14px;font-weight:700}' +
     '.fld small{font-size:12.5px;line-height:1.4;color:#5A4670}' +
     '.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid .full{grid-column:1/-1}' +
+    '.three{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.three .in{width:64px;padding:0 6px;text-align:center}.three b{font-size:15px}.three b+.in{margin-left:6px}' +
     '@media (max-width:420px){.grid{grid-template-columns:1fr}}' +
     '.in{width:100%;min-height:44px;padding:0 12px;border:2px solid #2B0F3F;border-radius:10px;font:inherit;font-size:16px;color:#2B0F3F;background:#fff}' +
     '.in:focus-visible,button:focus-visible{outline:3px solid #FF2D95;outline-offset:1px}' +
@@ -69,7 +70,8 @@
     var me = window.MtryuMe ? (window.MtryuMe.get() || window.MtryuMe.getRaw()) : null;   // 옛 정보(별명이 없는)도 미리 채워 줘요
     if (me && me.school && me.school.name) st.picked = { name: me.school.name, region: me.school.region || '', kind: '', code: me.school.code || '', edu: me.school.edu || '' };
     if (opts.strict && st.picked && !(st.picked.code && st.picked.region)) st.picked = null;   // 직접 쓴 학교는 순위 서버용으로 인정되지 않아서 검색부터 다시 해요
-    st.init = { sid: me ? me.sid : '', name: me ? me.name : '', nick: me ? me.nick : '', has: !!(me && window.MtryuMe.get()) };
+    var nz = function (v) { return v >= 0 ? String(v) : ''; };   // 옛 정보(학번)에는 학년·반·번호가 없어서 빈칸으로 두어요
+    st.init = { gr: me ? nz(me.gr) : '', cl: me ? nz(me.cl) : '', no: me ? nz(me.no) : '', name: me ? me.name : '', nick: me ? me.nick : '', has: !!(me && window.MtryuMe.get()) };
     render();
   }
 
@@ -88,9 +90,9 @@
   function render() {
     var o = st.opts, root = st.root;
     // 입력 중이던 값은 다시 그려도 지키기 위해, 이미 그려져 있으면 값만 읽어 둬요
-    var keep = { sid: st.init.sid, name: st.init.name, nick: st.init.nick };
+    var keep = { gr: st.init.gr, cl: st.init.cl, no: st.init.no, name: st.init.name, nick: st.init.nick };
     var q = function (id) { return root.getElementById ? root.getElementById(id) : root.querySelector('#' + id); };
-    if (q('sid')) { keep.sid = q('sid').value; keep.name = q('name').value; keep.nick = q('nick').value; }
+    if (q('fgr')) { keep.gr = q('fgr').value; keep.cl = q('fcl').value; keep.no = q('fno').value; keep.name = q('name').value; keep.nick = q('nick').value; }
     root.innerHTML = '<style>' + CSS + '</style>' +
       '<div class="ov" id="ov"><div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="ttl">' +
       '<h2 id="ttl">' + (o.required ? '내 정보를 입력해 주세요' : '내 정보') + '</h2>' +
@@ -100,21 +102,25 @@
         '<div id="search" class="fld"><input id="sch" class="in" type="search" placeholder="학교 이름을 두 글자 이상 써 보세요 (예: 선운)" autocomplete="off" maxlength="20" aria-labelledby="schlb">' +
         '<div id="quick" class="quick" aria-label="자주 쓰는 학교"></div><ul id="res" class="res"></ul><p id="smsg" class="msg" role="status" aria-live="polite"></p></div></div>' +
       '<div class="grid">' +
-        '<div class="fld"><label for="sid">학번 (숫자)</label><input id="sid" class="in" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="예: 10215"><small>다른 사람에게 보이지 않아요.</small></div>' +
+        '<div class="fld full"><span class="lb" id="clslb">학년 · 반 · 번호</span><div class="three" role="group" aria-labelledby="clslb">' +
+          '<input id="fgr" class="in" type="text" inputmode="numeric" autocomplete="off" maxlength="1" aria-label="학년" placeholder="2"><b>학년</b>' +
+          '<input id="fcl" class="in" type="text" inputmode="numeric" autocomplete="off" maxlength="2" aria-label="반" placeholder="3"><b>반</b>' +
+          '<input id="fno" class="in" type="text" inputmode="numeric" autocomplete="off" maxlength="2" aria-label="번호" placeholder="15"><b>번</b></div>' +
+          '<small>학년과 반은 우리 반 순위를 모아 볼 때 쓰여요. 번호는 다른 사람에게 보이지 않아요.</small></div>' +
         '<div class="fld"><label for="name">이름</label><input id="name" class="in" type="text" autocomplete="off" maxlength="10" placeholder="이름"><small>위쪽 이름표에만 보여요.</small></div>' +
         '<div class="fld full"><label for="nick">별명</label><input id="nick" class="in" type="text" autocomplete="off" maxlength="8" placeholder="띄어쓰기 없이 8글자까지"><small>순위에 이 이름으로 올라가요. 바른 말로 써 주세요.</small></div>' +
       '</div>' +
       '<p id="emsg" class="msg err" role="alert"></p>' +
-      '<p class="msg">접속 횟수는 학교와 익명 번호로만 세요. 이름·학번·별명은 접속 집계에 보내지 않아요.</p>' +
+      '<p class="msg">접속 횟수는 학교와 익명 번호로만 세요. 이름·번호·별명은 접속 집계에 보내지 않아요.</p>' +
       '<div class="act">' + (!o.required && st.init.has ? '<button type="button" id="del" class="bt lk">내 정보 지우기</button>' : '') + '<span class="sp"></span>' +
         (o.required ? '' : '<button type="button" id="cls" class="bt">닫기</button>') +
         '<button type="button" id="save" class="bt pri" disabled>' + (o.required ? '저장하고 시작' : '저장') + '</button></div>' +
       '</div></div>';
-    q('sid').value = keep.sid || ''; q('name').value = keep.name || ''; q('nick').value = keep.nick || '';
+    q('fgr').value = keep.gr || ''; q('fcl').value = keep.cl || ''; q('fno').value = keep.no || ''; q('name').value = keep.name || ''; q('nick').value = keep.nick || '';
     bind(q);
     paintPicked(q); validate(q);
     loadQuick(q);
-    var target = !st.picked ? q('sch') : (!q('sid').value ? q('sid') : (!q('name').value ? q('name') : q('nick')));
+    var target = !st.picked ? q('sch') : (!q('fgr').value ? q('fgr') : !q('fcl').value ? q('fcl') : !q('fno').value ? q('fno') : (!q('name').value ? q('name') : q('nick')));
     try { target.focus(); } catch (e) {}
   }
 
@@ -123,14 +129,15 @@
     q('picked').hidden = !p; q('search').hidden = !!p;
     if (p) { q('pname').textContent = p.name; q('psub').textContent = [p.region, p.kind].filter(Boolean).join(' · '); }
   }
+  function inRange(v, lo, hi) { v = String(v).trim(); if (!/^\d{1,2}$/.test(v)) return false; v = Number(v); return v >= lo && v <= hi; }
   function validate(q) {
-    var sid = q('sid').value.trim(), name = noSpace(q('name').value, 10), nick = noSpace(q('nick').value, 8);
-    q('save').disabled = !(st.picked && /^\d{1,8}$/.test(sid) && name && nick);
+    var name = noSpace(q('name').value, 10), nick = noSpace(q('nick').value, 8);
+    q('save').disabled = !(st.picked && inRange(q('fgr').value, 0, 6) && inRange(q('fcl').value, 0, 30) && inRange(q('fno').value, 0, 60) && name && nick);
   }
 
   function pick(q, s) {
     st.picked = { name: s.name, region: s.region || '', kind: s.kind || '', code: s.code || '', edu: s.edu || '' };
-    paintPicked(q); validate(q); q('sid').focus();
+    paintPicked(q); validate(q); q('fgr').focus();
   }
   function results(q, list, hint) {
     var res = q('res'), msg = q('smsg'); res.innerHTML = '';
@@ -198,16 +205,21 @@
     q('sch').addEventListener('input', function () { clearTimeout(st.timer); var t = q('sch').value.trim(); st.timer = setTimeout(function () { search(q, t); }, 400); });
     q('sch').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(st.timer); search(q, q('sch').value.trim()); } });
     q('repick').addEventListener('click', function () { st.picked = null; paintPicked(q); validate(q); q('sch').focus(); });
-    q('sid').addEventListener('input', function () { q('sid').value = q('sid').value.replace(/\D/g, '').slice(0, 8); q('emsg').textContent = ''; validate(q); });
+    [['fgr', 1, 'fcl'], ['fcl', 2, 'fno'], ['fno', 2, null]].forEach(function (f) {
+      q(f[0]).addEventListener('input', function () {
+        var el = q(f[0]); el.value = el.value.replace(/\D/g, '').slice(0, f[1]); q('emsg').textContent = ''; validate(q);
+        if (f[2] && el.value.length >= f[1]) q(f[2]).focus();   // 다 쓰면 다음 칸으로 넘어가요
+      });
+    });
     q('name').addEventListener('input', function () { q('emsg').textContent = ''; validate(q); });
     q('nick').addEventListener('input', function () { q('emsg').textContent = ''; validate(q); });
-    ['sid', 'name', 'nick'].forEach(function (id) { q(id).addEventListener('keydown', function (e) { if (e.key === 'Enter' && !q('save').disabled) q('save').click(); }); });
+    ['fgr', 'fcl', 'fno', 'name', 'nick'].forEach(function (id) { q(id).addEventListener('keydown', function (e) { if (e.key === 'Enter' && !q('save').disabled) q('save').click(); }); });
 
     q('save').addEventListener('click', function () {
       var nick = noSpace(q('nick').value, 8), emsg = q('emsg');
       if (badName(nick)) { emsg.textContent = '별명에 쓸 수 없는 말이 들어 있어요. 다른 별명을 써 주세요.'; q('nick').focus(); return; }
       if (o.strict && !(st.picked.code && st.picked.region)) { emsg.textContent = '나이스에서 찾은 학교를 골라 주세요.'; return; }
-      var ok = window.MtryuMe.set({ school: st.picked, sid: q('sid').value.trim(), name: noSpace(q('name').value, 10), nick: nick });
+      var ok = window.MtryuMe.set({ school: st.picked, gr: q('fgr').value, cl: q('fcl').value, no: q('fno').value, name: noSpace(q('name').value, 10), nick: nick });
       if (!ok) { emsg.textContent = '이 브라우저에서는 저장할 수 없어요. 시크릿(사생활 보호) 창이라면 일반 창에서 열어 주세요.'; return; }
       var back = o.back, h = back && window.MtryuMe.handoff(back);
       close();

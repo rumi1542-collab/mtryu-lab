@@ -380,35 +380,44 @@ const Store = {
     } finally { clearTimeout(t); }
   },
   q(g, y, s) { return CONFIG.apiUrl + '?game=' + g + '&year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(s); },
-  async page(g, y, s, offset, limit) {
+  clsOK(r, cls) { return !cls || (cls === r.gr + '-' + r.cl); },   // cls: '2-3' (2학년 3반) 또는 '' (전체)
+  async classes(g, y, s) {   // 학년·반별 기록 수 (반 고르기 목록)
+    if (Store.mode !== 'local') {
+      try { const j = await Store.http('GET', Store.q(g, y, s) + '&classes=1', null, { timeout: 8000 }); if (j && Array.isArray(j.classes)) return j.classes; } catch (e) {}
+    }
+    const m = {}; Store.localList(g, y, s).forEach(r => { if (Number.isInteger(r.gr) && Number.isInteger(r.cl)) { const k = r.gr + '-' + r.cl; m[k] = (m[k] || 0) + 1; } });
+    return Object.keys(m).map(k => { const a = k.split('-'); return { gr: +a[0], cl: +a[1], n: m[k] }; }).sort((p, q) => p.gr - q.gr || p.cl - q.cl);
+  },
+  async page(g, y, s, offset, limit, cls) {
+    const cq = cls ? '&cls=' + encodeURIComponent(cls) : '';
     try {
       let j = null;
-      for (let k = 0; k < 2 && !j; k++) { try { j = await Store.http('GET', Store.q(g, y, s) + '&offset=' + offset + '&limit=' + limit, null, { timeout: 9000 }); } catch (e) { if (k) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
+      for (let k = 0; k < 2 && !j; k++) { try { j = await Store.http('GET', Store.q(g, y, s) + cq + '&offset=' + offset + '&limit=' + limit, null, { timeout: 9000 }); } catch (e) { if (k) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
       if (!j || !Array.isArray(j.top)) throw new Error('bad');
       Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
       Store.mode = 'local';
-      const all = Store.sortRecs(g, Store.localList(g, y, s));
+      const all = Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls));
       return { rows: all.slice(offset, offset + limit), total: all.length };
     }
   },
-  async find(g, y, s, q) {
+  async find(g, y, s, q, cls) {
     if (Store.mode === 'server') {
       try {
-        const j = await Store.http('GET', Store.q(g, y, s) + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
+        const j = await Store.http('GET', Store.q(g, y, s) + (cls ? '&cls=' + encodeURIComponent(cls) : '') + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
         if (j && Array.isArray(j.matches)) return j.matches;
       } catch (e) {}
     }
-    return Store.sortRecs(g, Store.localList(g, y, s)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+    return Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
   },
-  async dist(y, s) {
+  async dist(y, s, cls) {
     if (Store.mode !== 'local') {
       try {
-        const j = await Store.http('GET', Store.q('run', y, s) + '&dist=1', null, { timeout: 8000 });
+        const j = await Store.http('GET', Store.q('run', y, s) + (cls ? '&cls=' + encodeURIComponent(cls) : '') + '&dist=1', null, { timeout: 8000 });
         if (j && Array.isArray(j.counts)) return { counts: j.counts, total: j.total || 0 };
       } catch (e) {}
     }
-    const counts = new Array(MAXRUN + 1).fill(0), l = Store.localList('run', y, s);
+    const counts = new Array(MAXRUN + 1).fill(0), l = Store.localList('run', y, s).filter(r => Store.clsOK(r, cls));
     l.forEach(r => { if (r.n >= 0 && r.n <= MAXRUN) counts[r.n]++; });
     return { counts, total: l.length };
   },
@@ -535,7 +544,7 @@ async function autoRecord() {
   try {
     const id = rid();
     enforceMine();
-    const r = await Store.save(game, S.year, S.school, Object.assign({ id, name, ts: Date.now(), uid: ME ? ME.uid : undefined }, payload));
+    const r = await Store.save(game, S.year, S.school, Object.assign({ id, name, ts: Date.now(), uid: ME ? ME.uid : undefined, gr: ME ? ME.gr : undefined, cl: ME ? ME.cl : undefined }, payload));
     g.recorded = true; g.saving = false; g.lastId = id;
     setRec('ok', `<b>${esc(name)}</b> 님의 기록이 자동으로 올라갔어요! <b>${r.rank}위</b> (${esc(S.school)}${g.game === 'tune' ? ' · 범위 ' + wText(g.w) : ''} 기록 ${r.total}개 중) · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터에만 저장'}` +
       ` <button type="button" class="linkbtn" data-act="board" data-g="${g.game}">순위표 보기</button>`, false);
@@ -1085,14 +1094,14 @@ function betLesson(i) {
 }
 
 /* ================= 순위표 ================= */
-const B = { game: 'run', w: 10, offset: 0, rows: [], total: 0, matches: null, q: '' };
+const B = { game: 'run', w: 10, offset: 0, rows: [], total: 0, matches: null, q: '', cls: '', classes: [] };
 const bk = g => (g === 'tune' ? 'tune' + B.w : g);   // 서버에 저장되는 게임 이름 (줄타기는 범위별로 따로)
 function boardShell() {
   const tabs = GKEYS.map(k => `<button type="button" class="tab${k === B.game ? ' on' : ''}" data-act="b-tab" data-g="${k}">${GAMES[k].no}. ${esc(GAMES[k].title)}</button>`).join('');
   const wt = B.game === 'tune' ? `<div class="tabs" role="tablist" aria-label="상대도수 범위">` + [10, 5, 2].map(w => `<button type="button" class="tab${w === B.w ? ' on' : ''}" data-act="b-w" data-v="${w}">상대도수 범위 ${wText(w)}</button>`).join('') + `</div>` : '';
   const sch = LIST.schools.map(x => `<option value="${esc(x)}"${x === viewSchool() ? ' selected' : ''}>${esc(x)}${x === S.school ? ' (우리 학교)' : ''}</option>`).join('');
   const ss = ME ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:4px 0 10px">순위를 볼 학교 <select id="bSchool" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px">${sch}</select></label>` : '';
-  return `<div class="panel"><h2>순위표</h2>${ss}<div class="tabs">${tabs}</div>${wt}<div id="boardbody" class="msg">불러오는 중…</div></div>`;
+  return `<div class="panel"><h2>순위표</h2>${ss}<div class="tabs">${tabs}</div>${wt}<div id="clsbox"></div><div id="boardbody" class="msg">불러오는 중…</div></div>`;
 }
 const fmtPts = n => runPoints(n).toLocaleString('ko-KR') + '점';
 const th = a => '<thead><tr>' + a.map(x => `<th>${x}</th>`).join('') + '</tr></thead>';
@@ -1118,18 +1127,28 @@ const HEADS = { run: ['순위', '이름', '점수', '맞힌 횟수', '배열 (�
 const ORDER = { run: '맞힌 횟수가 많을수록', tune: '예상과 안정된 횟수의 차이가 작을수록', spot: '맞힌 문제가 많을수록', bet: '맞힌 문제가 많을수록' };
 async function loadBoard(offset) {
   const t = token, g = B.game; B.offset = offset; B.matches = null;
-  const pg = await Store.page(bk(g), S.year, viewSchool(), offset, CONFIG.pageSize);
+  const pg = await Store.page(bk(g), S.year, viewSchool(), offset, CONFIG.pageSize, B.cls);
   if (t !== token || S.screen !== 'board') return;
   B.rows = pg.rows; B.total = pg.total;
   paintBoard();
+  loadClasses(t, g);
   if (g === 'run') paintDist(t);
+}
+async function loadClasses(t, g) {   // 반 고르기 목록 (서버에서 학년·반별 기록 수를 받아와요)
+  const list = await Store.classes(bk(g), S.year, viewSchool());
+  if (t !== token || S.screen !== 'board' || g !== B.game) return;
+  B.classes = list; paintClsBox();
+}
+function paintClsBox() {
+  const el = $('#clsbox'); if (!el) return;
+  el.innerHTML = B.classes.length ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:0 0 10px">반 <select id="clsSel" aria-label="반별로 보기" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px"><option value="">전체</option>${B.classes.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${B.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
 }
 function paintBoard() {
   const el = $('#boardbody'); if (!el) return;
   const g = B.game, list = B.matches || B.rows, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
   const rows = list.map((r, i) => rowHTML(g, r, B.matches ? r.rank : B.offset + i + 1)).join('');
   el.className = '';
-  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)${Store.mode === 'server' ? '' : ` <button type="button" class="linkbtn" data-act="b-page" data-o="${B.offset}">서버에서 다시 불러오기</button>`}${B.q ? '' : ' · 같은 점수는 최근 기록이 위'}</span>
+  el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${B.cls ? ' · ' + B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반' : ''}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)${Store.mode === 'server' ? '' : ` <button type="button" class="linkbtn" data-act="b-page" data-o="${B.offset}">서버에서 다시 불러오기</button>`}${B.q ? '' : ' · 같은 점수는 최근 기록이 위'}</span>
     <span class="row"><input type="text" id="fq" maxlength="8" placeholder="이름 찾기" value="${esc(B.q)}" aria-label="이름 찾기" style="height:40px;font-size:16px;width:140px"><button type="button" class="ghost" data-act="b-find" style="min-height:40px">찾기</button></span></div>
     <div class="tablewrap"><table class="tbl">${th(HEADS[g])}<tbody>${rows || `<tr><td colspan="${HEADS[g].length}" class="hint">${B.matches ? '찾는 이름이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!'}</td></tr>`}</tbody></table></div>
     ${B.matches ? `<button type="button" class="linkbtn" data-act="b-page" data-o="0">전체 순위 보기</button>` : `<div class="pager"><span class="row"><button type="button" class="ghost" data-act="b-page" data-o="${Math.max(0, B.offset - PS)}" ${B.offset <= 0 ? 'disabled' : ''}>← 이전</button><button type="button" class="ghost" data-act="b-page" data-o="${B.offset + PS}" ${B.offset + PS >= B.total ? 'disabled' : ''}>다음 →</button></span><span class="hint">${Math.floor(B.offset / PS) + 1} / ${Math.max(1, Math.ceil(B.total / PS))}쪽</span><button type="button" class="linkbtn" data-act="b-page" data-o="${last}" ${B.offset >= last ? 'disabled' : ''}>마지막 쪽</button></div>`}
@@ -1137,7 +1156,7 @@ function paintBoard() {
     <div class="row"><button type="button" class="go sm" data-act="start" data-g="${g}">${esc(GAMES[g].title)} 하러 가기</button></div>`;
 }
 async function paintDist(t) {
-  const d = await Store.dist(S.year, viewSchool()), el = $('#dist');
+  const d = await Store.dist(S.year, viewSchool(), B.cls), el = $('#dist');
   if (t !== token || !el) return;
   const tot = d.total, K = 8;
   const act = []; for (let k = 0; k < K; k++) act.push(k === K - 1 ? d.counts.slice(k).reduce((a, b) => a + b, 0) : d.counts[k] || 0);
@@ -1153,14 +1172,14 @@ document.addEventListener('click', e => {
   if (act === 'home') go('home');
   else if (act === 'start') { if (!checkName()) return; if (gk === 'run') startRun(); else if (gk === 'tune') startTune(); else if (gk === 'spot') startSpot('play'); else startBet('play'); }
   else if (act === 'practice') { if (!checkName()) return; if (gk === 'spot') startSpot('practice'); else startBet('practice'); }
-  else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
-  else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
-  else if (act === 'b-tab') { B.game = gk; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.cls = ''; B.classes = []; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
+  else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'b-tab') { B.game = gk; B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (act === 'b-page') loadBoard(Math.max(0, parseInt(b.dataset.o, 10) || 0));
   else if (act === 'b-find') {
     const q = cleanName($('#fq').value); B.q = q;
     if (!q) { B.matches = null; paintBoard(); return; }
-    Store.find(bk(B.game), S.year, viewSchool(), q).then(m => { B.matches = m; paintBoard(); });
+    Store.find(bk(B.game), S.year, viewSchool(), q, B.cls).then(m => { B.matches = m; paintBoard(); });
   }
   else if (act === 'guess') runGuess(v);
   else if (act === 'again') startRun();
@@ -1208,7 +1227,8 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  if (el.id === 'clsSel') { B.cls = el.value; B.q = ''; B.matches = null; loadBoard(0); return; }
+  if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (el.id === 'intro') { S.intro = el.checked; }
   else if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
   else if (el.id === 'selSchool') { if (ME) S.vschool = el.value === S.school ? null : el.value; else S.school = el.value; savePrefs(); probeMode(); }
@@ -1233,7 +1253,7 @@ async function syncMe() {
     return;
   }
   MtryuMeSync.unblock();
-  ME = { nick: cleanName(m.nick), uid: m.uid, label: r.label };
+  ME = { nick: cleanName(m.nick), uid: m.uid, label: r.label, gr: m.gr, cl: m.cl };
 }
 function enforceMine() {   // 기록할 학교와 이름을 내 것으로 맞춰요 (순위를 보던 학교는 그대로 둬요)
   if (!ME) return;

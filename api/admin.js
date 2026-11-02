@@ -3,9 +3,10 @@
 //   GET /api/admin?op=stats&days=7&units=prob,river,coin    → 접속 분석 (units를 안 쓰면 전체)
 //   GET /api/admin?op=counts&year=2026                      → 학교·게임별 기록 수
 //   GET /api/admin?op=records&game=river|run|tune10|tune5|tune2|spot|bet&year=&school=&sort=recent|oldest|rank&offset=0&limit=20&q=별명
-//                                                           → 기록 목록 (순위·별명·기록·시각·익명 번호 앞 8자리)
+//                                                           → 기록 목록 (순위·별명·학년·반·기록·시각·익명 번호 앞 8자리). &cls=2-3 을 붙이면 그 반만
+//   POST /api/admin?op=setclass  {game,year,school,ids:[...],gr?,cl}   고른 기록의 반(과 학년)을 바꿔요 (gr를 빼면 학년은 그대로)
 // 기록 삭제는 기존 DELETE /api/scores · /api/coin 을 그대로 써요 (같은 관리자 암호).
-const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay } = require('./_lib');
+const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay, classOf, parseCls, isClass } = require('./_lib');
 const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'game'];
 const COIN_GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet'];
 const GAMES = ['river'].concat(COIN_GAMES);
@@ -24,7 +25,7 @@ function days(n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(kst
 function pairs(flat) { const o = {}; for (let i = 0; i + 1 < (flat || []).length; i += 2) o[flat[i]] = Number(flat[i + 1]) || 0; return o; }
 
 module.exports = async function handler(req, res) {
-  const isRescore = req.method === 'POST' && (req.query || {}).op === 'rescore';
+  const isRescore = req.method === 'POST' && ['rescore', 'setclass'].includes((req.query || {}).op);
   if (req.method !== 'GET' && !isRescore) { res.setHeader('Allow', 'GET, POST'); return send(res, 405, { error: 'method-not-allowed' }); }
   if (!configured()) return send(res, 503, { error: 'storage-not-configured' });
   if (!process.env.RD_ADMIN_KEY) return send(res, 503, { error: 'admin-not-configured' });
@@ -99,6 +100,29 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { year: y, rows });
     }
 
+    // 고른 기록의 반(과 학년)을 바꿔요. 순위 점수는 그대로 두고 기록 글자만 새로 써요. (예: 내 테스트 기록을 0반으로)
+    if (q.op === 'setclass') {
+      let b = req.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }
+      const game = String((b && b.game) || ''), school = String((b && b.school) || ''), y = Number(b && b.year);
+      const ids = Array.isArray(b && b.ids) ? b.ids.map(String).filter(Boolean).slice(0, 200) : [];
+      const newCl = Number(b && b.cl), newGr = b && b.gr != null && b.gr !== '' ? Number(b.gr) : null;
+      if (!GAMES.includes(game) || !cfg.years.includes(y) || !cfg.schools.includes(school) || !ids.length || !isClass(newGr == null ? 0 : newGr, newCl)) return send(res, 400, { error: 'bad-request' });
+      const key = keyOf(game, y, school), want = new Set(ids);
+      const flat = await redis(['ZRANGE', key, 0, -1, 'WITHSCORES']);
+      const cmds = []; let changed = 0, skipped = 0;
+      for (let i = 0; i + 1 < (flat || []).length; i += 2) {
+        let o; try { o = JSON.parse(flat[i]); } catch (e) { continue; }
+        if (!want.has(o.id)) continue;
+        const gr = newGr != null ? newGr : (classOf(o, school) || {}).gr;
+        if (gr == null) { skipped++; continue; }   // 학년을 모르는 기록은 학년을 함께 적어야 바꿀 수 있어요
+        const next = JSON.stringify(Object.assign({}, o, { gr, cl: newCl }));
+        if (next === flat[i]) continue;
+        cmds.push(['ZADD', key, flat[i + 1], next]); cmds.push(['ZREM', key, flat[i]]); changed++;
+      }
+      if (cmds.length) await redisMulti(cmds);
+      return send(res, 200, { ok: true, changed, skipped });
+    }
+
     if (q.op === 'records') {
       const game = String(q.game || '');
       if (!GAMES.includes(game) || !cfg.years.includes(year) || !cfg.schools.includes(String(q.school || ''))) return send(res, 400, { error: 'bad-request' });
@@ -106,8 +130,10 @@ module.exports = async function handler(req, res) {
       const offset = Math.max(parseInt(q.offset, 10) || 0, 0), limit = Math.min(Math.max(parseInt(q.limit, 10) || 20, 1), 100);
       const kw = String(q.q || '').trim().slice(0, 8);
       const raw = await redis(['ZRANGE', keyOf(game, year, q.school), 0, -1]);
-      let items = (raw || []).map((m, i) => { try { const o = JSON.parse(m); return { rank: i + 1, id: o.id, name: o.name, ts: o.ts, summary: summary(game, o), uid: o.uid ? String(o.uid).slice(0, 8) : '' }; } catch (e) { return null; } }).filter(Boolean);
+      let items = (raw || []).map((m, i) => { try { const o = JSON.parse(m), c = classOf(o, q.school); return { rank: i + 1, id: o.id, name: o.name, gr: c ? c.gr : null, cl: c ? c.cl : null, ts: o.ts, summary: summary(game, o), uid: o.uid ? String(o.uid).slice(0, 8) : '' }; } catch (e) { return null; } }).filter(Boolean);
       const total = items.length;
+      const cls = parseCls(q.cls);
+      if (cls) items = items.filter(x => x.gr === cls.gr && x.cl === cls.cl);
       if (kw) items = items.filter(x => String(x.name).includes(kw));
       if (sort === 'recent') items.sort((a, b) => b.ts - a.ts);
       else if (sort === 'oldest') items.sort((a, b) => a.ts - b.ts);
