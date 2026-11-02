@@ -16,7 +16,7 @@
 //
 // 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑ — 같으면 먼저 기록한 사람이 위
 
-const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts } = require('./_lib');
+const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts, rankList, rankValue, tieRank } = require('./_lib');
 const { badName } = require('./_names');
 const C = require('./_coinlib');
 
@@ -112,8 +112,9 @@ module.exports = async function handler(req, res) {
         let all = parseMembers(await redis(['ZRANGE', key, 0, -1]), school);
         if (cls) all = onlyClass(all, cls);
         const matches = [];
-        for (let i = 0; i < all.length && matches.length < 50; i++) {
-          if (String(all[i].name).includes(q)) matches.push(Object.assign({ rank: i + 1 }, all[i]));
+        const ranked = rankList(all, g, 0, 1);
+        for (let i = 0; i < ranked.length && matches.length < 50; i++) {
+          if (String(ranked[i].name).includes(q)) matches.push(ranked[i]);
         }
         return send(res, 200, { matches, total: cls ? all.length : total });
       }
@@ -121,9 +122,10 @@ module.exports = async function handler(req, res) {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || PAGE_DEFAULT, 1), PAGE_MAX);
       if (cls) {   // 한 반만: 전체를 읽어서 걸러요
         const mine = onlyClass(parseMembers(await redis(['ZRANGE', key, 0, -1]), school), cls);
-        return send(res, 200, { top: mine.slice(offset, offset + limit), total: mine.length, offset });
+        return send(res, 200, { top: rankList(mine, g, 0, 1).slice(offset, offset + limit), total: mine.length, offset });
       }
-      const top = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]), school);
+      const rows = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]), school);
+      const top = rows.length ? rankList(rows, g, offset, await tieRank(redis, key, rankValue(g, rows[0]))) : rows;
       return send(res, 200, { top, total, offset });
     }
 
@@ -145,9 +147,10 @@ module.exports = async function handler(req, res) {
       const member = JSON.stringify(Object.assign({ id, name, ts, uid }, cls, built.data));
       await redis(['ZADD', key, built.score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
+      const myRank = rank0 == null ? KEEP + 1 : await tieRank(redis, key, rankValue(g, built.data));   // 같은 점수는 공동 순위
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
       const total = Number(await redis(['ZCARD', key])) || 0;
-      return send(res, 200, { rank: (rank0 == null ? KEEP : rank0) + 1, total });
+      return send(res, 200, { rank: myRank, total });
     }
 
     if (req.method === 'DELETE') {

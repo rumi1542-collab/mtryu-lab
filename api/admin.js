@@ -6,7 +6,7 @@
 //                                                           → 기록 목록 (순위·별명·학년·반·기록·시각·익명 번호 앞 8자리). &cls=2-3 을 붙이면 그 반만
 //   POST /api/admin?op=setclass  {game,year,school,ids:[...],gr?,cl}   고른 기록의 반(과 학년)을 바꿔요 (gr를 빼면 학년은 그대로)
 // 기록 삭제는 기존 DELETE /api/scores · /api/coin 을 그대로 써요 (같은 관리자 암호).
-const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay, classOf, parseCls, isClass } = require('./_lib');
+const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay, classOf, parseCls, isClass, rankValue } = require('./_lib');
 const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'game'];
 const COIN_GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet'];
 const GAMES = ['river'].concat(COIN_GAMES);
@@ -130,7 +130,8 @@ module.exports = async function handler(req, res) {
       const offset = Math.max(parseInt(q.offset, 10) || 0, 0), limit = Math.min(Math.max(parseInt(q.limit, 10) || 20, 1), 100);
       const kw = String(q.q || '').trim().slice(0, 8);
       const raw = await redis(['ZRANGE', keyOf(game, year, q.school), 0, -1]);
-      let items = (raw || []).map((m, i) => { try { const o = JSON.parse(m), c = classOf(o, q.school); return { rank: i + 1, id: o.id, name: o.name, gr: c ? c.gr : null, cl: c ? c.cl : null, ts: o.ts, summary: summary(game, o), uid: o.uid ? String(o.uid).slice(0, 8) : '' }; } catch (e) { return null; } }).filter(Boolean);
+      let pv = null, pr = 0;   // 공동 순위: 같은 값이면 같은 순위
+      let items = (raw || []).map((m, i) => { try { const o = JSON.parse(m), c = classOf(o, q.school), v = rankValue(game, o), rk = (i > 0 && v === pv) ? pr : i + 1; pv = v; pr = rk; return { rank: rk, id: o.id, name: o.name, gr: c ? c.gr : null, cl: c ? c.cl : null, ts: o.ts, summary: summary(game, o), uid: o.uid ? String(o.uid).slice(0, 8) : '' }; } catch (e) { return null; } }).filter(Boolean);
       const total = items.length;
       const cls = parseCls(q.cls);
       if (cls) items = items.filter(x => x.gr === cls.gr && x.cl === cls.cl);

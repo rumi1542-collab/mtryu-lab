@@ -367,6 +367,7 @@ const Store = {
   localList(g, y, s) { try { return JSON.parse(localStorage.getItem(Store.key(g, y, s)) || '[]'); } catch (e) { return []; } },
   sortVal(g, r) { return g === 'run' ? -r.n : g.startsWith('tune') ? r.diff : g === 'spot' ? -r.correct : -r.score; },
   sortRecs(g, l) { return l.slice().sort((p, q) => Store.sortVal(g, p) - Store.sortVal(g, q) || q.ts - p.ts); },
+  ties(g, l) { let pv = null, pr = 0; return l.map((r, i) => { const v = Store.sortVal(g, r), k = i && v === pv ? pr : i + 1; pv = v; pr = k; return Object.assign({}, r, { rank: k }); }); },   // 공동 순위 (300·200·200·100 → 1·2·2·4)
   async http(method, url, body, opt) {
     opt = opt || {};
     if (TEST() && !(method === 'GET' && url === CONFIG.configUrl)) throw new Error('test');   // 테스트 모드: 서버에는 아무것도 보내지 않아요 (학교 목록 읽기만 가능)
@@ -397,7 +398,7 @@ const Store = {
       Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
       Store.mode = 'local';
-      const all = Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls));
+      const all = Store.ties(g, Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls)));
       return { rows: all.slice(offset, offset + limit), total: all.length };
     }
   },
@@ -408,7 +409,7 @@ const Store = {
         if (j && Array.isArray(j.matches)) return j.matches;
       } catch (e) {}
     }
-    return Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+    return Store.ties(g, Store.sortRecs(g, Store.localList(g, y, s)).filter(r => Store.clsOK(r, cls))).filter(r => String(r.name).includes(q)).slice(0, 50);
   },
   async dist(y, s, cls) {
     if (Store.mode !== 'local') {
@@ -432,8 +433,8 @@ const Store = {
       const full = Object.assign({}, rec, derive(g, rec));
       const l = Store.localList(g, y, s); l.push(full);
       try { localStorage.setItem(Store.key(g, y, s), JSON.stringify(l)); } catch (er) {}
-      const sorted = Store.sortRecs(g, l);
-      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, total: sorted.length };
+      const sorted = Store.ties(g, Store.sortRecs(g, l));
+      return { rank: (sorted.find(x => x.id === rec.id) || { rank: 0 }).rank, total: sorted.length };
     }
   }
 };
@@ -1146,7 +1147,7 @@ function paintClsBox() {
 function paintBoard() {
   const el = $('#boardbody'); if (!el) return;
   const g = B.game, list = B.matches || B.rows, PS = CONFIG.pageSize, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
-  const rows = list.map((r, i) => rowHTML(g, r, B.matches ? r.rank : B.offset + i + 1)).join('');
+  const rows = list.map((r, i) => rowHTML(g, r, r.rank != null ? r.rank : B.offset + i + 1)).join('');
   el.className = '';
   el.innerHTML = `<div class="row" style="justify-content:space-between"><span class="hint">${esc(S.year)}학년도 · ${esc(viewSchool())}${B.cls ? ' · ' + B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반' : ''}${g === 'tune' ? ' · 범위 ' + wText(B.w) : ''} · ${ORDER[g]} 위예요 · ${Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록'} (${B.total}개)${Store.mode === 'server' ? '' : ` <button type="button" class="linkbtn" data-act="b-page" data-o="${B.offset}">서버에서 다시 불러오기</button>`}${B.q ? '' : ' · 같은 점수는 최근 기록이 위'}</span>
     <span class="row"><input type="text" id="fq" maxlength="8" placeholder="이름 찾기" value="${esc(B.q)}" aria-label="이름 찾기" style="height:40px;font-size:16px;width:140px"><button type="button" class="ghost" data-act="b-find" style="min-height:40px">찾기</button></span></div>

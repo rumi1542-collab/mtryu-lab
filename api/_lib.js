@@ -118,6 +118,31 @@ function classCounts(items) {
   return { classes, none };
 }
 
+
+// ---- 공동 순위 (300·200·200·100점 → 1위 2위 2위 4위) ----
+// Redis 점수는 '값 - ts/1e13' 꼴이라, 값(작을수록 위)이 같으면 같은 순위예요.
+function rankValue(game, o) {
+  if (game === 'river') return Number(o.rolls);
+  if (game === 'run') return -Number(o.n);
+  if (String(game).startsWith('tune')) return Number(o.diff);
+  if (game === 'spot') return -Number(o.correct);
+  return -Number(o.hits != null ? o.hits : o.score);
+}
+// 순서대로 놓인 기록에 rank를 붙여요. offset = 목록 첫 기록의 전체 순번(0부터), firstRank = 그 기록의 공동 순위
+function rankList(items, game, offset, firstRank) {
+  let pv = null, pr = 0;
+  return items.map((o, i) => {
+    const v = rankValue(game, o);
+    const r = i === 0 ? firstRank : (v === pv ? pr : (offset || 0) + i + 1);
+    pv = v; pr = r; return Object.assign({ rank: r }, o);
+  });
+}
+// 이 값보다 확실히 위인 기록 수 + 1 = 공동 순위 (값이 같은 기록끼리는 점수 소수점만 달라요)
+async function tieRank(redis, key, value) {
+  const n = Number(await redis(['ZCOUNT', key, '-inf', '(' + (value - 1)])) || 0;
+  return n + 1;
+}
+
 // 나이스 학교기본정보 검색
 async function neisSearch(q) {
   const key = process.env.NEIS_KEY;
@@ -136,4 +161,5 @@ async function neisSearch(q) {
   } finally { clearTimeout(t); }
 }
 
-module.exports = { LEGACY_CLASS, isClass, classOf, parseCls, publicMembers, onlyClass, classCounts, schoolYear, kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };
+module.exports = {
+  rankValue, rankList, tieRank, LEGACY_CLASS, isClass, classOf, parseCls, publicMembers, onlyClass, classCounts, schoolYear, kstDay, redisMulti, ipOf, rateLimit, neisBudget, neisSearch, configured: () => !!(URL_ && TOKEN), redis, send, okConfig, getConfig, isAdmin, CONFIG_KEY };

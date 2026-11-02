@@ -382,6 +382,7 @@ const Store = {
   key: (y, s) => (TEST() ? 'T:' : '') + 'rd_scores:' + y + ':' + s,   // 테스트 모드의 기록은 이 컴퓨터에만, 따로 모아요
   localList(y, s) { try { return JSON.parse(localStorage.getItem(Store.key(y, s)) || '[]'); } catch (e) { return []; } },
   sortRecs(l) { return l.slice().sort((p, q) => p.rolls - q.rolls || q.ts - p.ts); },
+  ties(l) { let pv = null, pr = 0; return l.map((r, i) => { const k = i && r.rolls === pv ? pr : i + 1; pv = r.rolls; pr = k; return Object.assign({}, r, { rank: k }); }); },   // 공동 순위 (300·200·200·100 → 1·2·2·4)
   async http(method, url, body, opt) {
     opt = opt || {};
     if (TEST() && !(method === 'GET' && url === CONFIG.configUrl)) throw new Error('test');   // 테스트 모드: 서버에는 아무것도 보내지 않아요 (학교 목록 읽기만 가능)
@@ -410,7 +411,7 @@ const Store = {
       Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
     } catch (e) {
       Store.mode = 'local';
-      const all = Store.sortRecs(Store.localList(y, s)).filter(r => Store.clsOK(r, cls));
+      const all = Store.ties(Store.sortRecs(Store.localList(y, s)).filter(r => Store.clsOK(r, cls)));
       return { rows: all.slice(offset, offset + limit), total: all.length };
     }
   },
@@ -421,7 +422,7 @@ const Store = {
         if (j && Array.isArray(j.matches)) return j.matches;
       } catch (e) {}
     }
-    return Store.sortRecs(Store.localList(y, s)).filter(r => Store.clsOK(r, cls)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+    return Store.ties(Store.sortRecs(Store.localList(y, s)).filter(r => Store.clsOK(r, cls))).filter(r => String(r.name).includes(q)).slice(0, 50);
   },
   async save(y, s, rec) {
     try {
@@ -432,8 +433,8 @@ const Store = {
       Store.mode = 'local';
       const l = Store.localList(y, s); l.push(rec);
       try { localStorage.setItem(Store.key(y, s), JSON.stringify(l)); } catch (er) {}
-      const sorted = Store.sortRecs(l);
-      return { rank: sorted.findIndex(x => x.id === rec.id) + 1, top: sorted.slice(0, CONFIG.pageSize), total: sorted.length };
+      const sorted = Store.ties(Store.sortRecs(l));
+      return { rank: (sorted.find(x => x.id === rec.id) || { rank: 0 }).rank, top: sorted.slice(0, CONFIG.pageSize), total: sorted.length };
     }
   }
 };
@@ -597,8 +598,8 @@ async function recFetch(offset) {
     const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&offset=' + offset + '&limit=' + REC_PS);
     return { rows: j.top.map((r, i) => Object.assign({ rank: offset + i + 1 }, r)), total: j.total };
   }
-  const all = Store.sortRecs(Store.localList(y, s));
-  return { rows: all.slice(offset, offset + REC_PS).map((r, i) => Object.assign({ rank: offset + i + 1 }, r)), total: all.length };
+  const all = Store.ties(Store.sortRecs(Store.localList(y, s)));
+  return { rows: all.slice(offset, offset + REC_PS), total: all.length };
 }
 async function recFind(q) {
   const { y, s } = delSel();
@@ -606,7 +607,7 @@ async function recFind(q) {
     const j = await Store.http('GET', CONFIG.apiUrl + '?year=' + y + '&school=' + encodeURIComponent(s) + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
     return j.matches;
   }
-  return Store.sortRecs(Store.localList(y, s)).map((r, i) => Object.assign({ rank: i + 1 }, r)).filter(r => String(r.name).includes(q)).slice(0, 50);
+  return Store.ties(Store.sortRecs(Store.localList(y, s))).filter(r => String(r.name).includes(q)).slice(0, 50);
 }
 function paintRecs() {
   const box = document.getElementById('recbox'); if (!box) return;
@@ -1082,7 +1083,7 @@ function paintResult() {
     rows = R.matches.length ? R.matches.map(r => rowHtml(r, r.rank)).join('') : '<div class="empty">그 이름의 기록이 없어요.</div>';
   } else {
     const top = R.top || [];
-    rows = top.length ? top.map((r, i) => rowHtml(r, offset + i + 1)).join('') : '<div class="empty">아직 기록이 없어요. 첫 번째 기록을 남겨 보세요!</div>';
+    rows = top.length ? top.map((r, i) => rowHtml(r, r.rank != null ? r.rank : offset + i + 1)).join('') : '<div class="empty">아직 기록이 없어요. 첫 번째 기록을 남겨 보세요!</div>';
   }
   const clsList = (R.classes || []).slice();
   if (R.cls && !clsList.some(c => c.gr + '-' + c.cl === R.cls)) { const [g, c] = R.cls.split('-').map(Number); clsList.push({ gr: g, cl: c, n: 0 }); }

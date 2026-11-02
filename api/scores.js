@@ -15,7 +15,7 @@
 // DELETE /api/scores?year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)    여러 건 삭제
 // DELETE /api/scores?year=&school=&all=1      (헤더 x-admin-key 필요)    순위 전체 삭제
 
-const { configured, redis, send, getConfig, isAdmin, isClass, parseCls, publicMembers, onlyClass, classCounts } = require('./_lib');
+const { configured, redis, send, getConfig, isAdmin, isClass, parseCls, publicMembers, onlyClass, classCounts, rankList, rankValue, tieRank } = require('./_lib');
 const { badName } = require('./_names');
 const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
@@ -55,8 +55,9 @@ module.exports = async function handler(req, res) {
         let all = parseMembers(await redis(['ZRANGE', key, 0, -1]), school);
         if (cls) all = onlyClass(all, cls);
         const matches = [];
-        for (let i = 0; i < all.length && matches.length < 50; i++) {
-          if (String(all[i].name).includes(q)) matches.push(Object.assign({ rank: i + 1 }, all[i]));
+        const ranked = rankList(all, 'river', 0, 1);
+        for (let i = 0; i < ranked.length && matches.length < 50; i++) {
+          if (String(ranked[i].name).includes(q)) matches.push(ranked[i]);
         }
         return send(res, 200, { matches, total: cls ? all.length : total });
       }
@@ -65,9 +66,10 @@ module.exports = async function handler(req, res) {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || PAGE_DEFAULT, 1), PAGE_MAX);
       if (cls) {   // 한 반만: 전체를 읽어서 걸러요
         const mine = onlyClass(parseMembers(await redis(['ZRANGE', key, 0, -1]), school), cls);
-        return send(res, 200, { top: mine.slice(offset, offset + limit), total: mine.length, offset });
+        return send(res, 200, { top: rankList(mine, 'river', 0, 1).slice(offset, offset + limit), total: mine.length, offset });
       }
-      const top = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]), school);
+      const rows = parseMembers(await redis(['ZRANGE', key, offset, offset + limit - 1]), school);
+      const top = rows.length ? rankList(rows, 'river', offset, await tieRank(redis, key, rankValue('river', rows[0]))) : rows;
       return send(res, 200, { top, total, offset });
     }
 
@@ -97,10 +99,12 @@ module.exports = async function handler(req, res) {
       const score = rolls - ts / 1e13; // 굴린 횟수가 같으면 최근에 기록한 사람이 위
       await redis(['ZADD', key, score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
+      const myRank = rank0 == null ? KEEP + 1 : await tieRank(redis, key, rolls);   // 같은 횟수는 공동 순위
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
-      const top = parseMembers(await redis(['ZRANGE', key, 0, PAGE_DEFAULT - 1]), b.school);
+      const topRows = parseMembers(await redis(['ZRANGE', key, 0, PAGE_DEFAULT - 1]), b.school);
+      const top = rankList(topRows, 'river', 0, 1);
       const total = Number(await redis(['ZCARD', key])) || 0;
-      return send(res, 200, { rank: (rank0 == null ? KEEP : rank0) + 1, top, total });
+      return send(res, 200, { rank: myRank, top, total });
     }
 
     if (req.method === 'DELETE') {
