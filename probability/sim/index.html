@@ -789,7 +789,7 @@ function clsSelHtml() {
 }
 function itemsHtml() {
   const L = S.list, q = (L.q || '').trim().toLowerCase(), cur = curCls();
-  let items = cur ? L.items.filter(it => it.gr + '-' + it.cl === cur) : L.items;
+  let items = cur ? L.items.filter(it => it.feat || it.gr + '-' + it.cl === cur) : L.items;   // ⭐ 추천 실험은 모든 반에서 보여요
   if (q) items = items.filter(it => String(it.nick || '').toLowerCase().indexOf(q) >= 0);
   if (!items.length && !q && cur) return '<div class="empty">' + cur.split('-')[0] + '학년 ' + cur.split('-')[1] + '반 친구가 올린 실험이 아직 없어요.<br>위에서 ‘전체’를 고르면 우리 학교 실험을 볼 수 있어요.</div>';
   if (!items.length) return '<div class="empty">‘' + esc(L.q.trim()) + '’ 친구가 만든 실험이 없어요.</div>';
