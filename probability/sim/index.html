@@ -274,7 +274,7 @@ async function syncMe() {
   if (!m) return;
   let r; try { r = await MtryuMeSync.resolve(LIST.schools, LIST.regions, '/api/config'); } catch (e) { r = null; }
   if (r && r.list && okList(r.list)) takeList(r.list);
-  if (r && r.label) ME = { nick: cleanNick(m.nick), uid: m.uid, label: r.label };
+  if (r && r.label) ME = { nick: cleanNick(m.nick), uid: m.uid, label: r.label, gr: m.gr, cl: m.cl };
 }
 // 올리기·목록·판정 전에 서버와 내 정보를 확인해요. 문제가 있으면 안내 글을 돌려줘요. (만들기·실험하기는 서버 없이도 돼요)
 async function needReady() {
@@ -757,7 +757,7 @@ async function publish() {
   if (bad) { P.busy = false; P.msg = bad; P.err = true; paintPub(); return; }
   try {
     const E = S.exp;
-    const j = await api({ act: 'publish', year: YEAR, school: ME.label, uid: ME.uid, nick: ME.nick, tool: E.tool, cases: E.names, w: E.p });
+    const j = await api({ act: 'publish', year: YEAR, school: ME.label, uid: ME.uid, nick: ME.nick, gr: ME.gr, cl: ME.cl, tool: E.tool, cases: E.names, w: E.p });
     P.id = j.id; P.key = curKey(); P.open = false; listCount = null; toast('우리 학교에 올렸어요!');
   } catch (e) { P.msg = errText(e); P.err = true; }
   P.busy = false; paintPub();
@@ -770,14 +770,28 @@ function listHtml() {
   if (L.loading) body = '<div class="empty"><span class="spin"></span> 불러오는 중…</div>';
   else if (L.err) body = '<div class="empty">' + esc(L.msg) + '<br><button class="btn sm" data-act="list">다시 시도</button></div>';
   else if (!L.items || !L.items.length) body = '<div class="empty">아직 올라온 실험이 없어요.<br>내가 먼저 실험을 만들어 올려 보세요!</div>';
-  else body = '<div class="srch"><label>🔍 만든 친구 검색 <input type="search" id="lq" value="' + esc(L.q || '') + '" placeholder="별명" autocomplete="off"></label></div><div id="listitems">' + itemsHtml() + '</div>';
+  else body = clsSelHtml() + '<div class="srch"><label>🔍 만든 친구 검색 <input type="search" id="lq" value="' + esc(L.q || '') + '" placeholder="별명" autocomplete="off"></label></div><div id="listitems">' + itemsHtml() + '</div>';
   return '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn sm" data-act="list">↻ 새로고침</button></div>' +
     '<div class="card"><h2>🏫 우리 학교 실험 판정하기</h2><p class="hint">' + esc(ME ? ME.label : '') + ' · ' + YEAR + '학년도. 친구가 만든 실험을 직접 해 보세요. 결과를 보고, 모든 경우가 나올 가능성이 같은지 판단해 보세요.</p><p class="hint">⭐ 추천 실험이 맨 위에 나와요. 그다음은 판정에 참여한 친구가 많은 실험 순서예요.</p></div>' + body +
     '<p class="hint" style="text-align:right;margin-top:14px"><button class="btn sm" data-act="admin">' + (adminKey ? '관리자 모드 끄기' : '관리자') + '</button></p>';
 }
+/* 기본 보기는 내 학년·반이에요. '전체'를 고르면 우리 학교 모든 실험이 나와요 */
+const myCls = () => (ME && Number.isInteger(ME.gr) && Number.isInteger(ME.cl)) ? ME.gr + '-' + ME.cl : '';
+const curCls = () => (S.list.cls == null ? myCls() : S.list.cls);
+function clsSelHtml() {
+  const cnt = {}; (S.list.items || []).forEach(it => { if (Number.isInteger(it.gr) && Number.isInteger(it.cl)) { const k = it.gr + '-' + it.cl; cnt[k] = (cnt[k] || 0) + 1; } });
+  const mine = myCls(); if (mine && !cnt[mine]) cnt[mine] = 0;
+  const cur = curCls(); if (cur && !(cur in cnt)) cnt[cur] = 0;
+  const keys = Object.keys(cnt).sort((a, b) => { const x = a.split('-').map(Number), y = b.split('-').map(Number); return x[0] - y[0] || x[1] - y[1]; });
+  if (!keys.length) return '';
+  return '<div class="srch"><label>🏷️ 반 <select id="lcls" aria-label="반별로 보기" style="font:inherit;padding:8px 12px;border:2px solid var(--ink);border-radius:10px;background:#fff"><option value="">전체</option>' +
+    keys.map(k => { const a = k.split('-'); return '<option value="' + k + '"' + (cur === k ? ' selected' : '') + '>' + a[0] + '학년 ' + a[1] + '반' + (k === mine ? ' (우리 반)' : '') + ' (' + cnt[k] + ')</option>'; }).join('') + '</select></label></div>';
+}
 function itemsHtml() {
-  const L = S.list, q = (L.q || '').trim().toLowerCase();
-  const items = q ? L.items.filter(it => String(it.nick || '').toLowerCase().indexOf(q) >= 0) : L.items;
+  const L = S.list, q = (L.q || '').trim().toLowerCase(), cur = curCls();
+  let items = cur ? L.items.filter(it => it.gr + '-' + it.cl === cur) : L.items;
+  if (q) items = items.filter(it => String(it.nick || '').toLowerCase().indexOf(q) >= 0);
+  if (!items.length && !q && cur) return '<div class="empty">' + cur.split('-')[0] + '학년 ' + cur.split('-')[1] + '반 친구가 올린 실험이 아직 없어요.<br>위에서 ‘전체’를 고르면 우리 학교 실험을 볼 수 있어요.</div>';
   if (!items.length) return '<div class="empty">‘' + esc(L.q.trim()) + '’ 친구가 만든 실험이 없어요.</div>';
   return '<div class="items">' + items.map(it => {
     const done = it.my, tally = it.tally;
@@ -994,6 +1008,7 @@ app.addEventListener('click', async ev => {
   }
 });
 app.addEventListener('input', ev => {
+  if (ev.target.id === 'lcls') { S.list.cls = ev.target.value; S.list.q = ''; render(); return; }
   if (ev.target.id === 'lq') { S.list.q = ev.target.value; const box = $('#listitems'); if (box) box.innerHTML = itemsHtml(); return; }
   const t = ev.target;
   if (t.id === 'tool') { S.tool = t.value; S.touched = true; updateBuild(); }

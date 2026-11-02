@@ -22,7 +22,7 @@
 //   my: 내가 고른 판정(없으면 null)   tally: {e, n} 은 내가 올린 실험이거나 내가 판정한 뒤에만 보내요
 
 const crypto = require('crypto');
-const { configured, redis, redisMulti, send, getConfig, isAdmin, rateLimit } = require('./_lib');
+const { configured, redis, redisMulti, send, getConfig, isAdmin, rateLimit, isClass, classOf } = require('./_lib');
 const { badName } = require('./_names');
 const L = require('./_simlib');
 
@@ -89,7 +89,9 @@ const num = v => Number(v) || 0;
 function toItem(e, cnt, my, uid) {
   const mine = !!(uid && e.uid === uid);
   const v = my ? parseVote(my) : null;
+  const c = classOf(e, e.school);   // 만든 친구의 학년·반 (옛 실험은 선운중만 2학년 2반으로 봐요)
   const item = { id: e.id, tool: e.tool, cases: e.cases, nick: e.nick, ts: e.ts, voters: cnt.e + cnt.n, feat: !!e.feat, featTs: e.feat || 0, mine, my: v ? v.c : null };
+  if (c) { item.gr = c.gr; item.cl = c.cl; }
   if (v) { item.eq = !!e.eq; item.ok = v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok; item.myN = v.n; }   // 판정한 뒤에만 정답을 알려 줘요
   if (mine || item.my) item.tally = { e: cnt.e, n: cnt.n };
   return item;
@@ -164,7 +166,8 @@ module.exports = async function handler(req, res) {
       if (own >= OWN_MAX) return send(res, 400, { error: 'too-many-mine' });
       const id = crypto.randomBytes(5).toString('hex');
       const ts = Date.now();
-      const e = { id, year: Number(b.year), school: b.school, tool: ex.tool, cases: ex.cases, p: ex.p, eq: L.isEqual(ex.p), nick, uid, ts };
+      const gr = Number(b.gr), cl = Number(b.cl);   // 학년·반 (번호는 받지 않아요)
+      const e = Object.assign({ id, year: Number(b.year), school: b.school, tool: ex.tool, cases: ex.cases, p: ex.p, eq: L.isEqual(ex.p), nick, uid, ts }, isClass(gr, cl) ? { gr, cl } : {});
       const idx = kIdx(b.year, b.school);
       await redisMulti([
         ['SET', kE(id), JSON.stringify(e), 'EX', TTL],
