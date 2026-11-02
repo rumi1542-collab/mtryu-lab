@@ -1162,7 +1162,7 @@ function paintBoard() {
 async function paintDist(t) {
   const d = await Store.dist(S.year, viewSchool(), B.cls), el = $('#dist');
   if (t !== token || !el) return;
-  const tot = d.total, K = 8;
+  const tot = d.total, K = 11;   // 0번~9번, 마지막 칸은 10번 이상
   const act = []; for (let k = 0; k < K; k++) act.push(k === K - 1 ? d.counts.slice(k).reduce((a, b) => a + b, 0) : d.counts[k] || 0);
   const th_ = k => (k === K - 1 ? Math.pow(0.5, K - 1) : Math.pow(0.5, k + 1)) * 100;
   const rowsH = act.map((c, k) => { const pc = tot ? c / tot * 100 : 0; return `<div class="bar"><span>${k === K - 1 ? K - 1 + '번+' : k + '번'}</span><div class="track"><div class="fill" style="width:${Math.min(100, pc)}%"></div><div class="th" style="left:calc(${Math.min(100, th_(k))}% - 1px)"></div></div><span>${pc.toFixed(1)}% (이론 ${th_(k).toFixed(1)}%)</span></div>`; }).join('');
