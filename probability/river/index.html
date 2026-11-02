@@ -1089,7 +1089,7 @@ function paintResult() {
   }
   const clsList = (R.classes || []).slice();
   if (R.cls && !clsList.some(c => c.gr + '-' + c.cl === R.cls)) { const [g, c] = R.cls.split('-').map(Number); clsList.push({ gr: g, cl: c, n: 0 }); }
-  const clsSel = clsList.length ? `<label class="clsrow"><span>반</span><select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>${clsList.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${R.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
+  const clsSel = clsList.length ? `<label class="clsrow"><span>반</span><select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>${clsList.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${R.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${ME && c.gr === ME.gr && c.cl === ME.cl && state.school === ME.label ? ' (우리 반)' : ''}${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
   const mine = w.filter(p => R.rank[p]).map(p => `<button type="button" class="mybtn${p === 'b' ? ' o' : ''}" data-act="gomine" data-p="${p}">${esc(cleanName(state[p].name))} ${R.rank[p]}위 보기</button>`).join('');
   const pager = R.matches
     ? `<div class="pager"><span>이름 검색 결과 ${R.matches.length}명${R.matches.length >= 50 ? ' (최대 50명)' : ''}</span><button type="button" class="pbtn wide" data-act="clearfind">전체 순위로</button></div>`

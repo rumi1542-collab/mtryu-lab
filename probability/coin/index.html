@@ -1145,7 +1145,7 @@ function paintClsBox() {
   const el = $('#clsbox'); if (!el) return;
   const cl = B.classes.slice();
   if (B.cls && !cl.some(c => c.gr + '-' + c.cl === B.cls)) { const a = B.cls.split('-').map(Number); cl.push({ gr: a[0], cl: a[1], n: 0 }); }
-  el.innerHTML = cl.length ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:0 0 10px">반 <select id="clsSel" aria-label="반별로 보기" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px"><option value="">전체</option>${cl.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${B.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
+  el.innerHTML = cl.length ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:0 0 10px">반 <select id="clsSel" aria-label="반별로 보기" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px"><option value="">전체</option>${cl.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${B.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${ME && c.gr === ME.gr && c.cl === ME.cl && viewSchool() === S.school ? ' (우리 반)' : ''}${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
 }
 function paintBoard() {
   const el = $('#boardbody'); if (!el) return;
