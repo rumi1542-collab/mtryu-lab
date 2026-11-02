@@ -1162,10 +1162,10 @@ function paintBoard() {
 async function paintDist(t) {
   const d = await Store.dist(S.year, viewSchool(), B.cls), el = $('#dist');
   if (t !== token || !el) return;
-  const tot = d.total, K = 11;   // 0번~9번, 마지막 칸은 10번 이상
-  const act = []; for (let k = 0; k < K; k++) act.push(k === K - 1 ? d.counts.slice(k).reduce((a, b) => a + b, 0) : d.counts[k] || 0);
-  const th_ = k => (k === K - 1 ? Math.pow(0.5, K - 1) : Math.pow(0.5, k + 1)) * 100;
-  const rowsH = act.map((c, k) => { const pc = tot ? c / tot * 100 : 0; return `<div class="bar"><span>${k === K - 1 ? K - 1 + '번+' : k + '번'}</span><div class="track"><div class="fill" style="width:${Math.min(100, pc)}%"></div><div class="th" style="left:calc(${Math.min(100, th_(k))}% - 1px)"></div></div><span>${pc.toFixed(1)}% (이론 ${th_(k).toFixed(1)}%)</span></div>`; }).join('');
+  const tot = d.total, K = 11;   // 0번~10번까지만 보여 줘요 (11번 이상은 나타내지 않아요)
+  const act = []; for (let k = 0; k < K; k++) act.push(d.counts[k] || 0);
+  const th_ = k => Math.pow(0.5, k + 1) * 100;
+  const rowsH = act.map((c, k) => { const pc = tot ? c / tot * 100 : 0; return `<div class="bar"><span>${k + '번'}</span><div class="track"><div class="fill" style="width:${Math.min(100, pc)}%"></div><div class="th" style="left:calc(${Math.min(100, th_(k))}% - 1px)"></div></div><span>${pc.toFixed(1)}% (이론 ${th_(k).toFixed(1)}%)</span></div>`; }).join('');
   el.innerHTML = `<div class="panel" style="background:var(--deep);margin-top:6px"><h3>맞힌 횟수의 분포</h3><p class="hint">순위에 올린 ${tot}개 기록을 맞힌 횟수별로 모았어요. 막대는 실제, 분홍 선은 이론값(1/2, 1/4, 1/8, …)이에요. 기록이 많아질수록 막대가 분홍 선에 가까워져요.</p><div class="bars">${rowsH}</div></div>`;
 }
 
