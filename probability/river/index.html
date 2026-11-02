@@ -468,6 +468,7 @@ function hash53(str) {
 
 /* ---------- 상태 ---------- */
 const prefs = (() => { try { return JSON.parse(localStorage.getItem('rd_prefs') || '{}'); } catch (e) { return {}; } })();
+const defCls = () => (ME && Number.isInteger(ME.gr) && Number.isInteger(ME.cl) && state.school === ME.label) ? ME.gr + '-' + ME.cl : '';   // 순위표 기본 보기: 내 학교 · 내 학년 · 내 반
 let ME = null;   // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
 const state = {
   screen: 'setup',
@@ -978,7 +979,7 @@ async function runGame(id) {
 async function finish(winners, stalemate) {
   const rolls = G.rolls;
   G = null;
-  state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: '', classes: [], status: winners.length ? 'saving' : 'none' };
+  state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: defCls(), classes: [], status: winners.length ? 'saving' : 'none' };
   show('result');
   paintResult();
   if (!winners.length) { loadBoardOnly(); return; }
@@ -993,6 +994,7 @@ async function finish(winners, stalemate) {
     state.result.rank[p] = last.rank;
   }
   state.result.top = last.top; state.result.total = last.total; state.result.offset = 0; state.result.status = Store.mode === 'server' ? 'ok' : 'local';
+  if (state.result.cls) { const pg = await Store.page(state.year, state.school, 0, CONFIG.pageSize, state.result.cls); state.result.top = pg.rows; state.result.total = pg.total; }   // 기본 보기는 내 반
   paintResult();
   loadClasses();
 }
@@ -1005,7 +1007,7 @@ async function loadClasses() {
   if (state.screen === 'result') paintResult();
 }
 async function loadBoardOnly() {
-  const pg = await Store.page(state.year, state.school, 0, CONFIG.pageSize);
+  const pg = await Store.page(state.year, state.school, 0, CONFIG.pageSize, state.result.cls);
   state.result.top = pg.rows; state.result.total = pg.total; state.result.offset = 0;
   state.result.status = Store.mode === 'server' ? 'none' : 'nonelocal';
   paintResult();
@@ -1145,7 +1147,7 @@ document.addEventListener('click', e => {
   else if (act === 'again') { state.a.counts = new Array(12).fill(0); state.b.counts = new Array(12).fill(0); show('place'); }
   else if (act === 'ranks') {
     state.school = b.dataset.v; savePrefs();
-    state.result = { winners: [], rolls: 0, stalemate: false, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: '', classes: [], status: 'none', view: true };
+    state.result = { winners: [], rolls: 0, stalemate: false, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: defCls(), classes: [], status: 'none', view: true };
     show('result'); loadBoardOnly();
   }
   else if (act === 'tosetup') { enforceMine(); show('setup'); }

@@ -466,7 +466,8 @@ const readJSON = k => { try { return JSON.parse(localStorage.getItem(k) || '{}')
 const prefs = Object.assign({}, readJSON('rd_prefs'), readJSON('cn_prefs'));
 const S = { screen: 'home', year: LIST.years[0], school: LIST.schools[0], name: String(prefs.name || prefs.aName || '').slice(0, 8), speed: [1, 2, 3, 4].includes(prefs.speed1) ? prefs.speed1 : 1, intro: true };
 let ME = null;           // 내 정보: { nick, uid, label }  내 학교가 순위 서버에 있을 때만 값이 있어요 (아래 '내 정보' 부분에서 채워요)
-const viewSchool = () => S.vschool || S.school;   // 순위표를 볼 학교
+const viewSchool = () => S.vschool || S.school;
+const defCls = () => (ME && Number.isInteger(ME.gr) && Number.isInteger(ME.cl) && viewSchool() === S.school) ? ME.gr + '-' + ME.cl : '';   // 순위표 기본 보기: 내 학교 · 내 학년 · 내 반   // 순위표를 볼 학교
 let G = null;           // 진행 중인 게임
 let token = 0;          // 화면을 옮기면 진행 중이던 애니메이션을 멈추는 표식
 function checkName() {
@@ -1142,7 +1143,9 @@ async function loadClasses(t, g) {   // 반 고르기 목록 (서버에서 학�
 }
 function paintClsBox() {
   const el = $('#clsbox'); if (!el) return;
-  el.innerHTML = B.classes.length ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:0 0 10px">반 <select id="clsSel" aria-label="반별로 보기" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px"><option value="">전체</option>${B.classes.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${B.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
+  const cl = B.classes.slice();
+  if (B.cls && !cl.some(c => c.gr + '-' + c.cl === B.cls)) { const a = B.cls.split('-').map(Number); cl.push({ gr: a[0], cl: a[1], n: 0 }); }
+  el.innerHTML = cl.length ? `<label class="hint" style="display:inline-flex;gap:8px;align-items:center;margin:0 0 10px">반 <select id="clsSel" aria-label="반별로 보기" style="height:40px;border-radius:10px;border:2px solid var(--line);background:var(--deep);padding:0 10px;font-size:16px"><option value="">전체</option>${cl.map(c => { const v = c.gr + '-' + c.cl; return `<option value="${v}"${B.cls === v ? ' selected' : ''}>${c.gr}학년 ${c.cl}반${c.n ? ' (' + c.n + ')' : ''}</option>`; }).join('')}</select></label>` : '';
 }
 function paintBoard() {
   const el = $('#boardbody'); if (!el) return;
@@ -1173,9 +1176,9 @@ document.addEventListener('click', e => {
   if (act === 'home') go('home');
   else if (act === 'start') { if (!checkName()) return; if (gk === 'run') startRun(); else if (gk === 'tune') startTune(); else if (gk === 'spot') startSpot('play'); else startBet('play'); }
   else if (act === 'practice') { if (!checkName()) return; if (gk === 'spot') startSpot('practice'); else startBet('practice'); }
-  else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.cls = ''; B.classes = []; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
-  else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
-  else if (act === 'b-tab') { B.game = gk; B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.cls = defCls(); B.classes = []; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
+  else if (act === 'b-w') { B.w = parseInt(v, 10); B.q = ''; B.cls = defCls(); B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  else if (act === 'b-tab') { B.game = gk; B.q = ''; B.cls = defCls(); B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (act === 'b-page') loadBoard(Math.max(0, parseInt(b.dataset.o, 10) || 0));
   else if (act === 'b-find') {
     const q = cleanName($('#fq').value); B.q = q;
@@ -1229,7 +1232,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.id === 'clsSel') { B.cls = el.value; B.q = ''; B.matches = null; loadBoard(0); return; }
-  if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; B.cls = ''; B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
+  if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; B.cls = defCls(); B.classes = []; $('#screen').innerHTML = boardShell(); loadBoard(0); }
   else if (el.id === 'intro') { S.intro = el.checked; }
   else if (el.id === 'selYear') { S.year = parseInt(el.value, 10); savePrefs(); probeMode(); }
   else if (el.id === 'selSchool') { if (ME) S.vschool = el.value === S.school ? null : el.value; else S.school = el.value; savePrefs(); probeMode(); }
