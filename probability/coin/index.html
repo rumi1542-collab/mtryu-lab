@@ -112,6 +112,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .cc.x{box-shadow:0 0 0 3px var(--bad)}
 .cc.s{width:24px;max-width:24px;font-size:11px}
 .cc.s.t{border-width:1.5px}
+button.cc.mc{border:2px solid transparent;cursor:pointer;font-family:inherit;padding:0}
+button.cc.mc.t{border-color:var(--blue)}
+button.cc.mc:hover{filter:brightness(1.12);transform:scale(1.06)}
+button.cc.mc:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.mgrid{max-width:520px;margin:0 auto}
 .seq{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;justify-items:center}
 .seq.mini{display:flex;flex-wrap:wrap;gap:3px}
 .cols{display:flex;flex-wrap:wrap;gap:8px}
@@ -946,7 +951,7 @@ const heartSVG = on => on
   : `<svg class="hrt off" viewBox="0 0 64 62" aria-hidden="true"><path d="${HEART_PATH}" fill="#2A3070" stroke="#7F8BD8" stroke-width="3" stroke-dasharray="5 5" stroke-linejoin="round"/><path d="M22 28L28 34M28 28L22 34M36 28L42 34M42 28L36 34" stroke="#7F8BD8" stroke-width="2.6" stroke-linecap="round"/><path d="M26 42Q32 37 38 42" fill="none" stroke="#7F8BD8" stroke-width="2.6" stroke-linecap="round"/></svg>`;
 const livesBadge = h => { const left = Math.max(0, Math.min(MAX_HEARTS, h)); return `<div class="lives" role="img" aria-label="하트 ${left}개">${heartSVG(true).repeat(left)}${heartSVG(false).repeat(MAX_HEARTS - left)}</div>`; };
 const heartsHTML = h => `<span aria-label="하트 ${h}개" style="color:var(--bad);letter-spacing:2px">${'♥'.repeat(Math.max(0, h))}${'♡'.repeat(Math.max(0, MAX_HEARTS - h))}</span>`;
-function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, hearts: START_HEARTS, over: false, rounds: [], recorded: false, mine: [] }; if (G.mode !== 'mine') newSpotRound(); go('spot'); }
+function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, hearts: START_HEARTS, over: false, rounds: [], recorded: false, mine: new Array(MINE_LEN).fill(1), mineDone: false }; if (G.mode !== 'mine') newSpotRound(); go('spot'); }
 // 레벨표: [지어낸 배열이 바꿀 확률, 연속 상한, 배열 길이]. 레벨이 오를수록 지어낸 배열이 진짜 같아지고 길이도 짧아져요.
 const SPOT_LV = [[0.72, 4, 40], [0.68, 4, 40], [0.64, 5, 40], [0.60, 5, 40], [0.57, 6, 36], [0.55, 6, 32], [0.54, 7, 28], [0.53, 8, 24], [0.52, 9, 22], [0.52, 10, 20]];
 function newSpotRound() {
@@ -995,13 +1000,15 @@ function spotHTML() {
     ${confirm}${res}</div>`;
 }
 function mineHTML() {
-  const g = G, m = g.mine, n = m.length;
-  const prog = `<div class="seq mini" style="min-height:30px">${m.map(v => chip(v, 's')).join('') || '<span class="hint">아직 아무것도 안 눌렀어요.</span>'}</div>`;
-  if (n < MINE_LEN) {
+  const g = G, m = g.mine;
+  if (!g.mineDone) {
+    const tails = m.filter(v => !v).length;
+    const grid = `<div class="seq mgrid">${m.map((v, i) => `<button type="button" class="cc mc ${v ? 'h' : 't'}" data-act="m-flip" data-v="${i}" aria-pressed="${!v}" aria-label="${i + 1}번째 동전: ${v ? '앞면' : '뒷면'}">${v ? '앞' : '뒤'}</button>`).join('')}</div>`;
     return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('mine')}
-      <p class="hint">진짜 동전을 던진 것처럼 보이도록, 앞·뒤를 눌러 <b>${MINE_LEN}번</b>의 결과를 직접 만들어 보세요. 다 만들면 컴퓨터가 진짜 같은지 판정해요.</p>
-      <div class="row c"><button type="button" class="pick h" data-act="m-add" data-v="1">앞</button><button type="button" class="pick t" data-act="m-add" data-v="0">뒤</button></div>
-      <div class="row" style="justify-content:space-between"><b>${n} / ${MINE_LEN}</b><button type="button" class="ghost" data-act="m-undo" ${n ? '' : 'disabled'}>하나 지우기</button></div>${prog}</div>`;
+      <p class="hint">동전 ${MINE_LEN}개가 모두 <b>앞면</b>으로 놓여 있어요. 진짜 동전을 ${MINE_LEN}번 던진 것처럼 보이도록, <b>뒷면으로 바꿀 동전만 눌러</b> 보세요. (다시 누르면 앞면으로 돌아와요) 다 만들었으면 <b>판정 받기</b>를 눌러요.</p>
+      ${grid}
+      <div class="row" style="justify-content:space-between"><b>앞 ${MINE_LEN - tails}개 · 뒤 ${tails}개</b><button type="button" class="ghost" data-act="m-reset" ${tails ? '' : 'disabled'}>모두 앞면으로</button></div>
+      <div class="row"><button type="button" class="go" data-act="m-judge">판정 받기</button></div></div>`;
   }
   const me = seqStats(m), N = 3000, runs = new Array(MINE_LEN + 1).fill(0), sws = new Array(MINE_LEN + 1).fill(0), hds = new Array(MINE_LEN + 1).fill(0);
   for (let i = 0; i < N; i++) { const st = seqStats(Array.from(randBits(MINE_LEN))); runs[st.maxRun]++; sws[st.sw]++; hds[st.heads]++; }
@@ -1233,9 +1240,10 @@ document.addEventListener('click', e => {
     if (G.mode === 'play' && G.over) autoRecord();
   }
   else if (act === 's-again') startSpot('play');
-  else if (act === 'm-add') { if (G.mine.length < MINE_LEN) { G.mine.push(parseInt(v, 10)); $('#screen').innerHTML = spotHTML(); } }
-  else if (act === 'm-undo') { G.mine.pop(); $('#screen').innerHTML = spotHTML(); }
-  else if (act === 'm-again') { G.mine = []; $('#screen').innerHTML = spotHTML(); }
+  else if (act === 'm-flip') { const i = parseInt(v, 10); if (!G.mineDone && i >= 0 && i < MINE_LEN) { G.mine[i] = G.mine[i] ? 0 : 1; $('#screen').innerHTML = spotHTML(); const f = document.querySelector('[data-act="m-flip"][data-v="' + i + '"]'); if (f) f.focus({ preventScroll: true }); } }
+  else if (act === 'm-reset') { G.mine = new Array(MINE_LEN).fill(1); $('#screen').innerHTML = spotHTML(); }
+  else if (act === 'm-judge') { G.mineDone = true; $('#screen').innerHTML = spotHTML(); window.scrollTo(0, 0); }
+  else if (act === 'm-again') { G.mineDone = false; G.mine = new Array(MINE_LEN).fill(1); $('#screen').innerHTML = spotHTML(); }
   else if (act === 'b-pick') { G.cur.p = v; $('#screen').innerHTML = betHTML(); const f = document.querySelector('.bet.pickbox[data-v="' + v + '"]'); if (f) f.focus({ preventScroll: true }); }
   else if (act === 'b-go') betRun();
   else if (act === 'b-mode') startBet(v);
