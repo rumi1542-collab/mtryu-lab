@@ -156,11 +156,16 @@ tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
 .mark{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--ink);color:#fff;margin-left:6px;vertical-align:middle}
 
 /* 목록 */
-.items{display:flex;flex-direction:column;gap:14px}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:16px;align-items:stretch}
+.items+.items{margin-top:18px}
 .srch{margin:0 0 12px}.srch label{display:flex;align-items:center;gap:8px;font-weight:600;flex-wrap:wrap}.srch input{flex:1;min-width:160px;max-width:320px;font:inherit;padding:8px 12px;border:2px solid var(--ink,#2B0F3F);border-radius:12px}
 .mydone{color:#1a6b3c;font-weight:600}
-.item{display:flex;flex-direction:column;gap:10px;padding:16px 18px;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--purple)}
-.item .row1{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.item{display:flex;flex-direction:column;gap:8px;padding:12px 14px;min-width:0;background:#fff;border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--purple)}
+.item .row1{display:flex;flex-direction:column;gap:2px}
+.item h3{margin:0;font-size:18px;line-height:1.35;overflow-wrap:anywhere}
+.item .chips{gap:5px}.item .chip{font-size:13px;padding:1px 8px 1px 5px}
+.item .grp{margin-top:auto}
+.item .more{font-size:13px;color:var(--muted);align-self:center}
 .item .meta{font-size:14px;color:var(--muted)}
 .badge2{font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--tint);color:var(--purple);margin-left:6px;vertical-align:middle}
 .reveal{padding:14px 16px;border-radius:14px;border:2px solid var(--ink);display:flex;flex-direction:column;gap:6px}
@@ -793,14 +798,14 @@ function itemsHtml() {
   if (q) items = items.filter(it => String(it.nick || '').toLowerCase().indexOf(q) >= 0);
   if (!items.length && !q && cur) return '<div class="empty">' + cur.split('-')[0] + '학년 ' + cur.split('-')[1] + '반 친구가 올린 실험이 아직 없어요.<br>위에서 ‘전체’를 고르면 우리 학교 실험을 볼 수 있어요.</div>';
   if (!items.length) return '<div class="empty">‘' + esc(L.q.trim()) + '’ 친구가 만든 실험이 없어요.</div>';
-  return '<div class="items">' + items.map(it => {
+  const one = it => {
     const done = it.my, tally = it.tally;
     let extra = '';
     if (tally) { const tot = tally.e + tally.n; extra = '<div class="meta">' + (tot ? '판정 ' + fmt(tot) + '명 · 같다 ' + tally.e + '명 · 같지 않다 ' + tally.n + '명' : '판정 0명') + '</div>'; }
-    else extra = '<div class="meta">판정한 친구 ' + fmt(it.voters) + '명 (내가 판정하면 결과를 볼 수 있어요)</div>';
+    else extra = '<div class="meta">판정한 친구 ' + fmt(it.voters) + '명</div>';
     if (done) extra += '<div class="meta mydone">✅ 이미 판정했어요 · 내 선택: ' + (done === 'e' ? '같다' : '같지 않다') + (it.myN ? ' (던진 ' + fmt(it.myN) + '번)' : '') + (it.ok == null ? '' : it.ok ? ' · 맞았어요' : ' · 틀렸어요') + '</div>';
     return '<article class="item' + (it.feat ? ' featured' : '') + '"><div class="row1"><h3>' + (it.feat ? '<span class="badge2 feat" style="margin:0 6px 0 0">⭐ 추천</span>' : '') + esc(it.tool) + (it.mine ? '<span class="badge2">내가 올림</span>' : '') + (done ? '<span class="badge2 done">판정 완료</span>' : '') + '</h3><span class="meta">만든 친구: ' + esc(it.nick) + ' · ' + new Date(it.ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) + '</span></div>' +
-      legendHtml(it.cases, null, false) + extra +
+      '<div class="chips">' + it.cases.slice(0, 6).map((n, i) => '<span class="chip ' + cls(i, it.cases.length) + '"><i></i>' + esc(short(n, 8)) + '</span>').join('') + (it.cases.length > 6 ? '<span class="more">+' + (it.cases.length - 6) + '개</span>' : '') + '</div>' + extra +
       '<div class="grp" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-act="open" data-id="' + esc(it.id) + '">' + ((it.mine || adminKey) ? '📊 집계 보기' : done ? '결과 다시 보기' : '실험하고 판정하기') + '</button>' +
       (adminKey ? '<button class="btn sm" data-act="openprev" data-id="' + esc(it.id) + '">👀 학생 화면 미리보기</button>' : '') +
       (adminKey && !it.mine ? '<button class="btn sm primary" data-act="openlive" data-id="' + esc(it.id) + '">' + (done ? '🎲 결과 다시 보기' : '🎲 판정하기') + '</button>' : '') +
@@ -808,7 +813,9 @@ function itemsHtml() {
       (adminKey ? '<button class="btn sm" data-act="feat" data-id="' + esc(it.id) + '" data-on="' + (it.feat ? '0' : '1') + '">' + (it.feat ? '⭐ 추천 해제' : '☆ 추천하기') + '</button>' : '') +
       (adminKey ? '<button class="btn sm danger" data-act="resetv" data-id="' + esc(it.id) + '">판단 초기화</button>' : '') +
       (it.mine || adminKey ? '<button class="btn sm danger" data-act="remove" data-id="' + esc(it.id) + '">삭제</button>' : '') + '</div></article>';
-  }).join('') + '</div>';
+  };
+  const fe = items.filter(it => it.feat), rest = items.filter(it => !it.feat);   // 추천은 한 줄에 3개씩, 나머지는 같은 크기로 그 아래에
+  return (fe.length ? '<div class="items">' + fe.map(one).join('') + '</div>' : '') + (rest.length ? '<div class="items">' + rest.map(one).join('') + '</div>' : '');
 }
 async function loadItems() {
   const L = S.list; L.loading = true; L.err = false; L.msg = ''; render();
