@@ -281,7 +281,7 @@ function hexToBits(h) {
 /* ---------- 계산 (api/_coinlib.js와 같은 식이에요. 둘을 같이 고쳐 주세요) ---------- */
 const MAXRUN = 30;                               // 연속 맞추기 최대 횟수
 const FLIPS = 1000;                              // 상대도수 줄타기에서 던지는 횟수
-const SPOT_ROUNDS = 8, SPOT_LEN = 40, MINE_LEN = 50;
+const SPOT_ROUNDS = 10, SPOT_LEN = 40, MINE_LEN = 50;   // 연습하기: 레벨 1~10을 레벨당 1문제씩 (SPOT_ROUNDS = 레벨 수)
 const ODD = 0.025;                               // 내가 만든 배열 판정: 진짜 동전이라면 이 정도로 드문 모양이면 의심해요
 const runPoints = n => (n <= 0 ? 0 : 200 * Math.pow(2, n - 1));
 
@@ -316,7 +316,7 @@ const BET = [
   { small: { n: 10,  lo: 9,  hi: 10, t: '동전 10번 던져 앞면이 9번 이상' },        big: { n: 100,  lo: 90, hi: 100, t: '동전 100번 던져 앞면이 90번 이상' },     note: '둘 다 앞면이 90% 이상 나오는 내기예요.' },
   { small: { n: 100, lo: 55, hi: 100, t: '동전 100번 던져 앞면이 55번 이상' },     big: { n: 1000, lo: 550, hi: 1000, t: '동전 1000번 던져 앞면이 550번 이상' }, note: '둘 다 앞면이 55% 이상 나오는 내기예요.' }
 ];
-const BET_PRACTICE = 6;                            // 연습하기: 앞의 6문제를 차례로
+const BET_PRACTICE = 10;                           // 연습하기: 레벨 1~10을 레벨당 1문제씩 (시작하기와 같은 레벨표로 만든 문제)
 const BET_MAX = BET_PRACTICE * 20;
 function betRound(r) {                             // r = { i, f(true면 A가 적게 던지는 쪽), p('A'|'B'), e(0~100) } 또는 시작하기용 { gen:{a,b}, p }
   const arr = x => ({ n: x[0], lo: x[1], hi: x[2] }), R = r.gen || r.a ? null : BET[r.i], a = r.gen ? r.gen.a : r.a ? arr(r.a) : (r.f ? R.small : R.big), b = r.gen ? r.gen.b : r.b ? arr(r.b) : (r.f ? R.big : R.small);
@@ -926,10 +926,11 @@ const heartSVG = on => on
 const livesBadge = h => { const left = Math.max(0, Math.min(MAX_HEARTS, h)); return `<div class="lives" role="img" aria-label="하트 ${left}개">${heartSVG(true).repeat(left)}${heartSVG(false).repeat(MAX_HEARTS - left)}</div>`; };
 const heartsHTML = h => `<span aria-label="하트 ${h}개" style="color:var(--bad);letter-spacing:2px">${'♥'.repeat(Math.max(0, h))}${'♡'.repeat(Math.max(0, MAX_HEARTS - h))}</span>`;
 function startSpot(mode) { G = { game: 'spot', mode: mode || 'play', round: 0, correct: 0, hearts: START_HEARTS, over: false, rounds: [], recorded: false, mine: [] }; if (G.mode !== 'mine') newSpotRound(); go('spot'); }
+// 레벨표: [지어낸 배열이 바꿀 확률, 연속 상한, 배열 길이]. 레벨이 오를수록 지어낸 배열이 진짜 같아지고 길이도 짧아져요.
+const SPOT_LV = [[0.72, 4, 40], [0.68, 4, 40], [0.64, 5, 40], [0.60, 5, 40], [0.57, 6, 36], [0.55, 6, 32], [0.54, 7, 28], [0.53, 8, 24], [0.52, 9, 22], [0.52, 10, 20]];
 function newSpotRound() {
-  const g = G, i = g.round, play = g.mode === 'play', L = levelOf(i);
-  // 연습하기: 앞 3문제는 쉽게, 그다음은 점점 어렵게. 시작하기: 레벨이 오를수록 지어낸 배열이 진짜 같아지고 길이도 짧아져요.
-  const lv = play ? [[0.72, 4, 40], [0.68, 4, 40], [0.64, 5, 40], [0.60, 5, 40], [0.57, 6, 36], [0.55, 6, 32], [0.54, 7, 28], [0.53, 8, 24], [0.52, 9, 22], [0.52, 10, 20]][L - 1] : (i < 3 ? [0.75, 3, SPOT_LEN] : i < 6 ? [0.65, 4, SPOT_LEN] : [0.58, 5, SPOT_LEN]);
+  const g = G, i = g.round, play = g.mode === 'play', L = play ? levelOf(i) : Math.min(MAX_LEVEL, i + 1);   // 연습하기: i번째 문제 = 레벨 i+1 (시작하기와 같은 레벨표)
+  const lv = SPOT_LV[L - 1];
   const len = lv[2];
   const real = Array.from(randBits(len)), fake = genFake(len, lv[0], lv[1]), realIsA = Math.random() < 0.5;
   g.cur = { A: realIsA ? real : fake, B: realIsA ? fake : real, real: realIsA ? 'A' : 'B', pick: null };
@@ -943,7 +944,7 @@ function spotHTML() {
   if (g.mode === 'mine') return mineHTML();
   if (play ? g.over : g.round >= SPOT_ROUNDS) {
     const msg = play ? (g.correct >= 15 ? '대단한 탐정이에요! 진짜 무작위의 모양이 눈에 익었네요.' : g.correct >= 8 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.')
-      : (g.correct >= 7 ? '훌륭한 탐정이에요! 단서를 잘 찾았어요.' : g.correct >= 5 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.');
+      : (g.correct >= 8 ? '훌륭한 탐정이에요! 단서를 잘 찾았어요.' : g.correct >= 5 ? '꽤 잘 맞혔어요. 진짜 무작위는 생각보다 헷갈리죠?' : '어려웠죠? 사람은 무작위를 흉내 내기도, 알아보기도 어려워요.');
     return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs(g.mode)}
       <div class="row" style="gap:24px"><div><div class="rowlab">맞힌 문제</div><div class="bigscore">${g.correct}${play ? '문제' : ' / ' + SPOT_ROUNDS}</div></div></div>
       <p class="hint">${msg}<br>진짜 동전 던지기는 <b>같은 면이 길게 이어지기도</b> 하고, 앞뒤가 <b>생각보다 덜 번갈아</b> 나와요.</p>
@@ -964,7 +965,7 @@ function spotHTML() {
   }
   const btn = (k) => `<button type="button" class="go" data-act="s-pick" data-v="${k}" ${rev ? 'disabled' : ''}>${k}가 진짜</button>`;
   const card = (k) => `<div class="panel" style="background:var(--deep);${rev && c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${rev ? (c.real === k ? '(진짜)' : '(지어냄)') : ''}</h3>${seqGrid(c[k])}</div>`;
-  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.correct}문제</b> 맞힘` : `<b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}문제 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
+  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.correct}문제</b> 맞힘` : `<b>레벨 ${g.round + 1}</b> · <b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}문제 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
   return `<div class="panel"><div class="ptop"><h2>3. 동전 조작 탐정</h2>${play ? livesBadge(g.hearts) : ''}</div>${spotTabs(g.mode)}
     ${play ? levelBanner(g) : ''}<p class="hint">한쪽은 진짜 동전을 ${c.A.length}번 던진 결과이고, 다른 쪽은 사람이 "랜덤처럼" 지어낸 배열이에요. 진짜는 어느 쪽일까요? ${status}</p>
     <div class="betgrid">${card('A')}${card('B')}</div>
@@ -1006,7 +1007,7 @@ function mineHTML() {
 function startBet(mode) { G = { game: 'bet', mode: mode || 'play', round: 0, hits: 0, hearts: START_HEARTS, over: false, rounds: [], recorded: false, cur: null, phase: 'pick', lastI: -1 }; newBetRound(); go('bet'); }
 function newBetRound() {
   const g = G; let i;
-  if (g.mode === 'practice') { i = g.round; g.cur = { i, f: Math.random() < 0.5, p: null, e: 50 }; }
+  if (g.mode === 'practice') { i = g.round; g.cur = { i, gen: genPair(Math.min(MAX_LEVEL, i + 1)), p: null, e: 50 }; }   // 연습하기: 레벨 i+1에 맞는 문제를 하나씩
   else g.cur = { i: -1, gen: genPair(levelOf(g.round)), p: null, e: 50 };   // 끝없이 나오는 문제: 레벨에 맞게 새로 만들어요
   g.phase = 'pick';
 }
@@ -1040,7 +1041,7 @@ function betHTML() {
     body = `<div class="betgrid">${grid('A', A)}${grid('B', B)}</div>
       <div id="betres"></div>`;
   }
-  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.hits}문제</b> 맞힘` : `<b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
+  const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.hits}문제</b> 맞힘` : `<b>레벨 ${c.i + 1}</b> · <b>${c.i + 1} / ${BET_PRACTICE}</b> 문제 (연습이라 순위에는 올라가지 않아요)`;
   return `<div class="panel"><div class="ptop"><h2>4. 내기 시뮬레이터</h2>${play ? livesBadge(g.hearts) : ''}</div>${betTabs(g.mode)}
     ${play ? levelBanner(g) : ''}<p class="hint">${c.gen ? '' : '같은 종류의 두 가지 내기가 있어요. '}${esc(R.note)} ${status}</p>${body}</div>`;
 }
@@ -1060,7 +1061,7 @@ async function betRun() {
     if (!REDUCED && s < 1000) { await frame(); if (G !== g || t !== token) return; }
   }
   const est = Math.abs(c.e - b.pA * 100);
-  g.rounds.push(c.gen ? { a: [c.gen.a.n, c.gen.a.lo, c.gen.a.hi], b: [c.gen.b.n, c.gen.b.lo, c.gen.b.hi], p: c.p } : { i: c.i, f: c.f, p: c.p, e: c.e });
+  g.rounds.push(c.gen ? { a: [c.gen.a.n, c.gen.a.lo, c.gen.a.hi], b: [c.gen.b.n, c.gen.b.lo, c.gen.b.hi], p: c.p, e: c.e } : { i: c.i, f: c.f, p: c.p, e: c.e });   // e = 확률 예상 (연습하기 점수 계산용)
   if (play) { if (b.ok) g.hits++; else if (g.hearts > 0) g.hearts--; else g.dead = true; }
   const last = play && g.dead;
   $('#betres').innerHTML = (play

@@ -3,7 +3,7 @@
 
 const MAXRUN = 30;      // 연속 맞추기 최대 횟수
 const FLIPS = 1000;     // 상대도수 줄타기에서 던지는 횟수
-const SPOT_ROUNDS = 8;  // 동전 조작 탐정 연습하기 문제 수
+const SPOT_ROUNDS = 10; // 동전 조작 탐정 연습하기 문제 수 (레벨 1~10, 레벨당 1문제)
 const START_HEARTS = 1, MAX_HEARTS = 3;   // 시작하기: 하트 1개로 시작, 레벨이 오를 때마다 하나씩 채워져요(최대 3개). 하트가 없을 때 틀리면 끝나요.
 const ENDLESS_MAX = 1000; // 시작하기에서 맞힐 수 있는 개수의 상한 (이상한 값 막기)
 const LEVEL_LEN = 10;    // 10문제마다 레벨이 올라가요 (레벨 10까지 난이도가 오르고 그 뒤로는 계속)
