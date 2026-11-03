@@ -46,6 +46,9 @@ h1 em{font-style:normal;color:var(--purple)}
 .addr button{flex:none;min-height:32px;padding:0 14px;border:0;border-radius:999px;background:var(--purple);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .addr button:hover{background:#5f1388}
 .addr button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.qr{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.qr img{display:block;padding:6px;background:#fff;border:2px solid var(--ink);border-radius:12px;box-shadow:2px 2px 0 var(--purple)}
+.qr figcaption{font-size:13px;line-height:1.45;color:var(--muted)}
 .fb{margin:-24px 0 0;text-align:center;font-size:12.5px}
 .fb a{color:var(--muted);opacity:.75;text-decoration:none;padding:6px 8px;border-radius:6px}
 .fb a:hover,.fb a:focus-visible{opacity:1;text-decoration:underline}
@@ -62,6 +65,7 @@ h1 em{font-style:normal;color:var(--purple)}
 <h1>만지고 움직이며<br>배우는 <em>수학 실험실</em></h1>
 <p>탐구하고 싶은 실험실을 골라 보세요.</p>
 <div class="addr"><span class="at" id="addrText">🔗 숏.한국/모티/실험실</span><button type="button" id="addrCopy" aria-label="주소 복사">복사</button></div>
+<figure class="qr"><img src="qr.svg" width="132" height="132" alt="수학 실험실 접속 QR코드 (mtryu-lab.vercel.app)"><figcaption>한글 주소가 안 열리면<br>QR코드로 접속하세요</figcaption></figure>
 </div>
 
 <div class="cards">
