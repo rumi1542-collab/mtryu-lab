@@ -201,6 +201,11 @@ svg .lab{fill:var(--text);font-weight:700}
 .bet.pickbox{cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;align-items:flex-start}
 .bet.pickbox:hover{background:#1C2262;border-color:var(--line)}
 .bet.pickbox.on{background:var(--panel2);border-color:var(--yellow)}
+.panel.pickcard{background:var(--deep);cursor:pointer;border:3px solid transparent}
+.panel.pickcard:hover{border-color:var(--line)}
+.panel.pickcard.on{background:var(--panel2);border-color:var(--yellow)}
+.pickcard .chosen{font-size:15px;color:var(--muted)}
+.pickcard.on .chosen{color:var(--yellow);font-weight:700}
 .bet .chosen{font-size:15px;color:var(--muted)}
 .bet.pickbox.on .chosen{color:var(--yellow);font-weight:700}
 
@@ -949,7 +954,7 @@ function newSpotRound() {
   const lv = SPOT_LV[L - 1];
   const len = lv[2];
   const real = Array.from(randBits(len)), fake = genFake(len, lv[0], lv[1]), realIsA = Math.random() < 0.5;
-  g.cur = { A: realIsA ? real : fake, B: realIsA ? fake : real, real: realIsA ? 'A' : 'B', pick: null };
+  g.cur = { A: realIsA ? real : fake, B: realIsA ? fake : real, real: realIsA ? 'A' : 'B', sel: null, pick: null };   // sel = 눌러서 고른 배열(바꿀 수 있어요), pick = 정답 확인을 눌러 확정한 답
 }
 function seqGrid(a) { return '<div class="seq">' + a.map(v => chip(v)).join('') + '</div>'; }
 function spotTabs(mode) {
@@ -979,13 +984,15 @@ function spotHTML() {
         <tr><td>앞면 수</td><td>${A.heads}</td><td>${B.heads}</td></tr><tr><td>가장 긴 연속</td><td>${A.maxRun}번</td><td>${B.maxRun}번</td></tr><tr><td>앞↔뒤 바뀐 횟수</td><td>${A.sw}번</td><td>${B.sw}번</td></tr></tbody></table></div>
       <p class="hint">${clue}</p><div class="row"><button type="button" class="go sm" data-act="s-next">${play ? (last ? '결과 보기' : '다음 문제') : (g.round + 1 >= SPOT_ROUNDS ? '결과 보기' : '다음 문제')}</button></div>`;
   }
-  const btn = (k) => `<button type="button" class="go" data-act="s-pick" data-v="${k}" ${rev ? 'disabled' : ''}>${k}가 진짜</button>`;
-  const card = (k) => `<div class="panel" style="background:var(--deep);${rev && c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${rev ? (c.real === k ? '(진짜)' : '(지어냄)') : ''}</h3>${seqGrid(c[k])}</div>`;
+  const card = (k) => rev
+    ? `<div class="panel" style="background:var(--deep);${c.real === k ? 'outline:3px solid var(--green)' : ''}"><h3>${k} 배열 ${c.real === k ? '(진짜)' : '(지어냄)'}</h3>${seqGrid(c[k])}</div>`
+    : `<div class="panel pickcard${c.sel === k ? ' on' : ''}" role="button" tabindex="0" aria-pressed="${c.sel === k}" data-act="s-sel" data-v="${k}"><h3>${k} 배열</h3>${seqGrid(c[k])}<div class="chosen">${c.sel === k ? '✓ 내가 진짜라고 고른 배열' : '눌러서 고르기'}</div></div>`;   // 배열 카드를 누르면 선택만 되고, 아래 버튼을 눌러야 답이 확정돼요
+  const confirm = rev ? '' : `<p class="hint" style="margin:0">위의 배열을 눌러 <b>진짜라고 생각하는 쪽</b>을 고르세요.</p><div class="row"><button type="button" class="go" data-act="s-pick" ${c.sel ? '' : 'disabled'}>${c.sel ? '정했어요! 정답 확인' : 'A나 B를 먼저 골라 주세요'}</button></div>`;
   const status = play ? `<b>레벨 ${levelOf(g.round)}</b> · <b>${g.round + 1}번째</b> 문제 · <b>${g.correct}문제</b> 맞힘` : `<b>레벨 ${g.round + 1}</b> · <b>${g.round + 1} / ${SPOT_ROUNDS}</b> 문제 · 지금까지 ${g.correct}문제 맞혔어요 (연습이라 순위에는 올라가지 않아요)`;
   return `<div class="panel"><div class="ptop"><h2>3. 동전 조작 탐정</h2>${play ? livesBadge(g.hearts) : ''}</div>${spotTabs(g.mode)}
     ${play ? levelBanner(g) : ''}<p class="hint">한쪽은 진짜 동전을 ${c.A.length}번 던진 결과이고, 다른 쪽은 사람이 "랜덤처럼" 지어낸 배열이에요. 진짜는 어느 쪽일까요? ${status}</p>
     <div class="betgrid">${card('A')}${card('B')}</div>
-    <div class="row">${btn('A')}${btn('B')}</div>${res}</div>`;
+    ${confirm}${res}</div>`;
 }
 function mineHTML() {
   const g = G, m = g.mine, n = m.length;
@@ -1188,6 +1195,10 @@ async function paintDist(t) {
 }
 
 /* ================= 이벤트 ================= */
+document.addEventListener('keydown', e => {   // 버튼이 아닌 상자(role="button")도 Enter·Space로 누를 수 있게 해요
+  const t = e.target; if (!t || !t.matches || !t.matches('[role="button"][data-act]')) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); t.click(); }
+});
 document.addEventListener('click', e => {
   const b = e.target.closest ? e.target.closest('[data-act]') : null; if (!b || b.disabled) return;
   const act = b.dataset.act, v = b.dataset.v, gk = b.dataset.g;
@@ -1213,7 +1224,8 @@ document.addEventListener('click', e => {
   else if (act === 't-again') tuneRun();
   else if (act === 't-reset') startTune(true);
   else if (act === 's-mode') { startSpot(v); }
-  else if (act === 's-pick') { const c = G.cur; if (c.pick === null) { c.pick = v; if (v === c.real) G.correct++; else if (G.mode === 'play') { if (G.hearts > 0) G.hearts--; else G.dead = true; } $('#screen').innerHTML = spotHTML(); } }
+  else if (act === 's-sel') { const c = G.cur; if (c.pick === null) { c.sel = v; $('#screen').innerHTML = spotHTML(); const f = document.querySelector('[data-act="s-sel"][data-v="' + v + '"]'); if (f) f.focus({ preventScroll: true }); } }
+  else if (act === 's-pick') { const c = G.cur; if (c.pick === null && c.sel) { c.pick = c.sel; if (c.pick === c.real) G.correct++; else if (G.mode === 'play') { if (G.hearts > 0) G.hearts--; else G.dead = true; } $('#screen').innerHTML = spotHTML(); } }
   else if (act === 's-next') {
     if (G.mode === 'play') { if (G.dead) G.over = true; else { G.round++; G.healed = false; if (G.round % LEVEL_LEN === 0 && G.hearts < MAX_HEARTS) { G.hearts++; G.healed = true; } newSpotRound(); } }
     else { G.round++; if (G.round < SPOT_ROUNDS) newSpotRound(); }
@@ -1224,7 +1236,7 @@ document.addEventListener('click', e => {
   else if (act === 'm-add') { if (G.mine.length < MINE_LEN) { G.mine.push(parseInt(v, 10)); $('#screen').innerHTML = spotHTML(); } }
   else if (act === 'm-undo') { G.mine.pop(); $('#screen').innerHTML = spotHTML(); }
   else if (act === 'm-again') { G.mine = []; $('#screen').innerHTML = spotHTML(); }
-  else if (act === 'b-pick') { G.cur.p = v; $('#screen').innerHTML = betHTML(); }
+  else if (act === 'b-pick') { G.cur.p = v; $('#screen').innerHTML = betHTML(); const f = document.querySelector('.bet.pickbox[data-v="' + v + '"]'); if (f) f.focus({ preventScroll: true }); }
   else if (act === 'b-go') betRun();
   else if (act === 'b-mode') startBet(v);
   else if (act === 'b-next') {
