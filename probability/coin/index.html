@@ -197,6 +197,12 @@ svg .lab{fill:var(--text);font-weight:700}
 .bet.win{border-color:var(--green)}
 .bet .ab{font-family:'Jua',sans-serif;font-size:28px;color:var(--yellow);line-height:1}
 .bet p{margin:0;font-size:17px}
+.bet .bt{font-size:17px;display:block}
+.bet.pickbox{cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;align-items:flex-start}
+.bet.pickbox:hover{background:#1C2262;border-color:var(--line)}
+.bet.pickbox.on{background:var(--panel2);border-color:var(--yellow)}
+.bet .chosen{font-size:15px;color:var(--muted)}
+.bet.pickbox.on .chosen{color:var(--yellow);font-weight:700}
 
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
@@ -1039,8 +1045,9 @@ function betHTML() {
   const sel = k => (c.p === k ? ' on' : '');
   let body;
   if (!done) {
-    body = `<div class="betgrid"><div class="bet"><span class="ab">A</span><p>${esc(A.t)}</p></div><div class="bet"><span class="ab">B</span><p>${esc(B.t)}</p></div></div>
-      <div class="row"><b>어느 쪽이 더 자주 성공할까요?</b><button type="button" class="pick${sel('A')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="A">A</button><button type="button" class="pick${sel('B')}" style="min-height:56px;font-size:24px;min-width:100px" data-act="b-pick" data-v="B">B</button></div>
+    const box = (k, bet) => `<button type="button" class="bet pickbox${sel(k)}" data-act="b-pick" data-v="${k}" aria-pressed="${c.p === k}"><span class="ab">${k}</span><span class="bt">${esc(bet.t)}</span><span class="chosen">${c.p === k ? '✓ 내가 고른 내기' : '눌러서 고르기'}</span></button>`;   // 내기 상자를 누르면 바로 선택돼요
+    body = `<div class="betgrid">${box('A', A)}${box('B', B)}</div>
+      <p class="hint" style="margin:0"><b>어느 쪽이 더 자주 성공할까요?</b> 위의 상자를 눌러 고르세요.</p>
       ${play ? '' : `<div class="field"><div class="lab"><span>A 내기가 성공할 확률을 예상해 보세요</span><b id="elab">${c.e}%</b></div><input type="range" id="er" min="0" max="100" step="1" value="${c.e}" aria-label="A 내기 성공 확률 예상"></div>`}
       <div class="row"><button type="button" class="go" data-act="b-go" ${c.p ? '' : 'disabled'}>${c.p ? '1000회 반복 시험해 보기' : 'A나 B를 먼저 골라 주세요'}</button></div>`;
   } else {
