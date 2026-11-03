@@ -116,7 +116,9 @@ button.cc.mc{border:2px solid transparent;cursor:pointer;font-family:inherit;pad
 button.cc.mc.t{border-color:var(--blue)}
 button.cc.mc:hover{filter:brightness(1.12);transform:scale(1.06)}
 button.cc.mc:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
-.mgrid{max-width:520px;margin:0 auto}
+.mwrap{container-type:inline-size;width:100%}
+.mgrid{width:calc(100cqw - 54px);margin:0 auto}   /* 순위 문제의 배열 카드(안쪽 여백 24+테두리 3)와 같은 폭 → 동전 크기도 같아요 */
+@container (min-width:574px){.mgrid{width:calc((100cqw - 14px)/2 - 54px)}}
 .seq{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;justify-items:center}
 .seq.mini{display:flex;flex-wrap:wrap;gap:3px}
 .cols{display:flex;flex-wrap:wrap;gap:8px}
@@ -1003,7 +1005,7 @@ function mineHTML() {
   const g = G, m = g.mine;
   if (!g.mineDone) {
     const tails = m.filter(v => !v).length;
-    const grid = `<div class="seq mgrid">${m.map((v, i) => `<button type="button" class="cc mc ${v ? 'h' : 't'}" data-act="m-flip" data-v="${i}" aria-pressed="${!v}" aria-label="${i + 1}번째 동전: ${v ? '앞면' : '뒷면'}">${v ? '앞' : '뒤'}</button>`).join('')}</div>`;
+    const grid = `<div class="mwrap"><div class="seq mgrid">${m.map((v, i) => `<button type="button" class="cc mc ${v ? 'h' : 't'}" data-act="m-flip" data-v="${i}" aria-pressed="${!v}" aria-label="${i + 1}번째 동전: ${v ? '앞면' : '뒷면'}">${v ? '앞' : '뒤'}</button>`).join('')}</div></div>`;
     return `<div class="panel"><h2>3. 동전 조작 탐정</h2>${spotTabs('mine')}
       <p class="hint">동전 ${MINE_LEN}개가 모두 <b>앞면</b>으로 놓여 있어요. 진짜 동전을 ${MINE_LEN}번 던진 것처럼 보이도록, <b>뒷면으로 바꿀 동전만 눌러</b> 보세요. (다시 누르면 앞면으로 돌아와요) 다 만들었으면 <b>판정 받기</b>를 눌러요.</p>
       ${grid}
