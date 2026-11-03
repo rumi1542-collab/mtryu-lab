@@ -1012,16 +1012,18 @@ function mineHTML() {
       <div class="row" style="justify-content:space-between"><b>앞 ${MINE_LEN - tails}개 · 뒤 ${tails}개</b><button type="button" class="ghost" data-act="m-reset" ${tails ? '' : 'disabled'}>모두 앞면으로</button></div>
       <div class="row"><button type="button" class="go" data-act="m-judge">판정 받기</button></div></div>`;
   }
-  const me = seqStats(m), N = 3000, runs = new Array(MINE_LEN + 1).fill(0), sws = new Array(MINE_LEN + 1).fill(0), hds = new Array(MINE_LEN + 1).fill(0);
+  const me = seqStats(m), N = 6000, runs = new Array(MINE_LEN + 1).fill(0), sws = new Array(MINE_LEN + 1).fill(0), hds = new Array(MINE_LEN + 1).fill(0);
   for (let i = 0; i < N; i++) { const st = seqStats(Array.from(randBits(MINE_LEN))); runs[st.maxRun]++; sws[st.sw]++; hds[st.heads]++; }
   const cdf = (arr, v) => arr.slice(0, v + 1).reduce((a, b) => a + b, 0) / N, sf = (arr, v) => arr.slice(v).reduce((a, b) => a + b, 0) / N;
   const two = (arr, v) => Math.min(1, 2 * Math.min(cdf(arr, v), sf(arr, v)));
-  const pr = Math.min(cdf(runs, me.maxRun), sf(runs, me.maxRun)), pw = two(sws, me.sw), ph = two(hds, me.heads);
+  // 사람은 앞뒤를 너무 자주 바꾸는 쪽으로 틀리기 쉬워서, "너무 자주 바꿈"을 가장 민감하게 봐요. (진짜 동전을 사람이라고 잘못 판정하는 비율은 100번 중 6번쯤으로 맞춰 둔 값이에요)
   const odd = [];
-  if (pr < ODD) odd.push(me.maxRun < 4 ? '같은 면이 길게 이어지지 않아요' : '같은 면이 너무 길게 이어져요');
-  if (pw < ODD) odd.push(me.sw > MINE_LEN / 2 ? '앞뒤를 너무 자주 바꿔요' : '앞뒤를 너무 적게 바꿔요');
-  if (ph < ODD) odd.push('앞면과 뒷면 개수가 너무 한쪽으로 치우쳤어요');
-  const verdict = odd.length ? `<b style="color:var(--bad)">사람이 만든 배열 같아요.</b> ${odd.join(', ')}. (진짜 동전도 아주 가끔은 이렇게 나와요. 100번 중 7번쯤이에요.)` : `<b style="color:var(--green)">컴퓨터가 구별하지 못했어요. 진짜 같아요!</b> 하지만 진짜 동전이라는 증거는 아니에요.`;
+  if (sf(sws, me.sw) < 0.045) odd.push('앞뒤를 너무 자주 바꿔요');
+  else if (cdf(sws, me.sw) < 0.012) odd.push('앞뒤를 너무 적게 바꿔요');
+  if (cdf(runs, me.maxRun) < 0.005) odd.push('같은 면이 길게 이어지지 않아요');
+  else if (sf(runs, me.maxRun) < 0.005) odd.push('같은 면이 너무 길게 이어져요');
+  if (two(hds, me.heads) < 0.005) odd.push('앞면과 뒷면 개수가 너무 한쪽으로 치우쳤어요');
+  const verdict = odd.length ? `<b style="color:var(--bad)">사람이 만든 배열 같아요.</b> ${odd.join(', ')}. (진짜 동전도 아주 가끔은 이렇게 나와요. 100번 중 6번쯤이에요.)` : `<b style="color:var(--green)">컴퓨터가 구별하지 못했어요. 진짜 같아요!</b> 하지만 진짜 동전이라는 증거는 아니에요.`;
   const maxShow = 12, bars = []; for (let k = 2; k <= maxShow; k++) bars.push(k);
   const top = Math.max.apply(null, bars.map(k => runs[k]));
   const hist = bars.map(k => `<div class="bar"><span>${k}번</span><div class="track"><div class="fill" style="width:${(runs[k] / top * 100).toFixed(1)}%;${k === me.maxRun ? '' : 'background:var(--blue)'}"></div></div><span>${(runs[k] / N * 100).toFixed(1)}%</span></div>`).join('');
