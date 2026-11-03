@@ -559,7 +559,7 @@ async function autoRecord() {
 /* ---------- 화면 틀 ---------- */
 function ctx() {
   $('#ctx').innerHTML = S.screen === 'home' ? '' :
-    `<span>${esc(S.year)}학년도 · ${esc(S.school)}${S.name ? ' · ' + esc(S.name) : ''}</span><button type="button" class="ghost" data-act="home" style="min-height:38px;font-size:16px">← 처음으로</button>`;
+    `<span>${esc(S.year)}학년도 · ${esc(S.school)}${S.name ? ' · ' + esc(S.name) : ''}</span><button type="button" class="ghost" data-act="home" style="min-height:38px;font-size:16px">← 게임 목록</button>`;
 }
 function render() {
   token++;
@@ -573,7 +573,17 @@ function render() {
   else if (S.screen === 'board') { root.innerHTML = boardShell(); loadBoard(0); }
   window.scrollTo(0, 0);
 }
-function go(screen) { S.screen = screen; render(); }
+function go(screen) {   // 화면을 옮길 때 브라우저 방문 기록도 쌓아서, 뒤로가기 버튼이 한 화면씩 돌아가게 해요
+  const d = (history.state && history.state.d) || 0;
+  if (screen !== 'home' && S.screen !== screen) { try { history.pushState({ s: screen, d: d + 1 }, ''); } catch (e) {} }
+  S.screen = screen; render();
+}
+window.addEventListener('popstate', e => {   // 브라우저(또는 기기)의 뒤로가기·앞으로가기
+  let s = (e.state && e.state.s) || 'home';
+  if (s !== 'home' && !(s === 'board' ? B.game : G)) { s = 'home'; try { history.replaceState({ s: 'home', d: 0 }, ''); } catch (x) {} }   // 진행 중인 게임이 없으면 게임 목록으로
+  if (s === S.screen) return;
+  S.screen = s; render();
+});
 
 /* ================= 시작 화면 ================= */
 function homeHTML() {
@@ -1174,7 +1184,7 @@ async function paintDist(t) {
 document.addEventListener('click', e => {
   const b = e.target.closest ? e.target.closest('[data-act]') : null; if (!b || b.disabled) return;
   const act = b.dataset.act, v = b.dataset.v, gk = b.dataset.g;
-  if (act === 'home') go('home');
+  if (act === 'home') { const d = (history.state && history.state.d) || 0; if (d > 0) history.go(-d); else go('home'); }   // 쌓인 방문 기록만큼 한 번에 돌아가요
   else if (act === 'start') { if (!checkName()) return; if (gk === 'run') startRun(); else if (gk === 'tune') startTune(); else if (gk === 'spot') startSpot('play'); else startBet('play'); }
   else if (act === 'practice') { if (!checkName()) return; if (gk === 'spot') startSpot('practice'); else startBet('practice'); }
   else if (act === 'board') { S.vschool = null; B.game = gk; B.q = ''; B.cls = defCls(); B.classes = []; B.matches = null; if (gk === 'tune' && G && G.game === 'tune') B.w = G.w; go('board'); }
@@ -1274,6 +1284,7 @@ MtryuMeSync.watch(refreshMe);
 
 /* ---------- 시작 ---------- */
 (async function init() {
+  try { history.replaceState({ s: 'home', d: 0 }, ''); } catch (e) {}
   render();
   await loadList(); await syncMe();
   
