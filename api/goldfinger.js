@@ -12,8 +12,8 @@
 //        → { score, key:[20], mine:[20], known:[20 true/false], strat, one, rank, total }
 //        k: 아는 문제 수(0·5·10·15) · marks: 학생이 OMR에 마킹한 답 20개(1~5). 아는 문제 칸은 서버가 정답으로 바꿔요
 //        strat(찍는 방법)은 서버가 마킹을 보고 정해요: 찍은 문제가 모두 같은 번호면 one(한 번호), 아니면 free(내맘대로)
-//        시험은 여러 번 볼 수 있고, 학교·학년도·아는 문제 수마다 한 사람(uid)의 가장 높은 점수 하나만 순위에 올라가요 (best·improved·tries 로 알려 줘요)
-// GET  /api/goldfinger?year=&school=&uid=   → { mine: { "0": rec|null, "5": rec|null, "10": rec|null, "15": rec|null } }   내 기록(순위 포함)
+//        시험은 여러 번 볼 수 있고, 볼 때마다 기록이 순위에 하나씩 올라가요 (best: 내 최고 점수 · tries: 몇 번째 시험)
+// GET  /api/goldfinger?year=&school=&uid=   → { mine: { "0": rec|null, ... }, ids: { "0": [기록 id...], ... } }   내 최고 기록(순위 포함)과 내 기록 id 전부
 //
 // 순위 기준: 점수가 높을수록 위 (같으면 같은 순위, 점수 소수점 아래에서 ts를 빼서 같은 점수는 최근 기록이 위)
 
@@ -66,10 +66,11 @@ async function withRank(k, year, school, o) {
   const rank = await tieRank(redis, keyOf(k, year, school), rankValue('gf' + k, o));
   return Object.assign(view(o), { rank });
 }
-async function findMine(k, year, school, uid) {
+async function findAll(k, year, school, uid) {   // 내 기록 전부 (순위 순서, 맨 앞이 최고 기록)
   const raw = await redis(['ZRANGE', keyOf(k, year, school), 0, -1]);
-  for (const m of raw || []) { try { const o = JSON.parse(m); if (o.uid === uid) return { o, raw: m }; } catch (e) {} }
-  return null;
+  const out = [];
+  for (const m of raw || []) { try { const o = JSON.parse(m); if (o.uid === uid) out.push(o); } catch (e) {} }
+  return out;
 }
 
 module.exports = async function handler(req, res) {
@@ -80,8 +81,9 @@ module.exports = async function handler(req, res) {
       if (!(await validYearSchool(year, school)) || !/^[a-f0-9]{32}$/.test(String(uid || ''))) return send(res, 400, { error: 'bad-request' });
       if (!(await rateLimit(req, 'gfget', 120, 60))) return send(res, 429, { error: 'too-many' });
       const mine = {};
-      for (const k of KS) { const f = await findMine(k, year, school, uid); mine[k] = f ? await withRank(k, year, school, f.o) : null; }
-      return send(res, 200, { mine });
+      const ids = {};
+      for (const k of KS) { const all = await findAll(k, year, school, uid); mine[k] = all.length ? await withRank(k, year, school, all[0]) : null; ids[k] = all.map(o => o.id); }
+      return send(res, 200, { mine, ids });
     }
 
     if (req.method === 'POST') {
@@ -116,8 +118,8 @@ module.exports = async function handler(req, res) {
       if (!marks.every((v, i) => sheet.known[i] || (v >= 1 && v <= 5))) return send(res, 400, { error: 'bad-record' });   // 찍는 문제는 모두 답을 적어야 해요
       await redis(['DEL', sheetKey(uid, year, school)]);
 
-      // 시험은 여러 번 볼 수 있고, 순위표에는 그 사람의 가장 높은 점수 하나만 올라가요
-      const had = await findMine(k, year, school, uid);
+      // 시험은 여러 번 볼 수 있고, 볼 때마다 기록이 순위표에 하나씩 올라가요
+      const before = await findAll(k, year, school, uid);
       const ex = grade(sheet, marks);
       const ts = Date.now();
       const gr = Number(b.gr), cl = Number(b.cl), cls = isClass(gr, cl) ? { gr, cl } : {};   // 학년·반 (번호는 받지 않아요)
@@ -125,22 +127,12 @@ module.exports = async function handler(req, res) {
         k, strat: ex.strat, one: ex.one, score: ex.score,
         key: ex.key.join(''), mine: ex.mine.join(''), kn: ex.known.map(x => x ? '1' : '0').join('')
       });
-      const tries = (had && Number(had.o.tries) || (had ? 1 : 0)) + 1;
-      const improved = !had || ex.score > had.o.score;
-      let best = rec;
-      if (improved) {
-        rec.tries = tries;
-        if (had) await redis(['ZREM', key, had.raw]);
-        await redis(['ZADD', key, -ex.score - ts / 1e13, JSON.stringify(rec)]);
-      } else {
-        best = Object.assign({}, had.o, { tries });   // 점수는 그대로, 도전 횟수만 늘려요
-        await redis(['ZREM', key, had.raw]);
-        await redis(['ZADD', key, -best.score - best.ts / 1e13, JSON.stringify(best)]);
-      }
-      const rank = await tieRank(redis, key, -best.score);   // 같은 점수는 공동 순위
+      await redis(['ZADD', key, -ex.score - ts / 1e13, JSON.stringify(rec)]);
+      const rank = await tieRank(redis, key, -ex.score);   // 같은 점수는 공동 순위
       await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
       const total = Number(await redis(['ZCARD', key])) || 0;
-      return send(res, 200, { score: ex.score, key: ex.key, mine: ex.mine, known: ex.known, strat: ex.strat, one: ex.one, best: best.score, improved, tries, rank, total });
+      const best = Math.max(ex.score, ...before.map(o => o.score));
+      return send(res, 200, { score: ex.score, key: ex.key, mine: ex.mine, known: ex.known, strat: ex.strat, one: ex.one, best, tries: before.length + 1, rank, total });
     }
 
     res.setHeader('Allow', 'GET, POST');

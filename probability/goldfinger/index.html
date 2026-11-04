@@ -424,6 +424,7 @@ async function loadList() {
 const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
 const S = { year: curYear(), school: LIST.schools[0], vschool: null };   // vschool: 순위를 보고 있는 다른 학교
 let ME = null;   // 내 정보: { nick, uid, label, gr, cl }  내 학교가 순위 서버에 있을 때만 값이 있어요
+let MYIDS = new Set();   // 내가 올린 기록들의 번호 (순위표에서 '나' 표시)
 let MINE = {};   // 이 학교·학년도에서 내가 이미 도전한 기록 { 0: rec, 5: rec, ... }
 let lastId = '';
 const viewSchool = () => S.vschool || S.school;
@@ -454,9 +455,9 @@ function enforceMine() {
   if (!LIST.years.includes(S.year)) LIST.years.unshift(S.year);   // 학년도는 날짜로 저절로 정해져요
 }
 async function refreshMine() {
-  MINE = {};
+  MINE = {}; MYIDS = new Set();
   if (ME && !TEST()) {
-    try { const j = await http('GET', CONFIG.apiUrl + '?year=' + S.year + '&school=' + encodeURIComponent(S.school) + '&uid=' + ME.uid, null, 9000); if (j && j.mine) MINE = j.mine; } catch (e) {}
+    try { const j = await http('GET', CONFIG.apiUrl + '?year=' + S.year + '&school=' + encodeURIComponent(S.school) + '&uid=' + ME.uid, null, 9000); if (j && j.mine) MINE = j.mine; if (j && j.ids) Object.keys(j.ids).forEach(k => (j.ids[k] || []).forEach(x => MYIDS.add(x))); } catch (e) {}
   }
 }
 async function refreshMe() {
@@ -637,7 +638,7 @@ function syncRank(){
   btn.disabled = busy;
   btn.textContent = busy ? '채점하는 중…' : '시험 보기';
   hint.textContent = ME
-    ? '시험 보기를 누르면 서버가 정답을 만들어 채점하고, 점수가 바로 순위표에 올라가요. 여러 번 볼 수 있고, 순위표에는 가장 높은 점수 하나만 올라가요.'
+    ? '시험 보기를 누르면 서버가 정답을 만들어 채점하고, 점수가 바로 순위표에 올라가요. 여러 번 볼 수 있고, 볼 때마다 기록이 순위표에 올라가요.'
     : '순위에는 별명으로 올라가요. 실명과 학번은 올라가지 않아요.';
 }
 async function challenge(){
@@ -659,20 +660,21 @@ async function challenge(){
       const sm = stratOfMarks(mine, EX.known), s = {known: k, layout: 'equal', one: sm.one};
       const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: sm.strat, one: sm.one, score: r.score, key: r.key.join(''), mine: r.mine.join(''), kn: status.map(x => x === 'known' ? '1' : '0').join('')};
       rec.u = ME.uid;
-      let l = localList(k, S.year, S.school);
-      const old = l.find(x => x.u === ME.uid), improved = !old || rec.score > old.score;
-      if (old && improved) l = l.filter(x => x !== old);
-      if (improved) l.push(rec);
-      const bestRec = improved ? rec : old;
+      const l = localList(k, S.year, S.school);
+      const mineBefore = l.filter(x => x.u === ME.uid);
+      l.push(rec);
+      const best = Math.max(rec.score, ...mineBefore.map(x => x.score)), tries = mineBefore.length + 1;
       try { localStorage.setItem(lkey(k, S.year, S.school), JSON.stringify(l)); } catch (e) {}
-      lastId = bestRec.id;
-      renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. ' + bestNote(r.score, bestRec.score, improved, ties(l).find(x => x.id === bestRec.id).rank)});
+      lastId = rec.id; MYIDS.add(rec.id);
+      renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. ' + bestNote(best, tries, ties(l).find(x => x.id === rec.id).rank)});
       reveal($('single')); B.k = k; EX.used = true;
     } else {
-      const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, marks }, 12000);
+      const myid = rid();
+      const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: myid, name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, marks }, 12000);
       EX.used = true;
-      showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, bestNote(j.score, j.best, j.improved, j.rank) + ' (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' ' + j.total + '명 중' + (j.tries > 1 ? ' · ' + j.tries + '번째 시험' : '') + ')');
-      await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.k = k; B.cls = defCls();
+      showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, bestNote(j.best, j.tries, j.rank) + ' (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' 기록 ' + j.total + '개 중)');
+      MYIDS.add(myid);
+      await refreshMine(); lastId = myid; B.k = k; B.cls = defCls();
     }
   } catch (e) {
     if (e && e.status === 400 && e.body && e.body.error === 'no-exam'){ busy = false; await startExam(); rmsg('시험지가 없어져서 새 시험지를 받았어요. 정답을 확인하고 다시 시험 보기를 눌러 주세요.'); }
@@ -681,8 +683,8 @@ async function challenge(){
     else rmsg('순위에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. (기록은 남지 않았어요.)');
   } finally { busy = false; syncRank(); }
 }
-// 시험은 여러 번 볼 수 있고, 순위에는 가장 높은 점수만 올라가요
-const bestNote = (score, best, improved, rank) => improved ? '순위에 올렸어요! <b>' + rank + '위</b>' : '이번 점수는 ' + score + '점이에요. 순위표에는 가장 높은 점수 ' + best + '점(<b>' + rank + '위</b>)이 그대로 올라가 있어요.';
+// 시험은 여러 번 볼 수 있고, 볼 때마다 기록이 순위표에 하나씩 올라가요
+const bestNote = (best, tries, rank) => '순위에 올렸어요! <b>' + rank + '위</b>' + (tries > 1 ? ' · ' + tries + '번째 시험 · 내 최고 기록 ' + best + '점' : '');
 function resetAll(){
   document.querySelector('input[name=known][value="0"]').checked = true;
   document.querySelectorAll('input[name=strat]').forEach(i => { i.checked = false; });
@@ -748,7 +750,7 @@ function paintClsBox(){
   if (B.cls && !cl.some(c => c.gr + '-' + c.cl === B.cls)){ const a = B.cls.split('-').map(Number); cl.push({ gr: a[0], cl: a[1], n: 0 }); }
   el.innerHTML = cl.length ? '<label>반 <select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>' + cl.map(c => { const v = c.gr + '-' + c.cl; return '<option value="' + v + '"' + (v === B.cls ? ' selected' : '') + '>' + esc(clsLabel(c)) + ' (' + c.n + ')</option>'; }).join('') + '</select></label>' : '';
 }
-function isMine(r){ return !!r.id && (r.id === lastId || Object.keys(MINE).some(k => MINE[k] && MINE[k].id === r.id)); }
+function isMine(r){ return !!r.id && (r.id === lastId || MYIDS.has(r.id) || (!!ME && r.u === ME.uid)); }
 // 찍은 모양: 20문제의 마킹을 10개씩 두 줄로 보여 줘요 (분홍: 아는 문제 · 보라: 찍어서 맞힌 문제)
 function pattern(r){
   const mine = String(r.mine || ''), kn = String(r.kn || ''), key = String(r.key || '');
