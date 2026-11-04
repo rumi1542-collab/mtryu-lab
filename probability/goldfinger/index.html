@@ -611,9 +611,8 @@ function syncRank(){
   else who.innerHTML = '내 정보를 입력하면 우리 학교 순위에 올라가요. <button type="button" class="linkbtn" id="meBtn">내 정보 입력</button>';
   btn.disabled = busy;
   btn.textContent = busy ? '채점하는 중…' : '시험 보기';
-  const done = !TEST() && MINE[k];
   hint.textContent = ME
-    ? (done ? kLabel(k) + ' 시험은 이미 봤어요. 아는 문제 수마다 한 번만 볼 수 있어요.' : '시험 보기를 누르면 서버가 정답을 만들어 채점하고, 점수가 바로 순위표에 올라가요. 아는 문제 수마다 한 번만 볼 수 있어요.')
+    ? '시험 보기를 누르면 서버가 정답을 만들어 채점하고, 점수가 바로 순위표에 올라가요. 여러 번 볼 수 있고, 순위표에는 가장 높은 점수 하나만 올라가요.'
     : '순위에는 별명으로 올라가요. 실명과 학번은 올라가지 않아요.';
 }
 async function challenge(){
@@ -621,7 +620,6 @@ async function challenge(){
   rmsg('');
   const k = knownN();
   if (!ME){ rmsg('내 정보를 먼저 입력해 주세요.'); openMeDialog(); return; }
-  if (!TEST() && MINE[k]){ showRecord(MINE[k], '이미 시험을 본 조건이에요. 내 기록은 ' + MINE[k].rank + '위예요. 한 번만 볼 수 있어요.'); return; }
   const marks = Array.from({length: N}, (_, i) => i < k ? 0 : (draft && draft[i]) || 0);
   if (marks.some((v, i) => i >= k && !v)){ rmsg('아직 답을 적지 않은 문제가 있어요. 찍는 방법을 고르거나 칸을 눌러 답을 적어 주세요.'); return; }
   busy = true; syncRank();
@@ -629,23 +627,29 @@ async function challenge(){
     if (TEST()){
       const sm = stratOfMarks(marks, k), s = {known: k, layout: 'equal', one: sm.one}, r = exam(s, sm.strat, marks);
       const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: sm.strat, one: sm.one, score: r.score, key: r.key.join(''), mine: r.mine.join(''), kn: r.status.map(x => x === 'known' ? '1' : '0').join('')};
-      const l = localList(k, S.year, S.school); l.push(rec);
+      rec.u = ME.uid;
+      let l = localList(k, S.year, S.school);
+      const old = l.find(x => x.u === ME.uid), improved = !old || rec.score > old.score;
+      if (old && improved) l = l.filter(x => x !== old);
+      if (improved) l.push(rec);
+      const bestRec = improved ? rec : old;
       try { localStorage.setItem(lkey(k, S.year, S.school), JSON.stringify(l)); } catch (e) {}
-      lastId = rec.id;
-      renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. (' + ties(l).find(x => x.id === rec.id).rank + '위)'});
+      lastId = bestRec.id;
+      renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. ' + bestNote(r.score, bestRec.score, improved, ties(l).find(x => x.id === bestRec.id).rank)});
       reveal($('single')); B.k = k;
     } else {
       const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, marks }, 12000);
-      showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, '순위에 올렸어요! <b>' + j.rank + '위</b> (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' 기록 ' + j.total + '개 중)');
+      showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, bestNote(j.score, j.best, j.improved, j.rank) + ' (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' ' + j.total + '명 중' + (j.tries > 1 ? ' · ' + j.tries + '번째 시험' : '') + ')');
       await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.k = k; B.cls = defCls();
     }
   } catch (e) {
-    if (e && e.status === 409 && e.body && e.body.rec){ MINE[k] = e.body.rec; showRecord(e.body.rec, '이미 시험을 본 조건이에요. 내 기록은 ' + e.body.rec.rank + '위예요. 한 번만 볼 수 있어요.'); }
-    else if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
+    if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
     else if (e && e.status === 400) rmsg('서버가 이 기록을 받지 않았어요. 내 정보에서 별명과 학교를 확인해 주세요.');
     else rmsg('순위에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. (기록은 남지 않았어요.)');
   } finally { busy = false; syncRank(); }
 }
+// 시험은 여러 번 볼 수 있고, 순위에는 가장 높은 점수만 올라가요
+const bestNote = (score, best, improved, rank) => improved ? '순위에 올렸어요! <b>' + rank + '위</b>' : '이번 점수는 ' + score + '점이에요. 순위표에는 가장 높은 점수 ' + best + '점(<b>' + rank + '위</b>)이 그대로 올라가 있어요.';
 function resetAll(){
   document.querySelector('input[name=known][value="0"]').checked = true;
   document.querySelectorAll('input[name=strat]').forEach(i => { i.checked = false; });
@@ -728,7 +732,7 @@ function paintBoard(){
     return '<tr class="' + (rank === 1 ? 'r1 ' : '') + (me ? 'me' : '') + '"><td class="rk">' + rank + '</td><td>' + esc(r.name) + (me ? '<i class="you">나</i>' : '') + '</td><td class="big">' + r.score + '점</td><td>' + pattern(r) + '</td></tr>';
   }).join('');
   const m = !TEST() && MINE[B.k];
-  const mine = m ? '<p class="mine">내 기록 ' + m.score + '점 · ' + m.rank + '위 <button type="button" class="linkbtn" id="seeMine">내 답안지 보기</button></p>' : '';
+  const mine = m ? '<p class="mine">내 최고 기록 ' + m.score + '점 · ' + m.rank + '위 <button type="button" class="linkbtn" id="seeMine">내 답안지 보기</button></p>' : '';
   el.innerHTML =
     '<p class="rnote">' + S.year + '학년도 · ' + esc(viewSchool()) + (B.cls ? ' · ' + esc(B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반') : '') + ' · ' + esc(kLabel(B.k)) + ' · 기록 ' + B.total + '개' + (TEST() ? ' · 테스트 모드(이 컴퓨터 기록)' : '') + '</p>' +
     '<div class="rtools"><input type="text" id="fq" maxlength="8" placeholder="별명 찾기" value="' + esc(B.q) + '" aria-label="별명 찾기"><button type="button" class="ghost" id="fbtn" style="padding:7px 12px">찾기</button></div>' +
@@ -776,7 +780,7 @@ $('single').addEventListener('click', e => {
 });
 document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => {
   const k = knownN(); B.k = k; rmsg(''); syncRank();
-  if (!TEST() && MINE[k]) showRecord(MINE[k], '이 조건은 이미 시험을 봤어요. 내 기록은 ' + MINE[k].rank + '위예요.'); else renderBlank();
+  renderBlank();
 }));
 $('run1').addEventListener('click', challenge);
 $('resetBtn').addEventListener('click', resetAll);
@@ -788,7 +792,7 @@ $('rank').addEventListener('click', e => {
   else if (t.id === 'fbtn') findName();
   else if (t.id === 'allBoard'){ B.q = ''; B.matches = null; loadBoard(0); }
   else if (t.id === 'retryBoard') loadBoard(B.offset);
-  else if (t.id === 'seeMine'){ const m = MINE[B.k]; if (m){ document.querySelector('input[name=known][value="' + m.k + '"]').checked = true; location.hash = 'exam'; showRecord(m, '이 조건의 내 기록이에요. ' + m.rank + '위'); syncRank(); } }
+  else if (t.id === 'seeMine'){ const m = MINE[B.k]; if (m){ document.querySelector('input[name=known][value="' + m.k + '"]').checked = true; location.hash = 'exam'; showRecord(m, '이 조건의 내 최고 기록이에요. ' + m.rank + '위'); syncRank(); } }
 });
 $('rank').addEventListener('change', e => {
   const el = e.target;
