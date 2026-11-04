@@ -299,7 +299,7 @@ const S = {
   tool: '', cases: [],
   exp: null,          // { tool, names, p (만든 사람만), remote:{id}|null }
   tab: 'once', n1: 100, n2: 20, k2: 50, pick: 0,
-  once: null, rep: null, vis: null, gtab: 'line', blk: 10, showTrue: false, touched: false, exIdx: 0,
+  once: null, rep: null, vis: null, gtab: 'line', blk: 10, bmode: 'cnt', showTrue: false, touched: false, exIdx: 0,
   busy: false, ran: false,
   pub: { open: false, busy: false, id: null, key: '', msg: '', err: false },
   list: { items: null, msg: '', err: false, loading: false },
@@ -536,15 +536,15 @@ function niceStep(raw) { const e = Math.pow(10, Math.floor(Math.log10(raw))), f 
 
 /* ---------- 그래프 (SVG, 화면 폭에 맞춰 글자 크기를 유지해요) ---------- */
 const chartH = () => (S.exp && S.exp.remote ? 300 : 320);
-function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
+function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode, rel, marks) {
   const names = labels, m0 = vals.length, mc = Math.max(2, Math.floor(((w - 64) / m0) / 8));
   if (idxMode && mc < 3 && labels.some(l => String(l).length > mc)) { labels = labels.map((_, i) => String(i + 1)); xTitle = xTitle || '경우 번호 (표의 순서)'; }   // 이름이 안 들어갈 만큼 많으면 번호로
   const h = chartH(), L = 52, R = 12, T = 26, B = 52 + (xTitle ? 18 : 0), pw = w - L - R, ph = h - T - B, m = vals.length;
-  const mx = Math.max(1, Math.max.apply(null, vals)), step = niceStep(mx / 4), ymax = step * Math.ceil(mx / step);
+  const mx = rel ? 1 : Math.max(1, Math.max.apply(null, vals)), step = rel ? 0.25 : niceStep(mx / 4), ymax = rel ? 1 : step * Math.ceil(mx / step), F = rel ? r3 : fmt;   // rel: 상대도수 모드(세로축 0~1)
   let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(yTitle) + ' 막대그래프">';
   for (let v = 0; v <= ymax + 1e-9; v += step) {
     const y = T + ph * (1 - v / ymax);
-    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + fmt(v) + '</text>';
+    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (rel ? (v === 0 ? '0' : v === 1 ? '1' : String(v)) : fmt(v)) + '</text>';
   }
   s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
   const slot = pw / m, bw = Math.min(slot * 0.66, 72), maxCh = Math.max(2, Math.floor(slot / 8));
@@ -552,8 +552,9 @@ function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode) {
   vals.forEach((v, i) => {
     const x = L + slot * i + (slot - bw) / 2, hh = ph * v / ymax, y = T + ph - hh, r = Math.min(4, hh);
     const d = hh > 0 ? 'M' + x + ',' + (y + hh) + 'V' + (y + r) + 'Q' + x + ',' + y + ' ' + (x + r) + ',' + y + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + y + ' ' + (x + bw) + ',' + (y + r) + 'V' + (y + hh) + 'Z' : '';
-    s += '<g>' + (d ? '<path d="' + d + '" fill="' + colors[i] + '"/>' : '') + '<title>' + esc(names[i]) + ': ' + fmt(v) + '</title>' +
-      (slot >= 16 || v === mx ? '<text class="val" x="' + (x + bw / 2) + '" y="' + (y - 6) + '" text-anchor="middle">' + fmt(v) + '</text>' : '') +
+    s += '<g>' + (d ? '<path d="' + d + '" fill="' + colors[i] + '"/>' : '') + '<title>' + esc(names[i]) + ': ' + F(v) + '</title>' +
+      (slot >= 16 || v === mx ? '<text class="val" x="' + (x + bw / 2) + '" y="' + (y - 6) + '" text-anchor="middle">' + F(v) + '</text>' : '') +
+      (marks ? '<line x1="' + (x - 4) + '" x2="' + (x + bw + 4) + '" y1="' + (T + ph * (1 - marks[i])) + '" y2="' + (T + ph * (1 - marks[i])) + '" stroke="#2B0F3F" stroke-width="2" stroke-dasharray="5 3"><title>정한 확률 ' + r3(marks[i]) + '</title></line>' : '') +
       (i % every === 0 ? '<text x="' + (x + bw / 2) + '" y="' + (T + ph + 18) + '" text-anchor="middle">' + esc(short(labels[i], maxCh)) + '</text>' : '') + '</g>';
   });
   if (markX != null) { const mxp = L + markX * slot; s += '<line x1="' + mxp + '" x2="' + mxp + '" y1="' + T + '" y2="' + (T + ph) + '" stroke="#D81B7A" stroke-width="2" stroke-dasharray="6 4"/><text x="' + mxp + '" y="' + (T - 8) + '" text-anchor="middle" style="fill:#D81B7A;font-weight:700">설정한 기댓값</text>'; }
@@ -626,7 +627,8 @@ function histSvg(w, H, xTitle, yTitle, markV, unit) {
 const chartWidth = el => Math.max(300, Math.floor(el.clientWidth || 600));
 const BLK_SIZES = [10, 50, 100, 500];
 function gpanelHtml(names) {
-  if (S.gtab === 'bar') return '<div class="chart" data-chart="bar1"></div><p class="hint">경우마다 몇 번 나왔는지(도수) 보여요.</p>';
+  if (S.gtab === 'bar') return '<div class="blkctl"><span>보기</span>' + [['cnt', '도수'], ['rel', '상대도수']].map(t => '<button type="button" class="btn sm" data-act="bmode" data-v="' + t[0] + '" aria-pressed="' + (S.bmode === t[0]) + '">' + t[1] + '</button>').join('') + '</div>' +
+    '<div class="chart" data-chart="bar1"></div><p class="hint">' + (S.bmode === 'rel' ? '경우마다 전체 던진 횟수 중 차지한 비율(상대도수)이에요. 세로축은 0~1이에요.' + (S.exp.p ? ' 점선은 만든 친구가 정한 확률이에요.' : '') : '경우마다 몇 번 나왔는지(도수) 보여요.') + '</p>';
   if (S.gtab === 'blk') return '<div class="blkctl"><span>묶음 크기</span>' + BLK_SIZES.map(k => '<button type="button" class="btn sm" data-act="blk" data-v="' + k + '" aria-pressed="' + (S.blk === k) + '">' + k + '번씩</button>').join('') + '</div>' +
     '<div class="chart" data-chart="blk1"></div>' + pickHtml(names) + '<p class="hint" id="blkinfo"></p>' +
     '<p class="hint">던진 결과를 ' + S.blk + '번씩 끊어서, 묶음마다 상대도수를 점으로 찍어요. 묶음이 클수록 점들이 모여요. 다 채워진 묶음만 보여요.</p>';
@@ -702,7 +704,11 @@ function drawCharts() {
     const kind = el.dataset.chart;
     if (kind === 'sthist') { const st = S.play.stats; if (st) el.innerHTML = dotSvg(w, statsSel(st), S.play.sf); return; }
     const O = curOnce();
-    if (kind === 'bar1' && O) el.innerHTML = barSvg(w, E.names, O.counts, E.names.map((_, i) => col(i, E.names.length)), '', '도수(번)', null, true);
+    if (kind === 'bar1' && O) {
+      const cols = E.names.map((_, i) => col(i, E.names.length));
+      if (E.remote && S.bmode === 'rel') el.innerHTML = barSvg(w, E.names, O.counts.map(c => O.n ? c / O.n : 0), cols, '', '상대도수', null, true, true, E.p || null);
+      else el.innerHTML = barSvg(w, E.names, O.counts, cols, '', '도수(번)', null, true);
+    }
     else if (kind === 'line1' && O) {
       const L = lineSvg(w, O, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
       wireLine(el, L, w);
@@ -1055,6 +1061,7 @@ app.addEventListener('click', async ev => {
   }
   else if (a === 'gtab') { S.gtab = v; gpanelPaint(); }
   else if (a === 'blk') { S.blk = Number(v); gpanelPaint(); }
+  else if (a === 'bmode') { S.bmode = v; gpanelPaint(); }
   else if (a === 'practice') { liveReset(); S.once = null; S.ran = false; S.play.practice = true; render(); const lc = $('#livecard'); if (lc) lc.scrollIntoView({ block: 'start' }); }
   else if (a === 'run1') runOnce();
   else if (a === 'run2') runRep();
