@@ -516,6 +516,20 @@ function renderSingle(s, strat, r, opt){
     '<p class="keys-h">이번 시험의 정답 분포' + (strat === 'one' ? ' (찍은 ' + s.one + '번 표시)' : '') + '</p>' +
     '<ul class="keys">' + keys + '</ul>';
 }
+/* 첫 화면: 아직 시험을 보지 않은 빈 OMR 답안지 */
+function renderBlank(){
+  const orow = i => {
+    let b = '';
+    for (let j = 1; j <= 5; j++) b += '<span class="ob">' + j + '</span>';
+    return '<div class="orow" role="group" aria-label="' + (i + 1) + '번 문제, 아직 답을 적지 않았어요"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
+  };
+  const th = '<div class="omr-th"><span>문항</span>' + [1, 2, 3, 4, 5].map(v => '<span>' + v + '</span>').join('') + '</div>';
+  const half = a => '<div class="omr-col">' + th + Array.from({length: 10}, (_, t) => orow(a + t)).join('') + '</div>';
+  $('single').innerHTML =
+    '<h2>OMR 답안지</h2>' +
+    '<p class="cond">왼쪽에서 조건을 고르고 <b>시험 1번 보기 (연습)</b>를 눌러 보세요. 답을 마킹하고 채점해 줘요.</p>' +
+    '<div class="omr" role="group" aria-label="빈 OMR 답안지"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>';
+}
 function showRecord(rec, note, ranked){
   renderSingle({known: rec.k, layout: 'equal', one: rec.one || 3}, rec.strat, fromRecord(rec), {ranked: ranked !== false, note});   // 순위 시험의 정답은 늘 각 번호 4개씩이에요
   reveal($('single'));
@@ -728,7 +742,7 @@ new ResizeObserver(() => {
 /* ---------- 시작: 예시 시험 1번과 1000번 반복, 순위표 ---------- */
 (async function init(){
   const c0 = cur();
-  renderSingle(c0.s, c0.strat, exam(c0.s, c0.strat));
+  renderBlank();
   renderBatch(c0.s, [{strat: c0.strat, scores: runMany(c0.s, c0.strat, 1000)}], 1000);
   syncRank(); boardShell();
   await loadList(); await syncMe(); enforceMine(); await refreshMine();
