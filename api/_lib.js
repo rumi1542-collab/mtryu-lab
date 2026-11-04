@@ -122,7 +122,7 @@ function classCounts(items) {
 // ---- 공동 순위 (300·200·200·100점 → 1위 2위 2위 4위) ----
 // Redis 점수는 '값 - ts/1e13' 꼴이라, 값(작을수록 위)이 같으면 같은 순위예요.
 function rankValue(game, o) {
-  if (game === 'river') return Number(o.rolls);
+  if (game === 'river' || game === 'dalembert') return Number(o.rolls);
   if (game === 'run') return -Number(o.n);
   if (String(game).startsWith('tune')) return Number(o.diff);
   if (game === 'spot') return -Number(o.correct);

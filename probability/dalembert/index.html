@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>달랑베르를 이겨라 · 확률 실험실</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7719AA">
+<meta name="description" content="달랑베르는 동전 2개를 던지면 앞면이 0개, 1개, 2개 나올 가능성이 모두 같다고 생각했어요. 돌 12개를 나눠 놓고 달랑베르를 이겨 보세요. 몇 번 만에 이겼는지가 학교 순위에 올라가요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap">
+<style>
+/* Layout: 왼쪽 모둠 판 / 가운데 강(안내·진행·동전·버튼) / 오른쪽 모둠 판. 돌은 칸 아래에서 위로 쌓이고, 건넌 돌은 폭죽처럼 터지며 자국을 남김 */
+:root{
+  --bg:#f8f4fc; --surface:#ffffff; --ink:#2b2040; --muted:#6a5e80; --line:#e3d8f0;
+  --pink:#c92a7a; --pink-soft:#fce4f0; --pink-stone:#e0408f;
+  --violet:#6a45c2; --violet-soft:#ebe5fa; --violet-stone:#7c5ad6;
+  --river:#d9e4fb; --river-line:#bccff4;
+  --coin:#c9ccd3; --coin-hi:#f3f4f7; --coin-b:#b6bac4; --coin-edge:#8b909b; --coin-ink:#454a58;
+  --on-hot:#ffffff; --hot:#c92a7a;
+  --font-display:'Jua','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --font-body:'Gowun Dodum','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#17111f; --surface:#221a2e; --ink:#f3ecfa; --muted:#aa9cc2; --line:#3a2d4d;
+    --pink:#f06fb0; --pink-soft:#35192b; --pink-stone:#f06fb0;
+    --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa;
+    --river:#1d2a4d; --river-line:#2c3d6b;
+    --coin:#b3b8c4; --coin-hi:#dfe2ea; --coin-b:#9ca2b1; --coin-edge:#6b7283; --coin-ink:#2f3440;
+    --on-hot:#1a0f24; --hot:#f06fb0;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#17111f; --surface:#221a2e; --ink:#f3ecfa; --muted:#aa9cc2; --line:#3a2d4d;
+  --pink:#f06fb0; --pink-soft:#35192b; --pink-stone:#f06fb0;
+  --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa;
+  --river:#1d2a4d; --river-line:#2c3d6b;
+  --coin:#b3b8c4; --coin-hi:#dfe2ea; --coin-b:#9ca2b1; --coin-edge:#6b7283; --coin-ink:#2f3440;
+  --on-hot:#1a0f24; --hot:#f06fb0;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  min-height:calc(100vh - var(--labbar-h,0px));
+  background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:16px; line-height:1.55;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:16px 40px;
+}
+.wrap{max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:12px}
+h1,h2{font-family:var(--font-display); font-weight:400; margin:0; text-wrap:balance}
+h1{font-size:30px; line-height:1.15; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+h2{font-size:20px}
+.pill{font-family:var(--font-display); font-size:15px; background:var(--hot); color:var(--on-hot); padding:2px 12px; border-radius:999px}
+:focus-visible{outline:3px solid var(--hot); outline-offset:2px}
+
+.top{display:flex; justify-content:space-between; align-items:center; gap:10px 20px; flex-wrap:wrap}
+.eyebrow{font-size:13px; color:var(--muted); letter-spacing:.04em; display:block}
+.steps{display:flex; gap:6px; flex-wrap:wrap; list-style:none; margin:0; padding:0}
+.steps li{font-family:var(--font-display); font-size:15px; padding:4px 14px; border-radius:999px; background:var(--violet-soft); color:var(--muted)}
+.steps li.on{background:var(--hot); color:var(--on-hot)}
+.lead{margin:0; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 14px}
+.rules{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:8px 14px}
+.rules summary{cursor:pointer; font-family:var(--font-display); font-size:17px}
+.rules ol{margin:8px 0 4px; padding-left:20px; display:flex; flex-direction:column; gap:4px}
+
+.board{display:grid; grid-template-columns:minmax(0,1fr) 250px minmax(0,1fr); gap:12px; align-items:stretch}
+.bank{background:var(--bank); border:3px solid var(--acc); border-radius:20px; padding:12px; display:flex; flex-direction:column; gap:10px; min-width:0}
+.bank-a{--bank:var(--pink-soft); --acc:var(--pink); --stone-c:var(--pink-stone)}
+.bank-b{--bank:var(--violet-soft); --acc:var(--violet); --stone-c:var(--violet-stone)}
+.bank-head{display:flex; align-items:center; gap:8px}
+.badge{font-family:var(--font-display); font-size:14px; background:var(--acc); color:var(--on-hot); border-radius:999px; padding:2px 10px}
+.bank-head input{flex:1; min-width:0; height:40px; border-radius:10px; border:2px solid var(--line); background:var(--surface); color:var(--ink); padding:0 10px; font:inherit; font-size:17px}
+.count{font-family:var(--font-display); font-size:15px; color:var(--muted); white-space:nowrap; font-variant-numeric:tabular-nums}
+.count b{font-size:28px; font-weight:400; color:var(--acc)}
+.bank-body{display:flex; flex-direction:column; gap:8px; flex:1}
+
+.field{flex:1; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); background:var(--surface); border:2px solid var(--line); border-radius:14px; overflow:hidden; min-height:320px}
+.col{display:flex; flex-direction:column-reverse; border-left:1px solid var(--line); min-width:0}
+.col:first-child{border-left:none}
+.col.rolled{background:color-mix(in srgb, var(--acc) 10%, var(--surface))}
+.slot{height:26px; flex:none; display:grid; place-items:center; border-top:1px solid color-mix(in srgb, var(--line) 55%, transparent)}
+.stone{width:22px; height:22px; border-radius:50%; display:block; background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--stone-c) 45%, #fff), var(--stone-c) 65%); box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.stone.new{animation:drop .35s ease-out}
+@keyframes drop{from{transform:translateY(-34px) scale(.7); opacity:0}}
+.trace{display:block; width:24px; height:24px; color:var(--acc); opacity:.6}
+.trace svg{width:100%; height:100%; display:block}
+.trace.fresh{animation:trace .8s ease-out}
+@keyframes trace{0%{transform:scale(1.8); opacity:1} 100%{transform:none; opacity:.6}}
+
+.row3{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px}
+.clabel{display:flex; flex-direction:column; align-items:center; line-height:1.25; background:var(--surface); border-radius:10px; padding:4px 2px; border:1px solid var(--line)}
+.clabel b{font-family:var(--font-display); font-weight:400; font-size:16px}
+.clabel span{font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums}
+.clabel.rolled{border-color:var(--acc); background:color-mix(in srgb, var(--acc) 14%, var(--surface))}
+.adj{height:38px; width:100%; border-radius:10px; border:2px solid var(--acc); background:var(--surface); color:var(--acc); font:400 16px/1 var(--font-display); cursor:pointer; padding:0}
+.adj.up{background:var(--acc); color:var(--on-hot)}
+.adj:disabled{opacity:.35; cursor:not-allowed}
+
+.river{
+  border-radius:20px; padding:12px; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 22px, var(--river-line) 22px 24px),
+    var(--river);
+}
+.card{background:var(--surface); border-radius:14px; padding:12px; width:100%; text-align:left; border:1px solid var(--line)}
+.stage{font-size:13px; color:var(--muted)}
+.card h2{margin:0 0 4px}
+.card p{margin:0; font-size:15px; line-height:1.5}
+.banner{font-family:var(--font-display); font-size:22px; line-height:1.25; color:var(--hot)}
+.prow{display:flex; justify-content:space-between; gap:8px; font-size:15px; font-variant-numeric:tabular-nums}
+.prow + .pbar{margin:2px 0 8px}
+.pbar:last-child{margin-bottom:0}
+.pbar{height:10px; background:var(--bg); border-radius:6px; overflow:hidden; border:1px solid var(--line)}
+.pbar i{display:block; height:100%; transition:width .3s}
+.pbar.p0 i{background:var(--pink)}
+.pbar.p1 i{background:var(--violet)}
+.prog-title{font-size:13px; color:var(--muted); margin-bottom:6px}
+.coins{display:flex; gap:14px; justify-content:center; margin:2px 0}
+.coin-wrap{perspective:500px; width:92px; height:92px}
+.coin-wrap.toss{animation:toss .9s cubic-bezier(.3,.6,.5,1)}
+@keyframes toss{0%{transform:translateY(0)} 40%{transform:translateY(-34px)} 100%{transform:translateY(0)}}
+.coin{width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .9s cubic-bezier(.25,.7,.3,1)}
+.face{position:absolute; inset:0; border-radius:50%; overflow:hidden; backface-visibility:hidden; -webkit-backface-visibility:hidden; color:var(--coin-ink); border:4px solid var(--coin-edge); box-shadow:inset 0 0 0 2px var(--coin-hi), 0 3px 8px rgba(40,30,70,.25); background:radial-gradient(circle at 35% 30%, var(--coin-hi), var(--coin) 62%, var(--coin-edge) 130%)}
+.face.b{transform:rotateY(180deg); background:radial-gradient(circle at 35% 30%, var(--coin-hi), var(--coin-b) 62%, var(--coin-edge) 130%)}
+.face svg{width:100%; height:100%; display:block}
+.ct{font-family:var(--font-display); fill:currentColor; text-anchor:middle}
+.actions{display:flex; flex-direction:column; gap:8px; width:100%; margin-top:auto}
+.btn{height:46px; width:100%; padding:0 16px; border-radius:12px; border:2px solid var(--hot); background:var(--hot); color:var(--on-hot); font:400 18px var(--font-display); cursor:pointer}
+.btn.ghost{background:var(--surface); color:var(--ink); border-color:var(--line); height:40px; font-size:16px}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+
+.record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
+.rec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.rec-head .meta{color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums}
+.bar-row{display:grid; grid-template-columns:64px minmax(0,1fr) 92px; gap:8px; align-items:center; font-size:14px}
+.bl{color:var(--muted)}
+.track{position:relative; height:16px; background:var(--bg); border-radius:8px; border:1px solid var(--line)}
+.fill{height:100%; border-radius:7px; background:var(--hot)}
+.tick{position:absolute; top:-4px; bottom:-4px; width:0; border-left:2px dashed var(--ink)}
+.bv{font-variant-numeric:tabular-nums; text-align:right}
+.note{color:var(--muted); font-size:13px; margin:0}
+.chips{display:flex; flex-wrap:wrap; gap:4px}
+.chip{width:24px; height:24px; border-radius:6px; display:grid; place-items:center; font-style:normal; font-size:13px; font-variant-numeric:tabular-nums; border:1px solid var(--line); background:var(--bg)}
+.chip.c1{background:color-mix(in srgb, var(--hot) 20%, var(--surface))}
+.chip.c0,.chip.c2{background:color-mix(in srgb, var(--violet) 20%, var(--surface))}
+.rec-foot{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; font-size:14px}
+.link{background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; font:inherit; padding:6px 0}
+#fx{position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:50}
+.rank{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:10px}
+.rlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.rrow{display:grid; grid-template-columns:48px minmax(0,1fr) 76px 132px; gap:8px; align-items:center; padding:6px 10px; border-radius:10px; background:var(--bg); font-variant-numeric:tabular-nums}
+.rrow.head{background:none; color:var(--muted); font-size:13px; padding-block:0}
+.rrow.me{background:color-mix(in srgb, var(--hot) 14%, var(--surface)); outline:2px solid var(--hot)}
+.rk{font-family:var(--font-display); font-size:20px; color:var(--hot)}
+.rrow.head .rk{font-size:13px; color:var(--muted); font-family:var(--font-body)}
+.rn{overflow-wrap:anywhere}
+.rr{text-align:right}
+.rp{text-align:right; color:var(--muted); font-size:14px}
+.mbars{display:inline-grid; grid-template-columns:repeat(3, 28px); gap:6px; align-items:end}
+.mb{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:72px; gap:2px}
+.mb em{font-style:normal; font-size:12px; color:var(--ink); line-height:1}
+.mb i{display:block; width:20px; border-radius:4px 4px 0 0; background:var(--violet)}
+.mb u{text-decoration:none; font-size:11px; color:var(--muted); line-height:1; border-top:1px solid var(--line); width:100%; text-align:center; padding-top:2px}
+@media (max-width:520px){
+  .rrow{grid-template-columns:40px minmax(0,1fr) 64px}
+  .rp{grid-column:2 / -1; text-align:left}
+  .rrow.head .rp{display:none}
+}
+
+.stack{display:flex; flex-direction:column; gap:12px}
+.topright{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.btn.small{width:auto; height:36px; padding:0 14px; font-size:15px}
+.rview{display:grid; grid-template-columns:300px minmax(0,1fr); gap:12px; align-items:stretch}
+.rside{border:3px solid var(--violet); background:var(--violet-soft); border-radius:20px; padding:20px 16px; display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px}
+.rside .trophy{color:var(--hot)}
+.rside h2{font-size:30px}
+.rside p{margin:0}
+.rside-btns{margin-top:auto; width:100%; display:flex; flex-direction:column; align-items:center; gap:6px; padding-top:20px}
+.rsearch{height:40px; max-width:260px; border-radius:10px; border:2px solid var(--line); background:var(--bg); color:var(--ink); padding:0 10px; font:inherit}
+.pager{display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; font-size:14px; color:var(--muted)}
+.pager button{width:38px; height:38px; border-radius:10px; border:2px solid var(--line); background:var(--surface); color:var(--ink); font:inherit; cursor:pointer}
+.pager button:disabled{opacity:.35; cursor:not-allowed}
+.rfilters{display:flex; gap:10px 14px; flex-wrap:wrap; align-items:center}
+.rsel{display:inline-flex; gap:10px; flex-wrap:wrap; align-items:center}
+.rsel label{display:inline-flex; gap:6px; align-items:center; font-size:14px; color:var(--muted)}
+.rsel select{height:40px; border-radius:10px; border:2px solid var(--line); background:var(--bg); color:var(--ink); padding:0 8px; font:inherit; max-width:220px}
+.rn small{display:block; color:var(--muted); font-size:12px; line-height:1.3}
+@media (max-width:820px){
+  .rview{grid-template-columns:minmax(0,1fr)}
+  .board{grid-template-columns:minmax(0,1fr)}
+  .field{min-height:0}
+}
+@media (max-width:420px){
+  h1{font-size:26px}
+  .coin-wrap{width:80px; height:80px}
+  .bar-row{grid-template-columns:56px minmax(0,1fr) 84px; font-size:13px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important}
+}
+</style>
+<script src="/me-sync.js"></script>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+</head>
+<body>
+
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1>달랑베르(d'Alembert)를 이겨라</h1>
+    </div>
+    <div class="topright">
+      <ol class="steps" id="steps"></ol>
+      <button type="button" class="btn ghost small" id="btnRankView">순위 보기</button>
+    </div>
+  </header>
+
+  <div id="gameView" class="stack">
+
+  <p class="lead">달랑베르(d'Alembert)는 동전 2개를 던지면 앞면이 0개, 1개, 2개 나오는 경우가 모두 똑같이 일어난다고 생각해서 돌을 칸마다 4개씩 똑같이 놓았어요. 그 생각이 맞을까요? 돌 12개를 나눠 놓고 달랑베르를 이겨 보세요.</p>
+
+  <details class="rules">
+    <summary>게임 규칙</summary>
+    <ol>
+      <li>달랑베르(1P)는 돌 12개를 <b>앞면 0개, 1개, 2개</b> 칸에 4개씩 놓았습니다. 나(2P)는 돌 12개를 마음대로 나눠 놓습니다. 돌은 칸의 아래에서 위로 쌓입니다.</li>
+      <li>동전 2개를 동시에 던져 앞면이 몇 개 나왔는지 봅니다. (그림 면이 앞, 숫자 면이 뒤)</li>
+      <li>나온 숫자 칸에 돌이 있으면 <b>두 모둠 모두</b> 그 칸의 맨 위 돌 1개가 팡 터지며 강을 건넙니다. 터진 자리에는 자국이 남습니다.</li>
+      <li>돌 12개를 먼저 모두 건너게 한 쪽이 이깁니다. 같은 던지기에서 둘 다 끝나면 무승부입니다.</li>
+    </ol>
+  </details>
+
+  <section class="board" aria-label="강 건너기 판">
+    <section class="bank bank-a" id="bank0" aria-label="왼쪽 모둠">
+      <div class="bank-head">
+        <span class="badge">1P</span>
+        <input type="text" id="name0" maxlength="8" value="달랑베르" readonly title="달랑베르는 돌을 4개씩 놓아요" aria-label="1P 달랑베르">
+        <span class="count" id="count0"></span>
+      </div>
+      <div class="bank-body" id="body0"></div>
+    </section>
+
+    <section class="river" id="river" aria-label="강">
+      <div class="card" id="info" aria-live="polite"></div>
+      <div class="card" id="prog"></div>
+      <div class="coins" aria-hidden="true">
+        <div class="coin-wrap" id="wrap1"><div class="coin" id="coin1"><div class="face"></div><div class="face b"></div></div></div>
+        <div class="coin-wrap" id="wrap2"><div class="coin" id="coin2"><div class="face"></div><div class="face b"></div></div></div>
+      </div>
+      <div class="actions" id="actions"></div>
+    </section>
+
+    <section class="bank bank-b" id="bank1" aria-label="오른쪽 모둠">
+      <div class="bank-head">
+        <span class="badge">2P</span>
+        <input type="text" id="name1" maxlength="8" placeholder="내 별명" autocomplete="off" aria-label="2P 내 별명(내 정보)">
+        <span class="count" id="count1"></span>
+      </div>
+      <div class="bank-body" id="body1"></div>
+    </section>
+  </section>
+
+  <section class="record" aria-label="던진 결과 기록">
+    <div class="rec-head">
+      <h2>던진 결과</h2>
+      <span class="meta" id="recMeta"></span>
+    </div>
+    <div id="bars"></div>
+    <p class="note" id="barNote"></p>
+    <div id="seqBox" hidden>
+      <p class="note" style="margin-bottom:6px">이번 게임에서 나온 앞면의 수 (던진 순서대로)</p>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div class="rec-foot">
+      <span id="wins"></span>
+      <button type="button" class="link" id="btnClear">기록 지우기</button>
+    </div>
+  </section>
+  </div>
+
+  <div id="rankView" class="rview" hidden>
+    <aside class="rside">
+      <span class="trophy"><svg viewBox="0 0 64 64" width="76" height="76" aria-hidden="true"><path d="M20 8h24v14c0 8-5 14-12 14s-12-6-12-14z" fill="currentColor"/><path d="M20 12H10c0 9 4 14 11 15M44 12h10c0 9-4 14-11 15" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><rect x="29" y="36" width="6" height="10" fill="currentColor"/><rect x="20" y="48" width="24" height="7" rx="2" fill="currentColor"/></svg></span>
+      <h2>순위 보기</h2>
+      <p class="note">달랑베르를 이긴 기록<br>던진 횟수가 적을수록 위예요</p>
+      <div class="rside-btns">
+        <button type="button" class="btn" id="btnBackGame">달랑베르에게 도전하기</button>
+      </div>
+    </aside>
+    <section class="rank" aria-label="순위표">
+      <p class="note" id="rankCtx"></p>
+      <div class="rec-head"><h2>달랑베르를 이긴 순위</h2><span class="meta" id="rankCount"></span></div>
+      <div class="rfilters"><span id="rselects" class="rsel"></span><input type="text" id="rankQ" class="rsearch" placeholder="내 별명 찾기" maxlength="8" autocomplete="off" aria-label="별명 찾기"></div>
+      <p class="note">같은 횟수는 공동 순위 · 같은 횟수에서는 최근 기록이 위 · 처음 배치는 앞면 0개·1개·2개 칸의 돌 수예요</p>
+      <div id="rankBody"><p class="note">불러오는 중…</p></div>
+    </section>
+  </div>
+</main>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<script>
+(function(){
+  'use strict';
+  var N = 12, H = [0, 1, 2];
+  var $ = function(s){ return document.querySelector(s); };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var THEORY = [25, 50, 25];
+
+  function esc(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function sum(a){ return a.reduce(function(x, y){ return x + y; }, 0); }
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+  var state = {
+    names: ['달랑베르', ''],
+    place: [[4,4,4],[0,0,0]],
+    phase: 'setup',            // setup | play | end
+    cols: null,                // cols[p][h][i]: 0 빈칸, 1 돌, 2 터진 자국
+    crossed: [0, 0],
+    rounds: 0,
+    flipping: false,
+    auto: false,
+    last: null,
+    seq: [],
+    tally: [0, 0, 0],
+    wins: [0, 0, 0],
+    winner: null,
+    fresh: [],
+    lastId: '',                // 방금 올린 내 기록 (순위표에서 강조해요)
+    myRank: 0,
+    saving: false,
+    saveErr: false
+  };
+
+  function pname(p){ return (state.names[p] || '').trim() || (p ? 'B' : 'A'); }
+  function ready(){ return sum(state.place[0]) === N && sum(state.place[1]) === N; }
+
+  /* ---------- 폭죽 효과 ---------- */
+  var fx = $('#fx'), ctx = fx.getContext('2d'), parts = [], rings = [], raf = 0;
+  function sizeFx(){
+    var d = window.devicePixelRatio || 1;
+    fx.width = Math.round(window.innerWidth * d);
+    fx.height = Math.round(window.innerHeight * d);
+    ctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  window.addEventListener('resize', sizeFx);
+  sizeFx();
+
+  function burst(x, y, color){
+    if (reduce) return;
+    var pal = [color, '#ffd166', '#ffffff', color, '#ff8fc7'];
+    for (var i = 0; i < 36; i++){
+      var a = Math.random() * Math.PI * 2, sp = 1.5 + Math.random() * 5.5;
+      parts.push({ x:x, y:y, vx:Math.cos(a) * sp, vy:Math.sin(a) * sp - 1, t:0, max:46 + Math.random() * 36, r:1.6 + Math.random() * 2.6, c:pal[i % pal.length] });
+    }
+    rings.push({ x:x, y:y, r:6, t:0, max:26, c:color });
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  function tick(){
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    parts = parts.filter(function(p){ return p.t < p.max; });
+    rings = rings.filter(function(r){ return r.t < r.max; });
+    parts.forEach(function(p){
+      p.t++; p.vx *= 0.96; p.vy = p.vy * 0.96 + 0.07;
+      p.x += p.vx; p.y += p.vy;
+      var k = 1 - p.t / p.max;
+      ctx.globalAlpha = Math.max(0, k);
+      ctx.strokeStyle = p.c; ctx.lineWidth = p.r * 0.8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x - p.vx * 2.2, p.y - p.vy * 2.2); ctx.lineTo(p.x, p.y); ctx.stroke();
+      ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (0.5 + k * 0.5), 0, Math.PI * 2); ctx.fill();
+    });
+    rings.forEach(function(r){
+      r.t++;
+      var k = r.t / r.max;
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = r.c; ctx.lineWidth = 3 * (1 - k) + 0.5;
+      ctx.beginPath(); ctx.arc(r.x, r.y, r.r + k * 34, 0, Math.PI * 2); ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+    if (parts.length || rings.length) raf = requestAnimationFrame(tick);
+    else { raf = 0; ctx.clearRect(0, 0, window.innerWidth, window.innerHeight); }
+  }
+
+  /* ---------- 자국(터진 흔적) ---------- */
+  var TRACE = (function(){
+    var s = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>';
+    for (var i = 0; i < 8; i++){
+      var a = i * Math.PI / 4, x1 = 12 + Math.cos(a) * 8, y1 = 12 + Math.sin(a) * 8, x2 = 12 + Math.cos(a) * 11, y2 = 12 + Math.sin(a) * 11;
+      s += '<line x1="' + x1.toFixed(1) + '" y1="' + y1.toFixed(1) + '" x2="' + x2.toFixed(1) + '" y2="' + y2.toFixed(1) + '" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>';
+    }
+    return s + '<circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>';
+  })();
+
+  /* ---------- 렌더링 ---------- */
+  function slotValue(p, h, i){
+    if (state.phase === 'setup') return i < state.place[p][h] ? 1 : 0;
+    return state.cols[p][h][i];
+  }
+  function colCount(p, h){
+    var c = 0;
+    for (var i = 0; i < N; i++) if (slotValue(p, h, i) === 1) c++;
+    return c;
+  }
+
+  function bodyHTML(p){
+    var setup = state.phase === 'setup', placed = sum(state.place[p]);
+    var rolledH = (!setup && state.last) ? state.last.h : -1;
+    var cols = H.map(function(h){
+      var slots = '';
+      for (var i = 0; i < N; i++){
+        var v = slotValue(p, h, i), key = p + '-' + h + '-' + i;
+        var fresh = state.fresh.indexOf(key) >= 0;
+        var inner = v === 1 ? '<i class="stone' + (fresh ? ' new' : '') + '"></i>'
+                  : v === 2 ? '<span class="trace' + (fresh ? ' fresh' : '') + '">' + TRACE + '</span>' : '';
+        slots += '<div class="slot" data-p="' + p + '" data-h="' + h + '" data-i="' + i + '">' + inner + '</div>';
+      }
+      return '<div class="col' + (h === rolledH ? ' rolled' : '') + '">' + slots + '</div>';
+    }).join('');
+    var labels = H.map(function(h){
+      return '<div class="clabel' + (h === rolledH ? ' rolled' : '') + '"><b>앞면 ' + h + '개</b><span>돌 ' + colCount(p, h) + '개</span></div>';
+    }).join('');
+    var ctrl = '';
+    if (setup && p === 1){
+      var nm = esc(pname(p));
+      ctrl = '<div class="row3">' + H.map(function(h){
+        return '<button type="button" class="adj up" data-p="' + p + '" data-h="' + h + '" data-d="1" aria-label="' + nm + ' 앞면 ' + h + '개 칸에 돌 더하기"' + (placed >= N ? ' disabled' : '') + '>▲</button>';
+      }).join('') + '</div><div class="row3">' + H.map(function(h){
+        return '<button type="button" class="adj" data-p="' + p + '" data-h="' + h + '" data-d="-1" aria-label="' + nm + ' 앞면 ' + h + '개 칸에서 돌 빼기"' + (state.place[p][h] <= 0 ? ' disabled' : '') + '>▼</button>';
+      }).join('') + '</div>';
+    }
+    return '<div class="field">' + cols + '</div><div class="row3">' + labels + '</div>' + ctrl;
+  }
+
+  function renderBanks(){
+    [0, 1].forEach(function(p){
+      $('#body' + p).innerHTML = bodyHTML(p);
+      $('#count' + p).innerHTML = state.phase === 'setup'
+        ? '<b>' + sum(state.place[p]) + '</b> / ' + N + '개'
+        : '건넘 <b>' + state.crossed[p] + '</b> / ' + N;
+    });
+  }
+
+  function lastText(){
+    var L = state.last;
+    if (!L) return '동전 2개를 던져 앞면이 몇 개 나오는지 보세요. 나온 칸의 맨 위 돌이 팡 터지며 강을 건너요.';
+    var parts = [0, 1].map(function(p){
+      return esc(pname(p)) + (L.hits[p] ? ' 돌 1개 건넘' : ' 건널 돌 없음');
+    });
+    return state.rounds + '번째 던지기 · 앞면 ' + L.h + '개<br>' + parts.join(' · ');
+  }
+
+  function renderCenter(){
+    var info = $('#info'), ac = $('#actions');
+    var steps = ['돌 배치', '게임', '결과'], cur = state.phase === 'setup' ? 0 : state.phase === 'play' ? 1 : 2;
+    $('#steps').innerHTML = steps.map(function(s, i){
+      return '<li' + (i === cur ? ' class="on" aria-current="step"' : '') + '>' + (i + 1) + ' ' + s + '</li>';
+    }).join('');
+
+    if (state.phase === 'setup'){
+      info.innerHTML = '<div class="stage">1단계</div><h2>내 돌을 놓아요</h2><p>달랑베르는 칸마다 돌을 4개씩 놓았어요. 오른쪽 판에서 ▲로 돌을 더하고 ▼로 빼서 돌 ' + N + '개를 나눠 놓으세요. 한 칸에 여러 개 놓아도 돼요.</p>';
+      ac.innerHTML = '<button type="button" class="btn" id="btnStart"' + (ready() ? '' : ' disabled') + '>' + (ready() ? '게임 시작' : '돌을 ' + N + '개 모두 놓아 주세요') + '</button>';
+    } else if (state.phase === 'play'){
+      info.innerHTML = '<div class="stage">2단계</div><h2>동전을 던져요</h2><p>' + lastText() + '</p>';
+      ac.innerHTML =
+        '<button type="button" class="btn" id="btnThrow"' + ((state.flipping || state.auto) ? ' disabled' : '') + '>동전 던지기</button>' +
+        '<button type="button" class="btn ghost" id="btnAuto">' + (state.auto ? '멈추기' : '끝까지 자동으로') + '</button>' +
+        '<button type="button" class="btn ghost" id="btnBack"' + (state.flipping ? ' disabled' : '') + '>← 배치로 돌아가기</button>';
+    } else {
+      var w = state.winner;
+      var banner = w === 'draw' ? '무승부! 동시에 모두 건넜어요.'
+        : w === 1 ? esc(pname(1)) + ' 승리! 달랑베르를 이겼어요.'
+        : '달랑베르 승리! 배치를 바꿔 다시 도전해 봐요.';
+      info.innerHTML = '<div class="stage">3단계</div><div class="banner">' + banner + '</div><p>' + lastText() + '</p>' +
+        (w === 1 ? '<p><b>' + state.rounds + '번 만에 이겼어요! ' + saveText() + '</b></p>' : '');
+      ac.innerHTML =
+        '<button type="button" class="btn" id="btnAgain">같은 배치로 다시</button>' +
+        '<button type="button" class="btn ghost" id="btnReplace">← 배치 새로 하기</button>' +
+        '<button type="button" class="btn ghost" id="btnGoRank">순위 보기 →</button>';
+    }
+
+    var setup = state.phase === 'setup';
+    $('#prog').innerHTML = '<div class="prog-title">' + (setup ? '놓은 돌' : '건넌 돌') + '</div>' + [0, 1].map(function(p){
+      var v = setup ? sum(state.place[p]) : state.crossed[p];
+      return '<div class="prow"><span>' + esc(pname(p)) + '</span><span>' + v + ' / ' + N + '</span></div>' +
+        '<div class="pbar p' + p + '"><i style="width:' + Math.round(v * 100 / N) + '%"></i></div>';
+    }).join('');
+  }
+
+  function renderRecord(){
+    var total = sum(state.tally), ended = state.phase === 'end';
+    $('#recMeta').textContent = '지금까지 던진 횟수 ' + total + '번';
+    $('#bars').innerHTML = H.map(function(h){
+      var cnt = state.tally[h], pct = total ? Math.round(cnt * 100 / total) : 0;
+      var tick = ended ? '<i class="tick" style="left:' + THEORY[h] + '%"></i>' : '';
+      return '<div class="bar-row"><span class="bl">앞면 ' + h + '개</span>' +
+        '<div class="track"><div class="fill" style="width:' + pct + '%"></div>' + tick + '</div>' +
+        '<span class="bv">' + cnt + '번 · ' + pct + '%</span></div>';
+    }).join('');
+    $('#barNote').textContent = ended
+      ? '점선은 이론적으로 기대되는 비율(25%, 50%, 25%)이에요. 던진 횟수가 늘수록 막대가 점선에 가까워지는지 살펴보세요.'
+      : (total ? '' : '동전을 던지면 앞면의 수가 여기에 쌓여요.');
+    $('#seqBox').hidden = state.seq.length === 0;
+    $('#chips').innerHTML = state.seq.map(function(h){ return '<i class="chip c' + h + '">' + h + '</i>'; }).join('');
+    $('#wins').textContent = pname(0) + ' ' + state.wins[0] + '승 · ' + pname(1) + ' ' + state.wins[1] + '승 · 무승부 ' + state.wins[2];
+  }
+
+  function render(){
+    renderBanks();
+    renderCenter();
+    renderRecord();
+    state.fresh = [];
+  }
+
+  /* ---------- 학교·학년도·내 정보·저장 (동전 실험실과 같은 방식: 서버 → 안 되면 이 컴퓨터) ---------- */
+  var CONFIG = { years: [2026], schools: ['선운중학교'], apiUrl: '/api/coin', configUrl: '/api/config', pageSize: 10 };
+  var GAME = 'dalembert';
+  var LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), regions: {} };
+  var ME = null;   // 내 정보: { nick, uid, label, gr, cl }  내 학교가 순위 서버에 있을 때만 값이 있어요
+  function curYear(){ var d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; }   // 한국 학년도 (3월 1일에 바뀌어요)
+  var S = { year: curYear(), school: CONFIG.schools[0], vschool: null };
+  function viewSchool(){ return S.vschool || S.school; }
+  function defCls(){ return (ME && Number.isInteger(ME.gr) && Number.isInteger(ME.cl) && viewSchool() === S.school) ? ME.gr + '-' + ME.cl : ''; }   // 순위표 기본 보기: 내 학교 · 내 학년 · 내 반
+  function cleanName(x){ return String(x || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8); }
+  function newId(){ var a = 'abcdefghijklmnopqrstuvwxyz0123456789', t = ''; for (var i = 0; i < 12; i++) t += a.charAt(Math.floor(Math.random() * a.length)); return t; }
+
+  var TEST = function(){ try { return Number(localStorage.getItem('mtryu.test')) > Date.now(); } catch (e) { return false; } };   // 관리자 화면의 '테스트 모드'가 켜져 있으면 서버에 저장하지 않아요
+  var Store = {
+    mode: 'unknown',
+    key: function(y, sc){ return (TEST() ? 'T:' : '') + 'dl_scores:' + y + ':' + sc; },
+    localList: function(y, sc){ try { return JSON.parse(localStorage.getItem(Store.key(y, sc)) || '[]'); } catch (e) { return []; } },
+    sortRecs: function(l){ return l.slice().sort(function(a, b){ return a.rolls - b.rolls || b.ts - a.ts; }); },
+    ties: function(l){ var pv = null, pr = 0; return l.map(function(r, i){ var k = i && r.rolls === pv ? pr : i + 1; pv = r.rolls; pr = k; return Object.assign({}, r, { rank: k }); }); },   // 공동 순위 (1·2·2·4)
+    clsOK: function(r, cls){ return !cls || cls === r.gr + '-' + r.cl; },
+    q: function(y, sc){ return CONFIG.apiUrl + '?game=' + GAME + '&year=' + encodeURIComponent(y) + '&school=' + encodeURIComponent(sc); },
+    http: async function(method, url, body, opt){
+      opt = opt || {};
+      if (TEST() && !(method === 'GET' && url === CONFIG.configUrl)) throw new Error('test');   // 테스트 모드: 서버에는 아무것도 보내지 않아요 (학교 목록 읽기만 가능)
+      var ctl = new AbortController(), t = setTimeout(function(){ ctl.abort(); }, opt.timeout || 5000);
+      try {
+        var r = await fetch(url, { method: method, signal: ctl.signal, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+        if (!r.ok) { var er = new Error('http ' + r.status); er.status = r.status; throw er; }
+        return await r.json();
+      } finally { clearTimeout(t); }
+    },
+    classes: async function(y, sc){   // 학년·반별 기록 수 (반 고르기 목록)
+      if (Store.mode !== 'local') {
+        try { var j = await Store.http('GET', Store.q(y, sc) + '&classes=1', null, { timeout: 8000 }); if (j && Array.isArray(j.classes)) return j.classes; } catch (e) {}
+      }
+      var m = {}; Store.localList(y, sc).forEach(function(r){ if (Number.isInteger(r.gr) && Number.isInteger(r.cl)) { var k = r.gr + '-' + r.cl; m[k] = (m[k] || 0) + 1; } });
+      return Object.keys(m).map(function(k){ var a = k.split('-'); return { gr: +a[0], cl: +a[1], n: m[k] }; }).sort(function(p, q){ return p.gr - q.gr || p.cl - q.cl; });
+    },
+    page: async function(y, sc, offset, limit, cls){
+      var cq = cls ? '&cls=' + encodeURIComponent(cls) : '';
+      try {
+        var j = null;
+        for (var k = 0; k < 2 && !j; k++) { try { j = await Store.http('GET', Store.q(y, sc) + cq + '&offset=' + offset + '&limit=' + limit, null, { timeout: 9000 }); } catch (e) { if (k) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
+        if (!j || !Array.isArray(j.top)) throw new Error('bad');
+        Store.mode = 'server'; return { rows: j.top, total: j.total == null ? j.top.length : j.total };
+      } catch (e) {
+        Store.mode = 'local';
+        var all = Store.ties(Store.sortRecs(Store.localList(y, sc)).filter(function(r){ return Store.clsOK(r, cls); }));
+        return { rows: all.slice(offset, offset + limit), total: all.length };
+      }
+    },
+    find: async function(y, sc, q, cls){
+      if (Store.mode === 'server') {
+        try {
+          var j = await Store.http('GET', Store.q(y, sc) + (cls ? '&cls=' + encodeURIComponent(cls) : '') + '&q=' + encodeURIComponent(q), null, { timeout: 8000 });
+          if (j && Array.isArray(j.matches)) return j.matches;
+        } catch (e) {}
+      }
+      return Store.ties(Store.sortRecs(Store.localList(y, sc)).filter(function(r){ return Store.clsOK(r, cls); })).filter(function(r){ return String(r.name).indexOf(q) >= 0; }).slice(0, 50);
+    },
+    save: async function(y, sc, rec){
+      try {
+        var j = await Store.http('POST', CONFIG.apiUrl, Object.assign({ game: GAME, year: y, school: sc }, rec));
+        if (!j || typeof j.rank !== 'number') throw new Error('bad');
+        Store.mode = 'server'; return { rank: j.rank, total: j.total };
+      } catch (e) {
+        if (e && e.status === 400) throw e;      // 서버가 거절한 기록 (이름·값 문제)
+        Store.mode = 'local';
+        var full = Object.assign({}, rec, { rolls: rec.seq.length });   // 서버가 계산해서 붙이는 값을 이 컴퓨터에 저장할 때도 똑같이 붙여요
+        var l = Store.localList(y, sc); l.push(full);
+        try { localStorage.setItem(Store.key(y, sc), JSON.stringify(l)); } catch (er) {}
+        var sorted = Store.ties(Store.sortRecs(l)), me = sorted.filter(function(x){ return x.id === rec.id; })[0];
+        return { rank: me ? me.rank : 0, total: sorted.length };
+      }
+    }
+  };
+  function okList(l){
+    return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
+      && l.years.length >= 1 && l.years.length <= 12 && l.years.every(function(y){ return Number.isInteger(y) && y >= 2000 && y <= 2100; })
+      && l.schools.length >= 1 && l.schools.length <= 200 && l.schools.every(function(x){ return typeof x === 'string' && x.length >= 1 && x.length <= 20; });
+  }
+  async function loadList(){
+    try { var l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); } } catch (e) {}
+    try {
+      var j = await Store.http('GET', CONFIG.configUrl, null, { timeout: 3000 });
+      if (okList(j)) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); LIST.regions = j.regions || {}; }
+    } catch (e) {}
+  }
+  function fixSelection(){
+    var cy = curYear(); if (LIST.years.indexOf(cy) < 0) LIST.years.unshift(cy);
+    S.year = cy;   // 학년도는 날짜로 저절로 정해져요
+    if (LIST.schools.indexOf(S.school) < 0) S.school = LIST.schools[0];
+  }
+
+  /* ---------- 내 정보 (me-sync.js · lab-bar.js) ----------
+     내 정보가 있으면 2P 이름은 내 별명으로 고정되고, 기록은 내 학교·내 학년·반으로 올라가요. 실명·번호는 이 게임에 오지 않아요. */
+  async function syncMe(){
+    var m = window.MtryuMeSync && MtryuMeSync.read();
+    if (!m) { ME = null; return; }   // 정보가 없으면 lab-bar.js가 입력창을 띄워 둬요
+    var r;
+    try { r = await MtryuMeSync.resolve(LIST.schools, LIST.regions, CONFIG.configUrl); } catch (e) { r = { me: m, label: null, retry: true }; }
+    if (r && r.list && okList(r.list)) { LIST.years = r.list.years.slice(); LIST.schools = r.list.schools.slice(); LIST.regions = r.list.regions || {}; }
+    if (!r || !r.label) {
+      ME = null;
+      if (r && r.retry) MtryuMeSync.block({ title: '학교를 불러오지 못했어요', text: '내 학교를 순위 서버에 올리는 중에 잠깐 문제가 생겼어요. 잠시 뒤에 다시 해 주세요.', label: '다시 시도', onClick: function(){ location.reload(); } });
+      else MtryuMeSync.block({ title: '학교를 다시 골라 주세요', text: '순위는 나이스에서 찾은 학교로만 올라가요. 내 정보에서 학교를 검색해서 다시 골라 주세요.', label: '학교 다시 고르기', onClick: function(){ window.MtryuMe && window.MtryuMe.openDialog({ required: true, strict: true }); } });
+      return;
+    }
+    MtryuMeSync.unblock();
+    ME = { nick: cleanName(m.nick), uid: m.uid, label: r.label, gr: m.gr, cl: m.cl };
+  }
+  function enforceMine(){   // 기록할 학교와 2P 이름을 내 것으로 맞춰요 (순위를 보던 학교는 그대로 둬요)
+    var el = $('#name1');
+    if (!ME) { el.readOnly = false; el.title = ''; return; }
+    S.school = ME.label; state.names[1] = ME.nick;
+    el.value = ME.nick; el.readOnly = true; el.title = '내 별명이에요. 바꾸려면 오른쪽 위 이름표를 눌러요';
+    if (S.vschool && LIST.schools.indexOf(S.vschool) < 0) S.vschool = null;
+  }
+  async function refreshMe(){
+    await syncMe(); enforceMine();
+    renderBanks(); renderCenter(); renderRecord();
+    if (isRankView()) { B.cls = defCls(); loadRank(0); }
+  }
+
+  /* ---------- 순위표 (이긴 판만, 던진 횟수가 적을수록 위) ---------- */
+  function saveText(){
+    if (state.saving) return '순위에 올리는 중…';
+    if (state.myRank) return esc(S.school) + ' ' + state.myRank + '위' + (Store.mode === 'local' ? ' (이 컴퓨터 기록)' : '');
+    if (state.saveErr) return '순위에 올리지 못했어요.';
+    return '';
+  }
+  function recordWin(){
+    var rec = {
+      id: newId(), name: ME ? ME.nick : (cleanName(state.names[1]) || '학생'), ts: Date.now(),
+      uid: ME ? ME.uid : undefined, gr: ME ? ME.gr : undefined, cl: ME ? ME.cl : undefined,   // 학년·반은 순위에 같이 올라가요 (번호는 안 보내요)
+      seq: state.seq.join(''), pl: state.place[1].slice()
+    };
+    state.lastId = rec.id; state.myRank = 0; state.saving = true; state.saveErr = false;
+    Store.save(S.year, S.school, rec).then(function(r){
+      if (state.lastId !== rec.id) return;
+      state.myRank = r.rank; state.saving = false; renderCenter();
+    }, function(){
+      if (state.lastId !== rec.id) return;
+      state.saving = false; state.saveErr = true; renderCenter();
+    });
+  }
+  function miniBars(pl){
+    var label = [0, 1, 2].map(function(h){ return '앞면 ' + h + '개 칸 ' + (+pl[h] || 0) + '개'; }).join(', ');
+    var cells = [0, 1, 2].map(function(h){
+      var c = +pl[h] || 0, ht = c ? Math.max(3, Math.round(c / N * 44)) : 1;
+      return '<span class="mb"><em>' + c + '</em><i style="height:' + ht + 'px"></i><u>' + h + '</u></span>';
+    }).join('');
+    return '<span class="mbars" role="img" aria-label="처음 배치: ' + label + '">' + cells + '</span>';
+  }
+
+  var B = { offset: 0, rows: [], total: 0, matches: null, q: '', cls: '', classes: [], ready: false, tk: 0 };
+  function isRankView(){ return location.hash === '#rank'; }
+  async function loadRank(offset){
+    var tk = ++B.tk;
+    var pg = await Store.page(S.year, viewSchool(), offset, CONFIG.pageSize, B.cls);
+    if (tk !== B.tk || !isRankView()) return;
+    B.offset = offset; B.matches = null; B.rows = pg.rows; B.total = pg.total;
+    paintRank();
+    var list = await Store.classes(S.year, viewSchool());
+    if (tk !== B.tk || !isRankView()) return;
+    B.classes = list; paintSelects();
+  }
+  function paintSelects(){
+    var el = $('#rselects'); if (!el) return;
+    var cl = B.classes.slice();
+    if (B.cls && !cl.some(function(c){ return c.gr + '-' + c.cl === B.cls; })) { var a = B.cls.split('-').map(Number); cl.push({ gr: a[0], cl: a[1], n: 0 }); }
+    var sch = ME ? '<label>학교 <select id="bSchool" aria-label="순위를 볼 학교">' + LIST.schools.map(function(x){ return '<option value="' + esc(x) + '"' + (x === viewSchool() ? ' selected' : '') + '>' + esc(x) + (x === S.school ? ' (우리 학교)' : '') + '</option>'; }).join('') + '</select></label>' : '';
+    var cls = cl.length ? '<label>반 <select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>' + cl.map(function(c){
+      var v = c.gr + '-' + c.cl;
+      return '<option value="' + v + '"' + (B.cls === v ? ' selected' : '') + '>' + c.gr + '학년 ' + c.cl + '반' + (ME && c.gr === ME.gr && c.cl === ME.cl && viewSchool() === S.school ? ' (우리 반)' : '') + (c.n ? ' (' + c.n + ')' : '') + '</option>';
+    }).join('') + '</select></label>' : '';
+    el.innerHTML = sch + cls;
+  }
+  function paintRank(){
+    var el = $('#rankBody'); if (!el) return;
+    var PS = CONFIG.pageSize, list = B.matches || B.rows, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
+    var clsTxt = B.cls ? ' · ' + B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반' : '';
+    $('#rankCtx').innerHTML = esc(S.year) + '학년도 · ' + esc(viewSchool()) + clsTxt + ' · ' + (Store.mode === 'server' ? '학교 전체 기록' : '이 컴퓨터 기록 <button type="button" class="link" data-o="' + B.offset + '">서버에서 다시 불러오기</button>');
+    $('#rankCount').textContent = B.total + '개 기록';
+    var rows = list.map(function(r, i){
+      var rk = r.rank != null ? r.rank : B.offset + i + 1;
+      var cl = (Number.isInteger(r.gr) && Number.isInteger(r.cl)) ? '<small>' + r.gr + '학년 ' + r.cl + '반</small>' : '';
+      return '<li class="rrow' + (r.id && r.id === state.lastId ? ' me' : '') + '"><span class="rk">' + rk + '</span><span class="rn">' + esc(r.name) + cl + '</span><span class="rr">' + r.rolls + '번</span><span class="rp">' + miniBars(r.pl || []) + '</span></li>';
+    }).join('');
+    var body;
+    if (!list.length) body = '<p class="note" style="text-align:center; padding:24px 0">' + (B.matches ? '찾는 별명이 없어요.' : '아직 달랑베르를 이긴 기록이 없어요. 첫 번째 기록을 남겨 보세요!') + '</p>';
+    else body = '<ol class="rlist"><li class="rrow head"><span class="rk">순위</span><span class="rn">별명</span><span class="rr">던진 횟수</span><span class="rp">처음 배치</span></li>' + rows + '</ol>';
+    var pg = Math.floor(B.offset / PS) + 1, pages = Math.max(1, Math.ceil(B.total / PS));
+    var pager = B.matches
+      ? '<div class="pager"><button type="button" class="link" data-o="0">전체 순위 보기</button></div>'
+      : '<div class="pager">' +
+        '<button type="button" data-o="0" aria-label="첫 쪽"' + (B.offset <= 0 ? ' disabled' : '') + '>«</button>' +
+        '<button type="button" data-o="' + Math.max(0, B.offset - PS) + '" aria-label="이전 쪽"' + (B.offset <= 0 ? ' disabled' : '') + '>‹</button>' +
+        '<span>' + pg + ' / ' + pages + '쪽</span>' +
+        '<button type="button" data-o="' + (B.offset + PS) + '" aria-label="다음 쪽"' + (B.offset + PS >= B.total ? ' disabled' : '') + '>›</button>' +
+        '<button type="button" data-o="' + last + '" aria-label="마지막 쪽"' + (B.offset >= last ? ' disabled' : '') + '>»</button></div>';
+    el.innerHTML = body + pager;
+  }
+  function showView(load){
+    var r = isRankView();
+    $('#gameView').hidden = r;
+    $('#rankView').hidden = !r;
+    $('#steps').hidden = r;
+    $('#btnRankView').hidden = r;
+    if (r && load){
+      if (!B.ready) { B.cls = defCls(); B.ready = true; }
+      window.scrollTo(0, 0);
+      loadRank(0);
+    }
+  }
+  window.addEventListener('hashchange', function(){ showView(true); });
+
+  /* ---------- 게임 진행 ---------- */
+  function startPlay(){
+    state.cols = state.place.map(function(pl){
+      return H.map(function(h){
+        var a = []; for (var i = 0; i < N; i++) a.push(i < pl[h] ? 1 : 0);
+        return a;
+      });
+    });
+    state.crossed = [0, 0];
+    state.rounds = 0;
+    state.last = null;
+    state.seq = [];
+    state.winner = null;
+    state.auto = false;
+    state.myRank = 0; state.saving = false; state.saveErr = false;
+    state.phase = 'play';
+    render();
+    var t = $('#btnThrow'); if (t) t.focus();
+  }
+
+  var ang = [0, 0];
+  function spin(i, front){
+    var el = $('#coin' + (i + 1)), cur = ang[i];
+    var m = ((cur % 360) + 360) % 360, target = front ? 0 : 180;
+    var delta = ((target - m) + 360) % 360;
+    ang[i] = cur + (reduce ? 0 : 1080) + delta;
+    el.style.transform = 'rotateY(' + ang[i] + 'deg)';
+    var wrap = $('#wrap' + (i + 1));
+    wrap.classList.remove('toss'); void wrap.offsetWidth; wrap.classList.add('toss');
+  }
+
+  function resolve(h){
+    state.rounds++;
+    state.tally[h]++;
+    state.seq.push(h);
+    var idxs = [-1, -1];
+    for (var p = 0; p < 2; p++){
+      var col = state.cols[p][h];
+      for (var i = N - 1; i >= 0; i--){
+        if (col[i] === 1){ col[i] = 2; idxs[p] = i; state.crossed[p]++; state.fresh.push(p + '-' + h + '-' + i); break; }
+      }
+    }
+    state.last = { h: h, hits: [idxs[0] >= 0, idxs[1] >= 0] };
+    var d0 = state.crossed[0] === N, d1 = state.crossed[1] === N;
+    if (d0 || d1){
+      state.phase = 'end'; state.auto = false;
+      if (d0 && d1){ state.winner = 'draw'; state.wins[2]++; }
+      else if (d0){ state.winner = 0; state.wins[0]++; }
+      else { state.winner = 1; state.wins[1]++; recordWin(); }
+    }
+    return idxs;
+  }
+
+  function throwCoins(){
+    if (state.phase !== 'play' || state.flipping) return Promise.resolve();
+    state.flipping = true;
+    renderCenter();
+    var c1 = Math.random() < 0.5, c2 = Math.random() < 0.5;   // true = 앞(그림 면)
+    spin(0, c1); spin(1, c2);
+    return sleep(reduce ? 150 : 950).then(function(){
+      var h = (c1 ? 1 : 0) + (c2 ? 1 : 0);
+      var idxs = resolve(h);
+      state.flipping = false;
+      render();
+      [0, 1].forEach(function(p){
+        if (idxs[p] < 0) return;
+        var el = document.querySelector('.slot[data-p="' + p + '"][data-h="' + h + '"][data-i="' + idxs[p] + '"]');
+        if (!el) return;
+        var r = el.getBoundingClientRect();
+        var color = getComputedStyle(el.closest('.bank')).getPropertyValue('--stone-c').trim() || '#e0408f';
+        burst(r.left + r.width / 2, r.top + r.height / 2, color);
+      });
+      var t = $('#btnThrow');
+      if (t && !state.auto) t.focus();
+    });
+  }
+
+  function autoLoop(){
+    if (!state.auto || state.phase !== 'play') return;
+    throwCoins().then(function(){
+      if (state.auto && state.phase === 'play') setTimeout(autoLoop, reduce ? 200 : 800);
+    });
+  }
+
+  /* ---------- 이벤트 ---------- */
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    var adj = t.closest && t.closest('.adj');
+    if (adj){
+      var p = +adj.dataset.p, h = +adj.dataset.h, d = +adj.dataset.d, arr = state.place[p];
+      if (state.phase !== 'setup') return;
+      if (d > 0 && sum(arr) >= N) return;
+      if (d < 0 && arr[h] <= 0) return;
+      arr[h] += d;
+      if (d > 0) state.fresh = [p + '-' + h + '-' + (arr[h] - 1)];
+      render();
+      var same = document.querySelector('.adj[data-p="' + p + '"][data-h="' + h + '"][data-d="' + d + '"]');
+      if (same && !same.disabled) same.focus();
+      else {
+        var other = document.querySelector('.adj[data-p="' + p + '"][data-h="' + h + '"][data-d="' + (-d) + '"]');
+        if (other && !other.disabled) other.focus();
+      }
+      return;
+    }
+    var b = t.closest && t.closest('button');
+    var id = b && b.id;
+    if (b && b.dataset && b.dataset.o != null && b.closest('#rankView')){ loadRank(Math.max(0, parseInt(b.dataset.o, 10) || 0)); return; }
+    if (id === 'btnStart'){ if (ready()) startPlay(); }
+    else if (id === 'btnThrow'){ throwCoins(); }
+    else if (id === 'btnAuto'){
+      if (state.auto){ state.auto = false; renderCenter(); }
+      else { state.auto = true; renderCenter(); autoLoop(); }
+    }
+    else if (id === 'btnBack'){ state.auto = false; state.phase = 'setup'; render(); }
+    else if (id === 'btnAgain'){ startPlay(); }
+    else if (id === 'btnReplace'){ state.phase = 'setup'; render(); }
+    else if (id === 'btnRankView' || id === 'btnGoRank'){ S.vschool = null; B.cls = defCls(); B.q = ''; B.matches = null; B.classes = []; B.ready = true; $('#rankQ').value = ''; paintSelects(); location.hash = 'rank'; }
+    else if (id === 'btnBackGame'){ location.hash = 'game'; }
+    else if (id === 'btnClear'){ state.tally = [0, 0, 0]; state.wins = [0, 0, 0]; state.seq = []; render(); }
+  });
+
+  var qTimer = 0;
+  $('#rankQ').addEventListener('input', function(e){
+    B.q = cleanName(e.target.value);
+    clearTimeout(qTimer);
+    qTimer = setTimeout(async function(){
+      if (!B.q) { B.matches = null; paintRank(); return; }
+      B.matches = await Store.find(S.year, viewSchool(), B.q, B.cls);
+      paintRank();
+    }, 250);
+  });
+  document.addEventListener('change', function(e){
+    var el = e.target;
+    if (el.id === 'clsSel') { B.cls = el.value; B.q = ''; $('#rankQ').value = ''; B.matches = null; loadRank(0); }
+    else if (el.id === 'bSchool') { S.vschool = el.value === S.school ? null : el.value; B.q = ''; $('#rankQ').value = ''; B.cls = defCls(); B.classes = []; B.matches = null; paintSelects(); loadRank(0); }
+  });
+
+  ['name1'].forEach(function(id){
+    var i = 1;
+    $('#' + id).addEventListener('input', function(e){
+      state.names[i] = e.target.value;
+      renderBanks(); renderCenter(); renderRecord();
+    });
+  });
+
+  /* 100원 동전 모양: 앞(그림 면) / 뒤(숫자 면) */
+  var RING = '<circle cx="50" cy="50" r="43" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="1.6" stroke-dasharray="1.2 2.3"/>';
+  var PIC_FACE = '<svg viewBox="0 0 100 100" aria-hidden="true">' + RING +
+    '<path d="M21 74 C25 62 36 58 50 58 C64 58 75 62 79 74 Z" fill="currentColor" fill-opacity=".35" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
+    '<path d="M42 59 L50 68 L58 59" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
+    '<path d="M38 44 C38 59 44 66 50 68 C56 66 62 59 62 44 Z" fill="currentColor" fill-opacity=".4" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
+    '<ellipse cx="50" cy="41" rx="11" ry="13" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.6"/>' +
+    '<path d="M36 32 C36 19 44 14 50 14 C56 14 64 19 64 32 Z" fill="currentColor" fill-opacity=".35" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
+    '<path d="M29 33 H71" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M43 39 h4 M53 39 h4 M46 47 h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<text class="ct" x="17" y="45" font-size="11">백</text><text class="ct" x="83" y="45" font-size="11">원</text>' +
+    '<circle cx="50" cy="84" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<text class="ct" x="50" y="88.5" font-size="12">앞</text></svg>';
+  var NUM_FACE = '<svg viewBox="0 0 100 100" aria-hidden="true">' + RING +
+    '<text class="ct" x="50" y="26" font-size="11">2026</text>' +
+    '<text class="ct" x="50" y="58" font-size="34">100</text>' +
+    '<text class="ct" x="50" y="72" font-size="9">한국은행</text>' +
+    '<circle cx="50" cy="84" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+    '<text class="ct" x="50" y="88.5" font-size="12">뒤</text></svg>';
+  document.querySelectorAll('.face').forEach(function(f){
+    f.innerHTML = f.classList.contains('b') ? NUM_FACE : PIC_FACE;
+  });
+
+  if (window.MtryuMeSync) MtryuMeSync.watch(refreshMe);
+  render();
+  showView(false);
+  (async function init(){
+    await loadList(); await syncMe();
+    fixSelection(); enforceMine();
+    renderBanks(); renderCenter(); renderRecord();
+    showView(true);
+  })();
+})();
+</script>
+</body>
+</html>

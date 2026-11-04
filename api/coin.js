@@ -3,6 +3,7 @@
 // 환경 변수는 강 건너기에서 이미 넣은 것을 그대로 쓰면 돼요. (새로 넣을 것 없어요)
 //
 // game 값: run(연속 맞추기) · tune10 / tune5 / tune2(상대도수 줄타기, 상대도수 범위 0.5±0.10 / 0.05 / 0.02마다 따로) · spot(동전 조작 탐정) · bet(내기 시뮬레이터)
+//        · dalembert(달랑베르를 이겨라: 달랑베르(4·4·4)를 이긴 판의 던진 횟수. 던진 결과(seq)와 처음 배치(pl)를 보내면 서버가 다시 돌려서 확인해요)
 //
 // GET    /api/coin?game=&year=&school=&offset=0&limit=10 → { top, total }     순위표 (쪽 나누기)
 // GET    /api/coin?...&cls=2-3                             → 같은 형식인데 2학년 3반 기록만 (rank·total도 그 반 안에서)
@@ -14,13 +15,13 @@
 // DELETE /api/coin?game=&year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)   여러 건 삭제
 // DELETE /api/coin?game=&year=&school=&all=1      (헤더 x-admin-key 필요)   순위 전체 삭제
 //
-// 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑ — 같으면 먼저 기록한 사람이 위
+// 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑, dalembert는 던진 횟수↓ — 같으면 최근 기록이 위
 
 const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts, rankList, rankValue, tieRank } = require('./_lib');
 const { badName } = require('./_names');
 const C = require('./_coinlib');
 
-const GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet'];
+const GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert'];
 const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
@@ -61,6 +62,20 @@ function build(game, b, ts) {
     const correct = b.correct;
     if (!isInt(correct, 0, C.ENDLESS_MAX)) return null;
     return { data: { correct }, score: -correct - ts / 1e13 };
+  }
+  if (game === 'dalembert') {   // 달랑베르를 이겨라: 달랑베르는 돌 12개를 앞면 0·1·2개 칸에 4개씩 놓아요. 학생(2P)이 마지막 던지기에서 먼저 다 건넌 판만 인정해요.
+    const seq = String(b.seq || ''), pl = b.pl;
+    if (!/^[012]{3,200}$/.test(seq) || !Array.isArray(pl) || pl.length !== 3 || !pl.every(v => isInt(v, 0, 12)) || pl[0] + pl[1] + pl[2] !== 12) return null;
+    const A = [4, 4, 4], P = pl.slice();
+    let a = 0, p = 0;
+    for (let i = 0; i < seq.length; i++) {
+      const h = Number(seq[i]);
+      if (A[h] > 0) { A[h]--; a++; }
+      if (P[h] > 0) { P[h]--; p++; }
+      if (i < seq.length - 1) { if (a === 12 || p === 12) return null; }   // 이미 끝난 판이 이어진 기록
+      else if (!(p === 12 && a < 12)) return null;                          // 마지막 던지기에서 학생만 다 건넌 판(지거나 비기면 올릴 수 없어요)
+    }
+    return { data: { seq, pl, rolls: seq.length }, score: seq.length - ts / 1e13 };
   }
   if (game === 'bet') {    // 시작하기: 푼 문제를 서버가 다시 채점하고, 문제 번호에 맞는 난이도인지, 하트 규칙대로 끝났는지 확인해요.
     const rounds = b.rounds;

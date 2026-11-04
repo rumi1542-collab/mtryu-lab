@@ -163,14 +163,14 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
   function fmt(n) { return Number(n || 0).toLocaleString('ko-KR'); }
 
   /* ── 메뉴: 실험실 순서대로 ── */
-  var UNIT_NAME = { home: '메인 페이지', math: '대수 기하 실험실', stat: '통계 실험실', prob: '확률 실험실 첫 화면', river: '강 건너기', coin: '동전 실험실', sim: '확률 실험 시뮬레이터', game: '게임 수학 실험실' };
+  var UNIT_NAME = { home: '메인 페이지', math: '대수 기하 실험실', stat: '통계 실험실', prob: '확률 실험실 첫 화면', river: '강 건너기', coin: '동전 실험실', sim: '확률 실험 시뮬레이터', dalembert: '달랑베르를 이겨라', game: '게임 수학 실험실' };
   var NODES = [
     { id: 'overview', label: '전체 현황', ic: '📊', units: null },
     { grp: '실험실' },
     { id: 'home', label: '메인 페이지', ic: '🏠', units: ['home'] },
     { id: 'math', label: '대수 기하 실험실', ic: '➕', units: ['math'] },
     { id: 'stat', label: '통계 실험실', ic: '📈', units: ['stat'] },
-    { id: 'prob', label: '확률 실험실', ic: '🎲', units: ['prob', 'coin', 'sim', 'river'] },
+    { id: 'prob', label: '확률 실험실', ic: '🎲', units: ['prob', 'coin', 'sim', 'dalembert', 'river'] },
     { id: 'coin', label: '동전 실험실', lvl: 1, units: ['coin'] },
     { id: 'run', label: '1 연속 맞추기', lvl: 2, game: 'run', parent: 'coin' },
     { id: 'tune10', label: '2 상대도수 줄타기 ±0.10', lvl: 2, game: 'tune10', parent: 'coin' },
@@ -179,6 +179,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     { id: 'spot', label: '3 동전 조작 탐정', lvl: 2, game: 'spot', parent: 'coin' },
     { id: 'bet', label: '4 내기 시뮬레이터', lvl: 2, game: 'bet', parent: 'coin' },
     { id: 'sim', label: '확률 실험 시뮬레이터', lvl: 1, units: ['sim'] },
+    { id: 'dalembert', label: '달랑베르를 이겨라', lvl: 1, units: ['dalembert'], game: 'dalembert' },
     { id: 'river', label: '강 건너기', lvl: 1, units: ['river'], game: 'river' },
     { id: 'game', label: '게임 수학 실험실', ic: '🎮', units: ['game'] },
     { grp: '관리' },
@@ -284,7 +285,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     var n = BYID[S.node], main = $('#main');
     if (S.node === 'settings') return renderSettings();
     if (S.node === 'feedback') return renderFeedback();
-    var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin' || S.node === 'sim') ? '확률 실험실 › ' + n.label : '';
+    var crumb = n.parent ? '확률 실험실 › 동전 실험실 › ' + n.label : (S.node === 'river' || S.node === 'coin' || S.node === 'sim' || S.node === 'dalembert') ? '확률 실험실 › ' + n.label : '';
     var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game;
     var tabs = (hasStats && hasRec) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button><button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button></div>' : '';
     main.innerHTML = '<section class="card">' + (crumb ? '<p class="crumb">' + esc(crumb) + '</p>' : '') + '<h2>' + esc(n.label) + '</h2>' + tabs + '<div id="body"><p class="empty">불러오는 중…</p></div></section>';
@@ -330,7 +331,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     var single = n.units && n.units.length === 1;
     var html = '<div class="stats"><div class="stat"><b>' + fmt(s.visits) + '</b><span>방문 (페이지를 연 횟수)</span></div><div class="stat"><b>' + fmt(s.users) + '</b><span>사용자 (익명 번호 기준)</span></div>';
     html += '<div class="stat"><b>' + fmt(s.schools.length) + '</b><span>접속한 학교</span></div>';
-    if (counts) { var tot = 0; counts.rows.forEach(function (r) { tot += r.river + r.run + r.tune10 + r.tune5 + r.tune2 + r.spot + r.bet; }); html += '<div class="stat"><b>' + fmt(tot) + '</b><span>쌓인 기록 (' + counts.year + '학년도)</span></div>'; }
+    if (counts) { var tot = 0; counts.rows.forEach(function (r) { tot += r.river + r.run + r.tune10 + r.tune5 + r.tune2 + r.spot + r.bet + (r.dalembert || 0); }); html += '<div class="stat"><b>' + fmt(tot) + '</b><span>쌓인 기록 (' + counts.year + '학년도)</span></div>'; }
     html += '</div>';
     if (!s.visits) html += '<p class="empty">이 기간에는 접속 기록이 없어요. 접속 분석은 처음 켠 날부터 모으고, 지난 방문은 볼 수 없어요.</p>';
     else {
@@ -346,8 +347,8 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
       html += '<details><summary>날짜별 표로 보기</summary><div class="tw"><table><thead><tr><th>날짜</th><th class="num">방문</th></tr></thead><tbody>' + s.series.slice().reverse().map(function (r) { return '<tr><td>' + esc(r.day) + '</td><td class="num">' + fmt(r.total) + '</td></tr>'; }).join('') + '</tbody></table></div></details>';
     }
     if (counts) {
-      html += '<div><h3>학교·게임별 기록 수 (' + counts.year + '학년도)</h3>' + (counts.rows.length ? '<div class="tw"><table><thead><tr><th>학교</th><th class="num">강 건너기</th><th class="num">연속 맞추기</th><th class="num">줄타기 ±0.10</th><th class="num">±0.05</th><th class="num">±0.02</th><th class="num">조작 탐정</th><th class="num">내기</th></tr></thead><tbody>' +
-        counts.rows.map(function (r) { return '<tr><td>' + esc(r.school) + '</td><td class="num">' + fmt(r.river) + '</td><td class="num">' + fmt(r.run) + '</td><td class="num">' + fmt(r.tune10) + '</td><td class="num">' + fmt(r.tune5) + '</td><td class="num">' + fmt(r.tune2) + '</td><td class="num">' + fmt(r.spot) + '</td><td class="num">' + fmt(r.bet) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="empty">등록된 학교가 없어요.</p>') + '</div>';
+      html += '<div><h3>학교·게임별 기록 수 (' + counts.year + '학년도)</h3>' + (counts.rows.length ? '<div class="tw"><table><thead><tr><th>학교</th><th class="num">강 건너기</th><th class="num">연속 맞추기</th><th class="num">줄타기 ±0.10</th><th class="num">±0.05</th><th class="num">±0.02</th><th class="num">조작 탐정</th><th class="num">내기</th><th class="num">달랑베르</th></tr></thead><tbody>' +
+        counts.rows.map(function (r) { return '<tr><td>' + esc(r.school) + '</td><td class="num">' + fmt(r.river) + '</td><td class="num">' + fmt(r.run) + '</td><td class="num">' + fmt(r.tune10) + '</td><td class="num">' + fmt(r.tune5) + '</td><td class="num">' + fmt(r.tune2) + '</td><td class="num">' + fmt(r.spot) + '</td><td class="num">' + fmt(r.bet) + '</td><td class="num">' + fmt(r.dalembert) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="empty">등록된 학교가 없어요.</p>') + '</div>';
     }
     if (S.node === 'math' || S.node === 'stat' || S.node === 'game') html += '<p class="note">이 실험실은 아직 서버에 남기는 학생 기록이 없어서, 접속 분석만 볼 수 있어요.</p>';
     $('#body').innerHTML = html;
