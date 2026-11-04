@@ -139,6 +139,18 @@ h2{font-size:20px}
 .record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
 .rec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
 .rec-head .meta{color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums}
+.rec-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:16px 28px; align-items:start}
+.rec-chart{min-width:0}
+.chart{display:block; width:100%; height:auto; max-width:520px; margin-left:auto}
+.chart .gl{stroke:var(--line); stroke-width:1}
+.chart .ax{stroke:var(--muted); stroke-width:1.5}
+.chart .tx{fill:var(--muted); font:12px var(--font-body)}
+.chart .tl{fill:var(--ink); font:13px var(--font-display); text-anchor:middle}
+.chart .vl{fill:var(--ink); font:12px var(--font-body); text-anchor:middle; font-variant-numeric:tabular-nums}
+.chart .yt{text-anchor:end}
+.chart .br{fill:var(--hot)}
+.chart .th{stroke:var(--ink); stroke-width:2; stroke-dasharray:4 3}
+@media (max-width:700px){ .rec-grid{grid-template-columns:minmax(0,1fr)} .chart{margin-left:0} }
 .bar-row{display:grid; grid-template-columns:64px minmax(0,1fr) 92px; gap:8px; align-items:center; font-size:14px}
 .bl{color:var(--muted)}
 .track{position:relative; height:16px; background:var(--bg); border-radius:8px; border:1px solid var(--line)}
@@ -175,6 +187,8 @@ h2{font-size:20px}
 }
 
 .stack{display:flex; flex-direction:column; gap:12px}
+.backhome{display:inline-block; margin-bottom:4px; font-size:15px; color:var(--muted); text-decoration:none; padding:4px 0}
+.backhome:hover{text-decoration:underline}
 .topright{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
 .btn.small{width:auto; height:36px; padding:0 14px; font-size:15px}
 .rview{display:grid; grid-template-columns:300px minmax(0,1fr); gap:12px; align-items:stretch}
@@ -214,6 +228,7 @@ h2{font-size:20px}
 <main class="wrap">
   <header class="top">
     <div>
+      <a class="backhome" href="/probability/">← 처음 화면</a>
       <h1>달랑베르(d'Alembert)를 이겨라</h1>
     </div>
     <div class="topright">
@@ -271,11 +286,16 @@ h2{font-size:20px}
       <h2>던진 결과</h2>
       <span class="meta" id="recMeta"></span>
     </div>
-    <div id="bars"></div>
-    <p class="note" id="barNote"></p>
-    <div id="seqBox" hidden>
-      <p class="note" style="margin-bottom:6px">이번 게임에서 나온 앞면의 수 (던진 순서대로)</p>
-      <div class="chips" id="chips"></div>
+    <div class="rec-grid">
+      <div id="seqBox">
+        <p class="note" style="margin-bottom:6px">이번 게임에서 나온 앞면의 수 (던진 순서대로)</p>
+        <div class="chips" id="chips"></div>
+        <p class="note" id="seqEmpty">동전을 던지면 앞면의 수가 순서대로 여기에 쌓여요.</p>
+      </div>
+      <div class="rec-chart">
+        <div id="bars"></div>
+        <p class="note" id="barNote"></p>
+      </div>
     </div>
     <div class="rec-foot">
       <span id="wins"></span>
@@ -291,6 +311,7 @@ h2{font-size:20px}
       <p class="note">달랑베르를 이긴 기록<br>던진 횟수가 적을수록 위예요</p>
       <div class="rside-btns">
         <button type="button" class="btn" id="btnBackGame">달랑베르에게 도전하기</button>
+        <a class="btn ghost" href="/probability/" style="text-decoration:none;text-align:center">← 처음 화면</a>
       </div>
     </aside>
     <section class="rank" aria-label="순위표">
@@ -494,20 +515,43 @@ h2{font-size:20px}
     }).join('');
   }
 
+  function niceStep(maxV){
+    var steps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+    for (var i = 0; i < steps.length; i++) if (Math.ceil(Math.max(maxV, 4) / steps[i]) <= 5) return steps[i];
+    return 10000;
+  }
+  function chartHTML(total, ended){
+    var W = 420, HH = 230, L = 40, R = 10, T = 26, BM = 40, pw = W - L - R, ph = HH - T - BM;
+    var th = THEORY.map(function(p){ return total * p / 100; });
+    var maxV = Math.max.apply(null, state.tally.concat(ended ? th : [0]));
+    var step = niceStep(maxV), top = Math.ceil(Math.max(maxV, 4) / step) * step;
+    var Y = function(v){ return T + ph - (v / top) * ph; };
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + HH + '" role="img" aria-label="던진 결과 막대그래프: ' +
+      H.map(function(h){ return '앞면 ' + h + '개 ' + state.tally[h] + '번'; }).join(', ') + '">';
+    s += '<text class="tx" x="' + L + '" y="12" text-anchor="start">횟수(번)</text>';
+    for (var v = 0; v <= top; v += step){
+      s += '<line class="' + (v === 0 ? 'ax' : 'gl') + '" x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '"/>' +
+           '<text class="tx yt" x="' + (L - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '">' + v + '</text>';
+    }
+    var gw = pw / 3, bw = Math.min(64, gw * 0.5);
+    H.forEach(function(h){
+      var cnt = state.tally[h], pct = total ? Math.round(cnt * 100 / total) : 0;
+      var cx = L + gw * (h + 0.5), y = Y(cnt);
+      if (cnt > 0) s += '<rect class="br" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
+      s += '<text class="vl" x="' + cx.toFixed(1) + '" y="' + (y - 6).toFixed(1) + '">' + cnt + '번' + (total ? ' · ' + pct + '%' : '') + '</text>';
+      if (ended) s += '<line class="th" x1="' + (cx - bw / 2 - 8).toFixed(1) + '" x2="' + (cx + bw / 2 + 8).toFixed(1) + '" y1="' + Y(th[h]).toFixed(1) + '" y2="' + Y(th[h]).toFixed(1) + '"/>';
+      s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 14) + '">앞면 ' + h + '개</text>';
+    });
+    return s + '</svg>';
+  }
   function renderRecord(){
     var total = sum(state.tally), ended = state.phase === 'end';
     $('#recMeta').textContent = '지금까지 던진 횟수 ' + total + '번';
-    $('#bars').innerHTML = H.map(function(h){
-      var cnt = state.tally[h], pct = total ? Math.round(cnt * 100 / total) : 0;
-      var tick = ended ? '<i class="tick" style="left:' + THEORY[h] + '%"></i>' : '';
-      return '<div class="bar-row"><span class="bl">앞면 ' + h + '개</span>' +
-        '<div class="track"><div class="fill" style="width:' + pct + '%"></div>' + tick + '</div>' +
-        '<span class="bv">' + cnt + '번 · ' + pct + '%</span></div>';
-    }).join('');
+    $('#bars').innerHTML = chartHTML(total, ended);
     $('#barNote').textContent = ended
-      ? '점선은 이론적으로 기대되는 비율(25%, 50%, 25%)이에요. 던진 횟수가 늘수록 막대가 점선에 가까워지는지 살펴보세요.'
-      : (total ? '' : '동전을 던지면 앞면의 수가 여기에 쌓여요.');
-    $('#seqBox').hidden = state.seq.length === 0;
+      ? '점선은 이론적으로 기대되는 도수(25%, 50%, 25%)예요. 던진 횟수가 늘수록 막대가 점선에 가까워지는지 살펴보세요.'
+      : (total ? '' : '동전을 던지면 앞면의 수가 막대로 쌓여요.');
+    $('#seqEmpty').hidden = state.seq.length > 0;
     $('#chips').innerHTML = state.seq.map(function(h){ return '<i class="chip c' + h + '">' + h + '</i>'; }).join('');
     $('#wins').textContent = pname(0) + ' ' + state.wins[0] + '승 · ' + pname(1) + ' ' + state.wins[1] + '승 · 무승부 ' + state.wins[2];
   }
