@@ -134,6 +134,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .omr.draft .ob{cursor:pointer;background:transparent;font-family:inherit;color:inherit;padding:0}
 .omr.draft .ob:hover:not(:disabled){border-color:var(--purple)}
 .omr.draft .ob:disabled{cursor:not-allowed;opacity:.5}
+.omr.draft .orow:not(.known) .ob.mk:disabled{opacity:1}
 .omr.draft .orow.known .ob:disabled{opacity:.45}
 .omr.draft .ob:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
 .omr.draft .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
@@ -544,13 +545,13 @@ function fillDraft(){
   renderBlank();
 }
 function renderBlank(){
-  const k = knownN();
+  const k = knownN(), lock = pick('strat') === 'one';   // 한 번호로 찍을 때는 답을 바꿀 수 없어요
   const orow = i => {
     const kn = i < k;
     let b = '';
     for (let j = 1; j <= 5; j++) {
       const on = !kn && draft && draft[i] === j;
-      b += '<button type="button" class="ob' + (on ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '"' + (kn ? ' disabled' : '') + ' aria-pressed="' + on + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
+      b += '<button type="button" class="ob' + (on ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '"' + (kn || lock ? ' disabled' : '') + ' aria-pressed="' + on + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
     }
     return '<div class="orow' + (kn ? ' known' : '') + '" role="group" aria-label="' + (i + 1) + '번 문제' + (kn ? ' (아는 문제, 정답으로 채점해요)' : '') + '"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
   };
@@ -560,7 +561,7 @@ function renderBlank(){
   $('single').innerHTML =
     '<h2>OMR 답안지</h2>' +
     '<p class="cond">' + (k ? '분홍색 1~' + k + '번은 아는 문제라서 정답으로 채점해요. ' : '') + (draft
-      ? '찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. 준비되면 <b>시험 보기</b>를 누르세요.'
+      ? (lock ? '한 번호로 답을 적어 놨어요. 한 번호로 찍을 때는 답을 바꿀 수 없어요. 번호를 바꾸려면 왼쪽에서 다른 번호를 고르세요. ' : '찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. ') + '준비되면 <b>시험 보기</b>를 누르세요.'
       : '왼쪽에서 찍는 방법을 고르면 ' + (k ? k + '번 이후의 ' : '') + left + '문제에 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.') + '</p>' +
     '<div class="omr draft" role="group" aria-label="OMR 답안지 (칸을 눌러 답을 적어요)"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>' +
     '<p class="nextrow"><button type="button" class="ghost" data-go="rank">순위표 보기 ➔</button></p>';
@@ -767,7 +768,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-go]'
 document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', () => { syncOne(); fillDraft(); }));
 document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (pick('strat') === 'one') fillDraft(); }));
 $('single').addEventListener('click', e => {
-  const b = e.target.closest('.omr.draft .ob'); if (!b || b.disabled) return;
+  const b = e.target.closest('.omr.draft .ob'); if (!b || b.disabled || pick('strat') === 'one') return;
   const q = +b.dataset.q, v = +b.dataset.v;
   if (!draft) draft = new Array(N).fill(0);
   draft[q] = v;
