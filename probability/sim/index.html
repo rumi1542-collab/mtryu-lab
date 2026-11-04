@@ -643,9 +643,11 @@ function gpanelPaint() {
   $$('.gtabs .tab').forEach(t => t.setAttribute('aria-selected', String(t.dataset.v === S.gtab)));
   drawCharts();
 }
+// 아직 던지지 않았어도 친구 실험 화면에는 빈 결과·표·그래프 틀을 보여 줘요
+function curOnce() { return S.once || (S.exp && S.exp.remote ? analyzeOnce([], S.exp.names.length) : null); }
 function paintOnce() {
   const box = $('#res1'); if (!box) return;
-  const R = S.once; if (!R) { box.innerHTML = ''; box.dataset.sig = ''; return; }
+  const R = curOnce(); if (!R) { box.innerHTML = ''; box.dataset.sig = ''; return; }
   const E = S.exp, names = E.names, m = names.length, live = !!E.remote, mineView = !live, showP = live ? !!E.p : (mineView && S.showTrue);
   const maxCh = m > 5 ? 4 : 6, lab = names.map(n => short(n, maxCh));
   const sig = (showP ? 'p' : 'n') + m + (live ? 'L' : '');
@@ -673,9 +675,9 @@ function paintOnce() {
   $('#cap1').textContent = from > 0 ? (live ? ' · 최근 ' + LIVE_CHIPS + '번만' : ' (최근 ' + LIVE_CHIPS + '번만 보여요. 도수와 그래프에는 모두 들어가요.)') : '';
   $('#h1').textContent = '던진 결과 (' + fmt(R.n) + '번)';
   let rows = '', tot = 0;
-  names.forEach((nm, i) => { rows += '<tr class="' + cls(i, m) + '"><td><span class="chip ' + cls(i, m) + '"><i></i>' + esc(nm) + '</span></td><td>' + fmt(R.counts[i]) + '</td><td>' + r3(R.counts[i] / R.n) + '</td>' + (showP ? '<td>' + r3(E.p[i]) + '</td>' : '') + '</tr>'; tot += R.counts[i]; });
+  names.forEach((nm, i) => { rows += '<tr class="' + cls(i, m) + '"><td><span class="chip ' + cls(i, m) + '"><i></i>' + esc(nm) + '</span></td><td>' + (R.n ? fmt(R.counts[i]) : '') + '</td><td>' + (R.n ? r3(R.counts[i] / R.n) : '') + '</td>' + (showP ? '<td>' + r3(E.p[i]) + '</td>' : '') + '</tr>'; tot += R.counts[i]; });
   $('#tb1').innerHTML = rows;
-  $('#tf1').innerHTML = '<tr><td>합계</td><td>' + fmt(tot) + '</td><td>1</td>' + (showP ? '<td>1</td>' : '') + '</tr>';
+  $('#tf1').innerHTML = '<tr><td>합계</td><td>' + (R.n ? fmt(tot) : '') + '</td><td>' + (R.n ? '1' : '') + '</td>' + (showP ? '<td>1</td>' : '') + '</tr>';
   drawCharts();
 }
 function paintRep() {
@@ -699,13 +701,14 @@ function drawCharts() {
     const w = chartWidth(el), E = S.exp; if (!E) return;
     const kind = el.dataset.chart;
     if (kind === 'sthist') { const st = S.play.stats; if (st) el.innerHTML = dotSvg(w, statsSel(st), S.play.sf); return; }
-    if (kind === 'bar1' && S.once) el.innerHTML = barSvg(w, E.names, S.once.counts, E.names.map((_, i) => col(i, E.names.length)), '', '도수(번)', null, true);
-    else if (kind === 'line1' && S.once) {
-      const L = lineSvg(w, S.once, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
+    const O = curOnce();
+    if (kind === 'bar1' && O) el.innerHTML = barSvg(w, E.names, O.counts, E.names.map((_, i) => col(i, E.names.length)), '', '도수(번)', null, true);
+    else if (kind === 'line1' && O) {
+      const L = lineSvg(w, O, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
       wireLine(el, L, w);
-    } else if (kind === 'blk1' && S.once) {
-      el.innerHTML = blockSvg(w, S.once, E.names, E.p, !!E.p, S.blk, S.vis, lineCol);
-      const info = $('#blkinfo'); if (info) info.textContent = blockInfo(S.once, E.names, S.blk);
+    } else if (kind === 'blk1' && O) {
+      el.innerHTML = blockSvg(w, O, E.names, E.p, !!E.p, S.blk, S.vis, lineCol);
+      const info = $('#blkinfo'); if (info) info.textContent = blockInfo(O, E.names, S.blk);
     } else if (kind === 'hist' && S.rep) {
       const R = S.rep, H = R.h || histBins(R.counts, R.n);
       const mark = (!E.remote && S.showTrue && E.p) ? R.n * E.p[R.pick] : null;
@@ -751,8 +754,8 @@ function blockSvg(w, R0, names, p, showP, k, vis, colf) {
   return s + '</svg>';
 }
 function wireLine(el, L, w) {
-  const hit = $('#hit', el), cross = $('#cross', el), tip = $('.tip', el), R = S.once, names = S.exp.names;
-  if (!hit) return;
+  const hit = $('#hit', el), cross = $('#cross', el), tip = $('.tip', el), R = curOnce(), names = S.exp.names;
+  if (!hit || !R.n) return;
   const move = ev => {
     const rect = el.getBoundingClientRect(), px = (ev.clientX - rect.left) * (w / rect.width);
     const t = Math.min(R.n, Math.max(1, Math.round((px - L.L) / L.pw * L.xmax)));
