@@ -2,13 +2,13 @@
 //   GET /api/admin?op=ping                                  → { ok:true }  (암호 확인)
 //   GET /api/admin?op=stats&days=7&units=prob,river,coin    → 접속 분석 (units를 안 쓰면 전체)
 //   GET /api/admin?op=counts&year=2026                      → 학교·게임별 기록 수
-//   GET /api/admin?op=records&game=river|run|tune10|tune5|tune2|spot|bet|dalembert&year=&school=&sort=recent|oldest|rank&offset=0&limit=20&q=별명
+//   GET /api/admin?op=records&game=river|run|tune10|tune5|tune2|spot|bet|dalembert|gf0|gf5|gf10|gf15&year=&school=&sort=recent|oldest|rank&offset=0&limit=20&q=별명
 //                                                           → 기록 목록 (순위·별명·학년·반·기록·시각·익명 번호 앞 8자리). &cls=2-3 을 붙이면 그 반만
 //   POST /api/admin?op=setclass  {game,year,school,ids:[...],gr?,cl}   고른 기록의 반(과 학년)을 바꿔요 (gr를 빼면 학년은 그대로)
 // 기록 삭제는 기존 DELETE /api/scores · /api/coin 을 그대로 써요 (같은 관리자 암호).
 const { configured, redis, redisMulti, send, getConfig, isAdmin, ipOf, rateLimit, kstDay, classOf, parseCls, isClass, rankValue } = require('./_lib');
-const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'dalembert', 'game'];
-const COIN_GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert'];
+const UNITS = ['home', 'math', 'stat', 'prob', 'river', 'coin', 'sim', 'dalembert', 'gold', 'game'];
+const COIN_GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert', 'gf0', 'gf5', 'gf10', 'gf15'];   // gf* = 골드핑거(아는 문제 0·5·10·15개)
 const GAMES = ['river'].concat(COIN_GAMES);
 const MAX_RANGE = 90;
 
@@ -20,6 +20,7 @@ function summary(game, m) {
   if (game.startsWith('tune')) return '예상과 ' + m.diff + '번 차이';
   if (game === 'spot') return m.correct + '문제 맞힘';
   if (game === 'bet') return (m.hits != null ? m.hits : m.score) + '문제 맞힘';
+  if (game.startsWith('gf')) return m.score + '점 · ' + (m.strat === 'free' ? '내맘대로' : m.strat === 'regular' ? '규칙적' : '한 번호 ' + m.one + '번');
   return '';
 }
 function days(n) { const out = []; for (let i = n - 1; i >= 0; i--) out.push(kstDay(Date.now() - i * 86400e3)); return out; }

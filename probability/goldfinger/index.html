@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>골드핑거 · 확률 실험실</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7719AA">
+<meta name="description" content="골드핑거 — 20문제를 찍을 때 찍는 방법에 따라 점수가 어떻게 달라지는지 반복 실험하고, OMR 답안지로 채점해 순위에 도전해요">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+/* 레이아웃: 왼쪽에 시험 조건과 순위 도전(넓은 화면에서는 고정), 오른쪽에 채점 결과·순위표·반복 실험. 폰에서는 위아래로 쌓아요 */
+:root{
+  color-scheme:light;
+  --ink:#2B0F3F; --muted:#5A4670; --line:#E6D8F2; --bg:#F8F2FC; --surface:#fff; --tint:#F0DDFA;
+  --purple:#7719AA; --pink:#D81B7A; --pink-soft:#FDE6F1; --pink-line:#F4B3D3; --pink-ink:#A3185F;
+  --gold:#8A5C00; --halo:#F8F2FC;
+  --paper:#FFFEFC; --omr-line:#B9A4CF; --omr-ink:#6D4F93; --omr-head:#EFE6F6; --omr-fill:#1E1530; --omr-red:#D7263D;
+  --f-display:'Jua','Noto Sans KR','Malgun Gothic',sans-serif;
+  --f-body:'Noto Sans KR','Malgun Gothic',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:calc(100vh - var(--labbar-h,0px));background-color:var(--bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:32px 32px;color:var(--ink);font:400 15px/1.6 var(--f-body);word-break:keep-all;overflow-wrap:break-word}
+.wrap{max-width:1040px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top{margin-bottom:22px}
+.eyebrow{margin:0 0 4px;font-size:13px;font-weight:700;color:var(--purple);letter-spacing:.04em}
+h1{margin:0;font:400 52px/1.08 var(--f-display);text-wrap:balance}
+h1 .gold{color:var(--gold)}
+.lead{margin:8px 0 0;max-width:36em;color:var(--muted);font-size:15px}
+
+.layout{display:grid;gap:24px;grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){
+  .layout{grid-template-columns:332px minmax(0,1fr);align-items:start;gap:32px}
+  .controls{position:sticky;top:calc(var(--labbar-h,0px) + 12px);max-height:calc(100vh - var(--labbar-h,0px) - 24px);overflow-y:auto}
+}
+
+/* 시험 조건 */
+.controls{background:var(--surface);border:2px solid var(--ink);border-radius:16px;box-shadow:4px 4px 0 var(--purple);padding:18px}
+fieldset.grp{border:0;margin:0 0 18px;padding:0;min-width:0}
+fieldset.grp legend{padding:0;margin:0 0 8px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.opts{display:grid;gap:8px}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{position:relative;display:block}
+.opt input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.opt .face{display:block;height:100%;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--surface);transition:border-color .15s,background-color .15s}
+.opt .face b{display:block;font-size:14px;font-weight:700}
+.opt .face small{display:block;margin-top:1px;font-size:12px;line-height:1.4;color:var(--muted)}
+.opt:hover .face{border-color:var(--purple)}
+.opt input:checked + .face{border-color:var(--purple);background:var(--tint)}
+.opt input:checked + .face b{color:var(--purple)}
+.opt input:checked + .face b::after{content:" ✓"}
+.opt input:focus-visible + .face{outline:3px solid var(--pink);outline-offset:2px}
+.numrow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.numrow > span{font-size:13px;color:var(--muted);margin-right:2px}
+.chip{position:relative;display:block}
+.chip input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.chip span{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:var(--surface);font:700 16px var(--f-body);font-variant-numeric:tabular-nums}
+.chip:hover span{border-color:var(--purple)}
+.chip input:checked + span{background:var(--purple);border-color:var(--purple);color:#fff}
+.chip input:focus-visible + span{outline:3px solid var(--pink);outline-offset:2px}
+
+.actions{display:grid;gap:10px;margin-top:4px}
+button{font-family:var(--f-body);cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+button:disabled{cursor:not-allowed;opacity:.55}
+.primary{width:100%;padding:13px 12px;border:0;border-radius:10px;background:var(--purple);color:#fff;font-size:16px;font-weight:700}
+.primary:hover{filter:brightness(1.08)}
+.primary:active{transform:translateY(1px)}
+.repeat{display:grid;gap:6px}
+.repeat > span{font-size:12px;color:var(--muted)}
+.repeat .btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.btn{padding:9px 6px;border:2px solid var(--purple);border-radius:8px;background:transparent;color:var(--purple);font-size:14px;font-weight:700}
+.btn:hover{background:var(--tint)}
+.ghost{padding:10px 12px;border:2px solid var(--pink);border-radius:8px;background:transparent;color:var(--pink-ink);font-size:14px;font-weight:700}
+.ghost:hover{background:var(--pink-soft)}
+.linkbtn{padding:2px 4px;border:0;background:none;color:var(--purple);font-size:inherit;font-weight:700;text-decoration:underline}
+
+/* 순위 도전 */
+.rankbox{margin-top:20px;padding-top:18px;border-top:2px solid var(--line)}
+.rankbox h3{margin:0 0 6px;font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.who{margin:0 0 10px;font-size:14px}
+.hot{width:100%;padding:12px;border:0;border-radius:10px;background:var(--pink);color:#fff;font-size:15px;font-weight:700}
+.hot:not(:disabled):hover{filter:brightness(1.08)}
+.hint{margin:8px 0 0;font-size:12px;line-height:1.5;color:var(--muted)}
+.msg{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--pink-ink);font-weight:500}
+.msg:empty{display:none}
+.testnote{margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#FFE9A8;color:var(--ink);font-size:13px;font-weight:700}
+
+/* 결과 */
+.results{container-type:inline-size;display:flex;flex-direction:column;gap:30px;min-width:0}
+.sec{border-top:2px solid var(--ink);padding-top:16px;scroll-margin-top:calc(var(--labbar-h,0px) + 12px);min-width:0}
+.sec h2{margin:0;font-size:18px;font-weight:900}
+.cond{margin:2px 0 12px;font-size:13px;color:var(--muted)}
+.score{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.score .num{font:400 76px/1 var(--f-display);color:var(--purple);font-variant-numeric:tabular-nums}
+.score .unit{font:400 30px/1 var(--f-display);color:var(--purple)}
+.score .of{font-size:14px;color:var(--muted)}
+.brk{margin:6px 0 0;font-size:14px}
+.saved{margin:6px 0 0;font-size:14px;font-weight:700;color:var(--pink-ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:14px 0 0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;border:2px solid var(--pink-line);background:var(--pink-soft)}
+
+/* OMR 답안지: 마킹이 채워진 뒤에 빨간 채점 표시가 찍혀요 */
+.omr{margin:14px 0 0;border:2px solid var(--omr-line);border-radius:6px;background:var(--paper);color:var(--omr-ink);overflow:hidden}
+.omr-head{padding:7px 0;border-bottom:2px solid var(--omr-line);background:var(--omr-head);text-align:center;text-indent:.7em;font-size:14px;font-weight:700;letter-spacing:.7em}
+.omr-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.omr-col + .omr-col{border-left:2px solid var(--omr-line)}
+.omr-th,.orow{display:grid;grid-template-columns:30px repeat(5,minmax(0,1fr));align-items:center;padding-inline:4px}
+.omr-th{padding-block:4px;border-bottom:1px solid var(--omr-line);background:var(--omr-head);font-size:11px;font-weight:700;text-align:center}
+.orow{min-height:34px;padding-block:3px;border-bottom:1px dotted var(--omr-line)}
+.orow:last-child{border-bottom:0}
+.orow.known{background:var(--pink-soft)}
+.onum{position:relative;display:grid;place-items:center;height:26px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.ob{display:grid;place-items:center;width:100%;max-width:28px;height:19px;margin:0 auto;border:1.5px solid var(--omr-line);border-radius:50%;font-size:11px;line-height:1;font-variant-numeric:tabular-nums}
+.ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
+.ob.fix{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--omr-red)}
+.onum.o::before{content:"";position:absolute;left:50%;top:50%;width:25px;height:25px;margin:-12.5px 0 0 -12.5px;border:2.2px solid var(--omr-red);border-radius:50%}
+.onum.x::before{content:"";position:absolute;left:50%;top:50%;width:2.4px;height:32px;margin:-16px 0 0 -1.2px;background:var(--omr-red);border-radius:2px;transform:rotate(38deg)}
+@container (min-width:560px){
+  .omr-th,.orow{grid-template-columns:38px repeat(5,minmax(0,1fr));padding-inline:8px}
+  .omr-th{font-size:12px}
+  .orow{min-height:40px}
+  .onum{font-size:14px}
+  .ob{height:23px;max-width:34px;font-size:13px}
+}
+.lg{display:inline-block;flex:none}
+.lg-mk{width:16px;height:12px;border-radius:50%;background:var(--omr-fill)}
+.lg-o{width:14px;height:14px;border-radius:50%;border:2px solid var(--omr-red)}
+.lg-x{position:relative;width:14px;height:14px}
+.lg-x::before{content:"";position:absolute;left:50%;top:-2px;width:2px;height:18px;margin-left:-1px;background:var(--omr-red);transform:rotate(38deg)}
+.lg-fix{width:16px;height:12px;margin:0 4px;border-radius:50%;border:1.5px solid var(--omr-line);background:var(--paper);box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--omr-red)}
+@media (prefers-reduced-motion:no-preference){
+  .ob.mk{animation:mark .2s ease-out backwards;animation-delay:calc(var(--i) * 40ms)}
+  .onum::before{animation:stampg .24s ease-out backwards;animation-delay:calc(900ms + var(--i) * 50ms)}
+  .ob.fix{animation:ringin .24s ease-out backwards;animation-delay:calc(900ms + var(--i) * 50ms)}
+  @keyframes mark{from{background:transparent;color:var(--omr-ink);scale:.85}}
+  @keyframes stampg{from{opacity:0;scale:1.8}}
+  @keyframes ringin{from{box-shadow:0 0 0 2px var(--paper),0 0 0 4px transparent}}
+}
+.keys-h{margin:16px 0 6px;font-size:13px;font-weight:700;color:var(--muted)}
+.keys{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.keys li{padding:3px 11px;border-radius:999px;border:2px solid var(--line);background:var(--surface);font-size:13px;font-variant-numeric:tabular-nums}
+.keys li.on{border-color:var(--purple);background:var(--tint);color:var(--purple);font-weight:700}
+
+/* 순위표 */
+.rtools{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 10px}
+.rtools label{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+select,input[type=text]{height:38px;border:2px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:0 10px;font:500 15px var(--f-body)}
+.tabs{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.tabs .tl{font-size:13px;color:var(--muted);margin-right:4px}
+.tab{padding:6px 14px;border:2px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:14px;font-weight:700}
+.tab:hover{border-color:var(--purple)}
+.tab[aria-pressed="true"]{border-color:var(--purple);background:var(--purple);color:#fff}
+.rnote{margin:0 0 6px;font-size:13px;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{padding:6px 8px;border-bottom:2px solid var(--line);font-size:12px;font-weight:500;color:var(--muted);text-align:left;white-space:nowrap}
+.tbl td{padding:8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.tbl td.rk{width:3.2em;font:400 22px/1 var(--f-display);text-align:center}
+.tbl tr.r1 td.rk{color:var(--gold)}
+.tbl td.big{font-weight:700;white-space:nowrap}
+.tbl tr.me td{background:var(--tint)}
+.tbl tr.me td:first-child{border-radius:8px 0 0 8px}
+.tbl tr.me td:last-child{border-radius:0 8px 8px 0}
+.you{margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--purple);color:#fff;font-size:11px;font-style:normal;font-weight:700}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:13px;color:var(--muted)}
+.pager button{padding:6px 12px;border:2px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px;font-weight:700}
+.mine{margin:10px 0 0;font-size:14px;font-weight:700}
+.empty{margin:0;padding:12px 0;font-size:14px;color:var(--muted)}
+
+/* 반복 실험 */
+.tbl-wrap{overflow-x:auto}
+.tbl.num th,.tbl.num td{text-align:right}
+.tbl.num th:first-child,.tbl.num td:first-child{text-align:left;padding-left:0;white-space:normal;font-weight:700}
+.tbl.num td{white-space:nowrap}
+figure{margin:16px 0 0;min-width:0}
+figcaption{margin:0 0 2px;font-size:13px;font-weight:700}
+.hist{min-width:0}
+.hist svg{display:block;max-width:100%}
+.note{margin:10px 0 0;font-size:13px;color:var(--muted)}
+svg .gl{stroke:var(--line);stroke-width:1}
+svg .axis{stroke:var(--muted);stroke-width:1.2}
+svg .tk{fill:var(--muted);font:400 12px var(--f-body)}
+svg .bar{fill:var(--purple)}
+svg .val{fill:var(--ink);font:700 12px var(--f-body);paint-order:stroke;stroke:var(--halo);stroke-width:3px;stroke-linejoin:round}
+svg .th{stroke:var(--gold);stroke-width:2;stroke-dasharray:5 4}
+svg .thl{fill:var(--gold);font:700 12px var(--f-body);paint-order:stroke;stroke:var(--halo);stroke-width:3px;stroke-linejoin:round}
+svg .mk{fill:var(--pink);stroke:var(--halo);stroke-width:1}
+.think ol{margin:8px 0 0;padding-left:1.3em;display:grid;gap:6px;max-width:42em}
+</style>
+<script src="/me-sync.js"></script>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">확률 실험실</p>
+    <h1><span class="gold">골드</span>핑거</h1>
+    <p class="lead">20문제, 문제당 5점이에요. 아는 문제는 맞히고 나머지는 찍을 때, 찍는 방법에 따라 점수가 어떻게 달라지는지 실험해 보세요. 정답은 1~5번이 각각 4개씩 들어 있어요.</p>
+  </header>
+
+  <div class="layout">
+    <section class="controls" aria-label="시험 조건">
+      <p class="testnote" id="testnote" hidden>테스트 모드예요. 순위 기록은 이 컴퓨터에만 저장되고, 서버에는 아무것도 올라가지 않아요.</p>
+      <fieldset class="grp">
+        <legend>아는 문제</legend>
+        <div class="opts two">
+          <label class="opt"><input type="radio" name="known" value="0" checked><span class="face"><b>모두 찍기</b><small>20문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="5"><span class="face"><b>5문제 알아요</b><small>나머지 15문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="10"><span class="face"><b>10문제 알아요</b><small>나머지 10문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="15"><span class="face"><b>15문제 알아요</b><small>나머지 5문제를 찍어요</small></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="grp">
+        <legend>찍는 방법</legend>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="strat" value="free" checked><span class="face"><b>내맘대로</b><small>문제마다 1~5 중에서 무작위로 골라요</small></span></label>
+          <label class="opt"><input type="radio" name="strat" value="regular"><span class="face"><b>규칙적</b><small>1, 2, 3, 4, 5 순서로 반복해요</small></span></label>
+          <label class="opt"><input type="radio" name="strat" value="one"><span class="face"><b>한 번호</b><small>찍는 문제는 모두 같은 번호로 써요</small></span></label>
+        </div>
+        <div class="numrow" id="numrow" hidden>
+          <span>찍을 번호</span>
+          <label class="chip"><input type="radio" name="one" value="1"><span>1</span></label>
+          <label class="chip"><input type="radio" name="one" value="2"><span>2</span></label>
+          <label class="chip"><input type="radio" name="one" value="3" checked><span>3</span></label>
+          <label class="chip"><input type="radio" name="one" value="4"><span>4</span></label>
+          <label class="chip"><input type="radio" name="one" value="5"><span>5</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="grp">
+        <legend>정답 배치 (연습과 반복 실험)</legend>
+        <div class="opts two">
+          <label class="opt"><input type="radio" name="layout" value="equal" checked><span class="face"><b>각 번호 4개씩</b><small>1~5번이 정확히 4개씩</small></span></label>
+          <label class="opt"><input type="radio" name="layout" value="random"><span class="face"><b>완전 무작위</b><small>문제마다 1~5 무작위</small></span></label>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="button" class="primary" id="run1">시험 1번 보기 (연습)</button>
+        <div class="repeat">
+          <span>같은 조건으로 반복하기</span>
+          <div class="btns">
+            <button type="button" class="btn" data-n="100">100번</button>
+            <button type="button" class="btn" data-n="1000">1000번</button>
+            <button type="button" class="btn" data-n="10000">10000번</button>
+          </div>
+        </div>
+        <button type="button" class="ghost" id="cmp">세 가지 찍는 방법 비교 (각 1000번)</button>
+      </div>
+
+      <div class="rankbox">
+        <h3>순위 도전</h3>
+        <p class="who" id="who"></p>
+        <button type="button" class="hot" id="rankBtn" disabled>순위 도전하기</button>
+        <p class="hint" id="rankHint"></p>
+        <p class="msg" id="rankMsg" role="status"></p>
+      </div>
+    </section>
+
+    <div class="results" id="results">
+      <section class="sec" id="single" aria-live="polite"></section>
+      <section class="sec" id="rank"></section>
+      <section class="sec" id="batch"></section>
+      <section class="sec think">
+        <h2>생각해 볼 문제</h2>
+        <ol>
+          <li>아는 문제가 0개일 때 세 가지 찍는 방법의 평균을 비교해 보세요. 평균이 달라지나요?</li>
+          <li>'한 번호'로 찍으면 점수가 거의 흔들리지 않는 조건은 무엇일까요? 아는 문제 수와 정답 배치를 바꿔 가며 찾아보세요.</li>
+          <li>아는 문제가 5개씩 늘면 평균은 몇 점씩 늘어날까요? 이론 평균을 식으로 나타내 보세요.</li>
+          <li>한 번 본 점수와 1000번의 평균 중에서 어느 쪽으로 찍는 방법을 비교해야 할까요? 이유도 말해 보세요.</li>
+          <li>순위표에서 위쪽에 있는 친구들이 쓴 찍는 방법을 살펴보세요. 순위는 방법의 결과일까요, 운의 결과일까요?</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   선생님 설정  ← 여기만 고치면 돼요
+   ===================================================================== */
+const CONFIG = {
+  years:     [2026],              // 처음에 보여줄 학년도 (강 건너기의 관리자 모드에서 바꾼 목록을 그대로 써요)
+  schools:   ['선운중학교'],        // 처음에 보여줄 학교
+  apiUrl:    '/api/goldfinger',   // 순위 도전 서버 주소 (시험을 서버가 만들고 채점해요)
+  coinUrl:   '/api/coin',         // 순위표 읽기 서버 주소 (동전 실험실과 같아요)
+  configUrl: '/api/config',       // 학년도·학교 목록 서버 주소 (강 건너기와 같아요)
+  pageSize:  10                   // 순위표 한 쪽에 보여줄 인원
+};
+/* ===================================================================== */
+
+// <logic>  (api/goldfinger.js 의 시험 규칙과 같아요. 둘을 같이 고쳐 주세요)
+const N = 20, PTS = 5;
+const rnd = n => Math.floor(Math.random() * n);
+function shuffle(a){ for (let i = a.length - 1; i > 0; i--){ const j = rnd(i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function makeKey(layout){
+  if (layout === 'equal'){ const a = []; for (let v = 1; v <= 5; v++) for (let c = 0; c < N / 5; c++) a.push(v); return shuffle(a); }
+  return Array.from({length: N}, () => rnd(5) + 1);
+}
+function guessFor(strat, one, i){
+  if (strat === 'free') return rnd(5) + 1;
+  if (strat === 'regular') return i % 5 + 1;
+  return one;
+}
+function exam(s, strat){
+  const key = makeKey(s.layout);
+  const order = shuffle(Array.from({length: N}, (_, i) => i));
+  const isKnown = new Array(N).fill(false);
+  for (let t = 0; t < s.known; t++) isKnown[order[t]] = true;
+  const mine = [], status = [];
+  let hits = 0, guessHits = 0;
+  for (let i = 0; i < N; i++){
+    if (isKnown[i]){ mine.push(key[i]); status.push('known'); hits++; }
+    else {
+      const g = guessFor(strat, s.one, i);
+      mine.push(g);
+      if (g === key[i]){ status.push('hit'); hits++; guessHits++; } else status.push('miss');
+    }
+  }
+  return {key, mine, status, hits, guessHits, score: hits * PTS};
+}
+// 서버가 돌려준 시험(정답·내 답·아는 문제)을 화면용 결과로 바꿔요
+function fromRecord(rec){
+  const status = rec.key.map((ans, i) => rec.known[i] ? 'known' : (rec.mine[i] === ans ? 'hit' : 'miss'));
+  const hits = status.filter(x => x !== 'miss').length;
+  return {key: rec.key, mine: rec.mine, status, hits, guessHits: status.filter(x => x === 'hit').length, score: rec.score};
+}
+function runMany(s, strat, n){ const out = new Array(n); for (let t = 0; t < n; t++) out[t] = exam(s, strat).score; return out; }
+function stats(sc){ let sum = 0, min = Infinity, max = -Infinity; for (const v of sc){ sum += v; if (v < min) min = v; if (v > max) max = v; } return {mean: sum / sc.length, min, max}; }
+function bins(sc){ const c = new Array(21).fill(0); for (const v of sc) c[v / 5]++; return c; }
+function theory(k){ return 20 + 4 * k; }
+// </logic>
+
+(function () {
+'use strict';
+
+/* ---------- 도구 ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rid = () => Math.random().toString(36).slice(2, 10);
+const val = name => document.querySelector('input[name=' + name + ']:checked').value;
+const cur = () => ({s: {known: +val('known'), layout: val('layout'), one: +val('one')}, strat: val('strat')});
+const stratName = (strat, one) => strat === 'free' ? '내맘대로' : strat === 'regular' ? '규칙적 (1, 2, 3, 4, 5 반복)' : '한 번호 (' + one + '번)';
+const stratShort = r => r.strat === 'free' ? '내맘대로' : r.strat === 'regular' ? '규칙적' : r.strat === 'one' ? '한 번호 ' + r.one + '번' : '';
+const kLabel = k => k === 0 ? '모두 찍기' : '아는 문제 ' + k + '개';
+const KS = [0, 5, 10, 15];
+const condText = (s, strat, withStrat) => {
+  const p = [kLabel(s.known)];
+  if (withStrat) p.push(stratName(strat, s.one));
+  p.push(s.layout === 'equal' ? '정답은 각 번호 4개씩' : '정답은 완전 무작위');
+  return p.join(' · ');
+};
+const REDUCED = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+const reveal = el => {
+  if (window.matchMedia('(max-width:899px)').matches) el.scrollIntoView({behavior: REDUCED ? 'auto' : 'smooth', block: 'start'});
+};
+
+/* ---------- 서버 ---------- */
+const TEST = () => { try { return Number(localStorage.getItem('mtryu.test')) > Date.now(); } catch (e) { return false; } };   // 관리자 화면의 '테스트 모드'가 켜져 있으면 서버에 아무것도 보내지 않아요
+async function http(method, url, body, timeout) {
+  if (TEST() && !(method === 'GET' && url === CONFIG.configUrl)) throw new Error('test');
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeout || 8000);
+  try {
+    const r = await fetch(url, { method, signal: ctl.signal, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) { const er = new Error('http ' + r.status); er.status = r.status; er.body = j; throw er; }
+    return j;
+  } finally { clearTimeout(t); }
+}
+/* 테스트 모드의 기록은 이 컴퓨터에만 'T:' 이름으로 따로 모아요 */
+const lkey = (k, y, s) => 'T:gf_scores:' + k + ':' + y + ':' + s;
+const localList = (k, y, s) => { try { return JSON.parse(localStorage.getItem(lkey(k, y, s)) || '[]'); } catch (e) { return []; } };
+function ties(list) {   // 점수가 높은 순, 같으면 같은 순위 (300·200·200·100 → 1·2·2·4)
+  const l = list.slice().sort((a, b) => b.score - a.score || b.ts - a.ts);
+  let pv = null, pr = 0;
+  return l.map((r, i) => { const k = i && r.score === pv ? pr : i + 1; pv = r.score; pr = k; return Object.assign({}, r, { rank: k }); });
+}
+
+/* ---------- 학년도·학교 목록 (강 건너기와 같은 목록) ---------- */
+const LIST = { years: CONFIG.years.slice(), schools: CONFIG.schools.slice(), regions: {} };
+function okList(l) {
+  return !!l && Array.isArray(l.years) && Array.isArray(l.schools)
+    && l.years.length >= 1 && l.years.length <= 12 && l.years.every(y => Number.isInteger(y) && y >= 2000 && y <= 2100)
+    && l.schools.length >= 1 && l.schools.length <= 200 && l.schools.every(s => typeof s === 'string' && s.length >= 1 && s.length <= 20);
+}
+async function loadList() {
+  try { const l = JSON.parse(localStorage.getItem('rd_list') || 'null'); if (okList(l)) { LIST.years = l.years.slice(); LIST.schools = l.schools.slice(); } } catch (e) {}
+  try {
+    const j = await http('GET', CONFIG.configUrl, null, 3000);
+    if (okList(j)) { LIST.years = j.years.slice(); LIST.schools = j.schools.slice(); LIST.regions = j.regions || {}; }
+  } catch (e) {}
+}
+const curYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };   // 한국 학년도 (3월 1일에 바뀌어요)
+const S = { year: curYear(), school: LIST.schools[0], vschool: null };   // vschool: 순위를 보고 있는 다른 학교
+let ME = null;   // 내 정보: { nick, uid, label, gr, cl }  내 학교가 순위 서버에 있을 때만 값이 있어요
+let MINE = {};   // 이 학교·학년도에서 내가 이미 도전한 기록 { 0: rec, 5: rec, ... }
+let lastId = '';
+const viewSchool = () => S.vschool || S.school;
+const defCls = () => (ME && Number.isInteger(ME.gr) && Number.isInteger(ME.cl) && viewSchool() === S.school) ? ME.gr + '-' + ME.cl : '';
+const cleanName = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
+
+/* ---------- 내 정보 (me-sync.js · lab-bar.js) ----------
+   순위에는 내 학교·내 별명으로 올라가요. 실명·학번은 이 게임에 오지 않아요. 정보가 없으면 lab-bar.js가 입력창을 띄워 둬요 */
+async function syncMe() {
+  const m = window.MtryuMeSync ? MtryuMeSync.read() : null;
+  if (!m) { ME = null; return; }
+  let r;
+  try { r = await MtryuMeSync.resolve(LIST.schools, LIST.regions, CONFIG.configUrl); } catch (e) { r = { me: m, label: null, retry: true }; }
+  if (r && r.list && okList(r.list)) { LIST.years = r.list.years.slice(); LIST.schools = r.list.schools.slice(); LIST.regions = r.list.regions || {}; }
+  if (!r || !r.label) {
+    ME = null;
+    if (r && r.retry) MtryuMeSync.block({ title: '학교를 불러오지 못했어요', text: '내 학교를 순위 서버에 올리는 중에 잠깐 문제가 생겼어요. 잠시 뒤에 다시 해 주세요.', label: '다시 시도', onClick: () => location.reload() });
+    else MtryuMeSync.block({ title: '학교를 다시 골라 주세요', text: '순위는 나이스에서 찾은 학교로만 올라가요. 내 정보에서 학교를 검색해서 다시 골라 주세요.', label: '학교 다시 고르기', onClick: () => window.MtryuMe && window.MtryuMe.openDialog({ required: true, strict: true }) });
+    return;
+  }
+  MtryuMeSync.unblock();
+  ME = { nick: cleanName(m.nick), uid: m.uid, label: r.label, gr: m.gr, cl: m.cl };
+}
+function enforceMine() {
+  if (ME) S.school = ME.label;
+  else if (!LIST.schools.includes(S.school)) S.school = LIST.schools[0];
+  if (S.vschool && !LIST.schools.includes(S.vschool)) S.vschool = null;
+  if (!LIST.years.includes(S.year)) LIST.years.unshift(S.year);   // 학년도는 날짜로 저절로 정해져요
+}
+async function refreshMine() {
+  MINE = {};
+  if (ME && !TEST()) {
+    try { const j = await http('GET', CONFIG.apiUrl + '?year=' + S.year + '&school=' + encodeURIComponent(S.school) + '&uid=' + ME.uid, null, 9000); if (j && j.mine) MINE = j.mine; } catch (e) {}
+  }
+}
+async function refreshMe() {
+  await syncMe(); enforceMine(); await refreshMine();
+  S.vschool = null; B.cls = defCls(); B.classes = [];
+  syncRank(); setBoard(B.k);
+}
+function openMeDialog() { if (window.MtryuMe && window.MtryuMe.openDialog) window.MtryuMe.openDialog({ required: true }); }
+
+/* ---------- 히스토그램 ---------- */
+function niceStep(maxP){
+  for (const st of [1, 2, 5, 10, 20, 25, 50]) if (Math.ceil(maxP / st) <= 5) return st;
+  return 50;
+}
+function histSVG(counts, n, o){
+  const W = o.W, H = o.H, m = {l: 44, r: 10, t: 26, b: 52};
+  const pw = W - m.l - m.r, ph = H - m.t - m.b, bw = pw / 21, ay = m.t + ph;
+  const Y = p => m.t + ph * (1 - p / o.ymax);
+  const X = s => m.l + (s / 5 + 0.5) * bw;
+  let g = '';
+  for (let p = 0; p <= o.ymax; p += o.step){
+    g += '<line class="gl" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(p).toFixed(1) + '" y2="' + Y(p).toFixed(1) + '"/>';
+    g += '<text class="tk" x="' + (m.l - 8) + '" y="' + (Y(p) + 4).toFixed(1) + '" text-anchor="end">' + p + '%</text>';
+  }
+  let top = 0;
+  counts.forEach((c, j) => { if (c > counts[top]) top = j; });
+  counts.forEach((c, j) => {
+    if (!c) return;
+    const p = c / n * 100, h = ph * p / o.ymax;
+    g += '<rect class="bar" x="' + (m.l + j * bw + bw * 0.1).toFixed(1) + '" y="' + (ay - h).toFixed(1) + '" width="' + (bw * 0.8).toFixed(1) + '" height="' + h.toFixed(1) + '"><title>' + (j * 5) + '점 ' + c + '번 (' + p.toFixed(1) + '%)</title></rect>';
+  });
+  g += '<line class="axis" x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + ay + '" y2="' + ay + '"/>';
+  for (let s = 0; s <= 100; s += 20) g += '<text class="tk" x="' + X(s).toFixed(1) + '" y="' + (ay + 28) + '" text-anchor="middle">' + s + '</text>';
+  g += '<text class="tk" x="' + (m.l + pw / 2) + '" y="' + (ay + 46) + '" text-anchor="middle">점수 (점)</text>';
+  g += '<text class="tk" x="2" y="' + (m.t - 8) + '">상대도수</text>';
+  const pt = counts[top] / n * 100, ht = ph * pt / o.ymax, right = top < 14;
+  const lx = right ? m.l + top * bw + bw * 0.9 + 4 : m.l + top * bw + bw * 0.1 - 4;
+  const ly = ht >= 18 ? ay - ht + 13 : ay - ht - 5;
+  g += '<text class="val" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + (right ? 'start' : 'end') + '">' + pt.toFixed(1) + '%</text>';
+  const tx = X(o.theory), left = tx > W * 0.55;
+  g += '<line class="th" x1="' + tx.toFixed(1) + '" x2="' + tx.toFixed(1) + '" y1="' + (m.t - 14) + '" y2="' + ay + '"/>';
+  g += '<text class="thl" x="' + (tx + (left ? -6 : 6)).toFixed(1) + '" y="' + (m.t - 8) + '" text-anchor="' + (left ? 'end' : 'start') + '">이론 평균 ' + o.theory + '점</text>';
+  const mx = X(o.mean);
+  g += '<path class="mk" d="M' + mx.toFixed(1) + ' ' + (ay + 3) + ' l-5.5 9 h11 z"><title>실제 평균 ' + o.mean.toFixed(1) + '점</title></path>';
+  return '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + o.label + '">' + g + '</svg>';
+}
+let drawn = [];
+function mountHist(host, counts, n, o){
+  const fn = () => { host.innerHTML = histSVG(counts, n, Object.assign({W: Math.max(280, Math.floor(host.clientWidth) || 600)}, o)); };
+  fn();
+  drawn.push({host, fn});
+}
+
+/* ---------- 시험 결과 (OMR 답안지) ---------- */
+function renderSingle(s, strat, r, opt){
+  opt = opt || {};
+  const k = s.known;
+  const counts = [1, 2, 3, 4, 5].map(v => r.key.filter(x => x === v).length);
+  const orow = i => {
+    const st = r.status[i], mine = r.mine[i], ans = r.key[i], ok = st !== 'miss';
+    let b = '';
+    for (let j = 1; j <= 5; j++) b += '<span class="ob' + (j === mine ? ' mk' : '') + (!ok && j === ans ? ' fix' : '') + '">' + j + '</span>';
+    const label = (i + 1) + '번 문제, 내 답 ' + mine + (ok ? ', 맞음' : ', 틀림, 정답 ' + ans) + (st === 'known' ? ' (아는 문제)' : '');
+    return '<div class="orow ' + st + '" style="--i:' + i + '" role="group" aria-label="' + label + '"><span class="onum ' + (ok ? 'o' : 'x') + '">' + (i + 1) + '</span>' + b + '</div>';
+  };
+  const th = '<div class="omr-th"><span>문항</span>' + [1, 2, 3, 4, 5].map(v => '<span>' + v + '</span>').join('') + '</div>';
+  const half = a => '<div class="omr-col">' + th + Array.from({length: 10}, (_, t) => orow(a + t)).join('') + '</div>';
+  const omr = '<div class="omr" role="group" aria-label="OMR 답안지"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>';
+  const brk = k === 0
+    ? '20문제를 모두 찍어서 ' + r.guessHits + '개 맞혔어요.'
+    : '맞힌 ' + r.hits + '문제 = 아는 문제 ' + k + '개 + 찍어서 맞힌 ' + r.guessHits + '개 (찍은 ' + (N - k) + '문제 중)';
+  const keys = counts.map((c, i) => '<li class="' + (strat === 'one' && s.one === i + 1 ? 'on' : '') + '">' + (i + 1) + '번 ' + c + '개</li>').join('');
+  $('single').innerHTML =
+    '<h2>' + (opt.ranked ? '순위 도전 결과' : '시험 1번 본 결과 (연습)') + '</h2>' +
+    '<p class="cond">' + esc(condText(s, strat, true)) + '</p>' +
+    '<div class="score"><span class="num">' + r.score + '</span><span class="unit">점</span><span class="of">/ 100점</span></div>' +
+    '<p class="brk">' + brk + '</p>' +
+    (opt.note ? '<p class="saved">' + opt.note + '</p>' : '') +
+    omr +
+    '<ul class="legend"><li><span class="lg lg-mk"></span>내가 마킹한 답</li><li><span class="lg lg-o"></span>맞음</li><li><span class="lg lg-x"></span>틀림</li><li><span class="lg lg-fix"></span>정답 칸</li><li><span class="sw"></span>아는 문제</li></ul>' +
+    '<p class="keys-h">이번 시험의 정답 분포' + (strat === 'one' ? ' (찍은 ' + s.one + '번 표시)' : '') + '</p>' +
+    '<ul class="keys">' + keys + '</ul>';
+}
+function showRecord(rec, note, ranked){
+  renderSingle({known: rec.k, layout: 'equal', one: rec.one || 3}, rec.strat, fromRecord(rec), {ranked: ranked !== false, note});   // 순위 시험의 정답은 늘 각 번호 4개씩이에요
+  reveal($('single'));
+}
+
+/* ---------- 반복 실험 ---------- */
+function renderBatch(s, list, n){
+  drawn = [];
+  const k = s.known, th = theory(k), multi = list.length > 1;
+  let maxP = 0;
+  const items = list.map(it => {
+    const counts = bins(it.scores);
+    maxP = Math.max(maxP, Math.max.apply(null, counts) / n * 100);
+    return {strat: it.strat, counts, st: stats(it.scores)};
+  });
+  const step = niceStep(maxP), ymax = Math.max(step, Math.ceil(maxP / step - 1e-9) * step);
+  const rows = items.map(it =>
+    '<tr><td>' + esc(stratName(it.strat, s.one)) + '</td><td>' + it.st.mean.toFixed(1) + '점</td><td>' + it.st.min + '점</td><td>' + it.st.max + '점</td></tr>').join('');
+  const figs = items.map((it, i) =>
+    '<figure>' + (multi ? '<figcaption>' + esc(stratName(it.strat, s.one)) + '</figcaption>' : '') + '<div class="hist" id="h' + i + '"></div></figure>').join('');
+  $('batch').innerHTML =
+    '<h2>' + (multi ? '세 가지 찍는 방법 비교' : n.toLocaleString('ko-KR') + '번 반복한 결과') + '</h2>' +
+    '<p class="cond">' + esc(multi ? '각 ' + n.toLocaleString('ko-KR') + '번 반복 · ' + condText(s, null, false) : n.toLocaleString('ko-KR') + '번 반복 · ' + condText(s, items[0].strat, true)) + '</p>' +
+    '<div class="tbl-wrap"><table class="tbl num"><thead><tr><th>찍는 방법</th><th>평균</th><th>최저</th><th>최고</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    figs +
+    '<p class="note">금색 점선은 이론 평균(20 + 4 × 아는 문제 수 = ' + th + '점), 분홍 ▲는 이번 반복의 실제 평균이에요. 세로축은 상대도수(%)' + (multi ? '이고 세 그래프의 눈금이 같아요' : '예요') + '.</p>';
+  items.forEach((it, i) => {
+    mountHist($('h' + i), it.counts, n, {
+      H: multi ? 200 : 250, ymax, step, theory: th, mean: it.st.mean,
+      label: stratName(it.strat, s.one) + ' 점수 분포, 평균 ' + it.st.mean.toFixed(1) + '점'
+    });
+  });
+}
+
+/* ---------- 순위 도전 ---------- */
+let busy = false;
+const rmsg = t => { $('rankMsg').textContent = t || ''; };
+function syncRank(){
+  const btn = $('rankBtn'), hint = $('rankHint'), who = $('who');
+  $('testnote').hidden = !TEST();
+  const k = +val('known');
+  if (ME) who.innerHTML = esc(S.school) + ' · <b>' + esc(ME.nick) + '</b> · ' + S.year + '학년도';
+  else who.innerHTML = '내 정보를 입력하면 우리 학교 순위에 도전할 수 있어요. <button type="button" class="linkbtn" id="meBtn">내 정보 입력</button>';
+  const done = !TEST() && MINE[k];
+  btn.disabled = busy || !ME;
+  btn.textContent = busy ? '채점하는 중…' : done ? '내 기록 보기 (' + kLabel(k) + ')' : '순위 도전하기 (' + kLabel(k) + ')';
+  hint.textContent = ME
+    ? '아는 문제 수마다 한 번만 도전할 수 있어요. 찍는 방법은 위에서 고른 대로 서버가 시험을 만들어 채점해요. 정답 배치는 늘 각 번호 4개씩이에요. 내 정보를 바꾸려면 오른쪽 위 이름표를 눌러 주세요.'
+    : '순위에는 별명으로 올라가요. 실명과 학번은 올라가지 않아요.';
+}
+async function challenge(){
+  if (busy) return;
+  rmsg('');
+  const c = cur(), k = c.s.known;
+  if (!ME){ rmsg('내 정보를 먼저 입력해 주세요.'); openMeDialog(); return; }
+  if (!TEST() && MINE[k]){ showRecord(MINE[k], '이 조건의 내 기록이에요. ' + MINE[k].rank + '위 · 한 번만 도전할 수 있어요.'); setBoard(k); return; }
+  busy = true; syncRank();
+  try {
+    if (TEST()){
+      const s = {known: k, layout: 'equal', one: c.s.one}, r = exam(s, c.strat);
+      const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: c.strat, one: c.strat === 'one' ? c.s.one : 0, score: r.score};
+      const l = localList(k, S.year, S.school); l.push(rec);
+      try { localStorage.setItem(lkey(k, S.year, S.school), JSON.stringify(l)); } catch (e) {}
+      lastId = rec.id;
+      renderSingle(s, c.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. (' + ties(l).find(x => x.id === rec.id).rank + '위)'});
+      reveal($('single')); setBoard(k);
+    } else {
+      const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, strat: c.strat, one: c.s.one }, 12000);
+      showRecord({ k, strat: c.strat, one: c.s.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, '순위에 올렸어요! <b>' + j.rank + '위</b> (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' 기록 ' + j.total + '개 중)');
+      await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.cls = defCls(); setBoard(k);
+    }
+  } catch (e) {
+    if (e && e.status === 409 && e.body && e.body.rec){ MINE[k] = e.body.rec; showRecord(e.body.rec, '이미 도전한 조건이에요. 내 기록은 ' + e.body.rec.rank + '위예요. 한 번만 도전할 수 있어요.'); setBoard(k); }
+    else if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
+    else if (e && e.status === 400) rmsg('서버가 이 기록을 받지 않았어요. 내 정보에서 별명과 학교를 확인해 주세요.');
+    else rmsg('순위에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. (기록은 남지 않았어요.)');
+  } finally { busy = false; syncRank(); }
+}
+
+/* ---------- 순위표 ---------- */
+const B = { k: 0, offset: 0, rows: [], total: 0, cls: '', classes: [], matches: null, q: '', seq: 0, err: false, loading: true };
+const clsLabel = c => c.gr + '학년 ' + c.cl + '반';
+function boardShell(){
+  const tabs = KS.map(k => '<button type="button" class="tab" data-k="' + k + '" aria-pressed="' + (k === B.k) + '">' + (k === 0 ? '모두 찍기' : k + '개') + '</button>').join('');
+  const sch = ME ? '<label>순위를 볼 학교 <select id="bSchool">' + LIST.schools.map(x => '<option value="' + esc(x) + '"' + (x === viewSchool() ? ' selected' : '') + '>' + esc(x) + (x === S.school ? ' (우리 학교)' : '') + '</option>').join('') + '</select></label>' : '';
+  $('rank').innerHTML = '<h2>순위표</h2><p class="cond">아는 문제 수별 순위 · 정답은 각 번호 4개씩 · 점수가 높을수록 위 · 같은 점수는 공동 순위</p>' +
+    '<div class="tabs" role="group" aria-label="순위표 선택"><span class="tl">아는 문제</span>' + tabs + '</div>' +
+    '<div class="rtools">' + sch + '<span id="clsbox"></span></div><div id="boardbody"><p class="empty">불러오는 중…</p></div>';
+}
+function setBoard(k){ B.k = k; B.q = ''; B.matches = null; B.classes = []; B.cls = defCls(); boardShell(); loadBoard(0); }
+async function loadBoard(offset){
+  const t = ++B.seq, k = B.k; B.offset = offset; B.matches = null; B.err = false;
+  try {
+    let pg;
+    if (TEST()){
+      const all = ties(localList(k, S.year, viewSchool()).filter(r => !B.cls || B.cls === r.gr + '-' + r.cl));
+      pg = { rows: all.slice(offset, offset + CONFIG.pageSize), total: all.length };
+    } else {
+      const q = CONFIG.coinUrl + '?game=gf' + k + '&year=' + S.year + '&school=' + encodeURIComponent(viewSchool()) + (B.cls ? '&cls=' + encodeURIComponent(B.cls) : '');
+      let j = null;
+      for (let i = 0; i < 2 && !j; i++){ try { j = await http('GET', q + '&offset=' + offset + '&limit=' + CONFIG.pageSize, null, 9000); } catch (e) { if (i) throw e; } }   // 서버가 깨어나는 데 오래 걸릴 수 있어서 한 번 더 해 봐요
+      if (!j || !Array.isArray(j.top)) throw new Error('bad');
+      pg = { rows: j.top, total: j.total == null ? j.top.length : j.total };
+    }
+    if (t !== B.seq) return;
+    B.rows = pg.rows; B.total = pg.total;
+  } catch (e) { if (t !== B.seq) return; B.err = true; B.rows = []; B.total = 0; }
+  paintBoard();
+  loadClasses(t, k);
+}
+async function loadClasses(t, k){   // 반 고르기 목록 (학년·반별 기록 수)
+  let list = [];
+  try {
+    if (TEST()){
+      const m = {}; localList(k, S.year, viewSchool()).forEach(r => { if (Number.isInteger(r.gr) && Number.isInteger(r.cl)) { const key = r.gr + '-' + r.cl; m[key] = (m[key] || 0) + 1; } });
+      list = Object.keys(m).map(x => { const a = x.split('-'); return { gr: +a[0], cl: +a[1], n: m[x] }; }).sort((p, q) => p.gr - q.gr || p.cl - q.cl);
+    } else {
+      const j = await http('GET', CONFIG.coinUrl + '?game=gf' + k + '&year=' + S.year + '&school=' + encodeURIComponent(viewSchool()) + '&classes=1', null, 8000);
+      if (j && Array.isArray(j.classes)) list = j.classes;
+    }
+  } catch (e) { return; }
+  if (t !== B.seq || k !== B.k) return;
+  B.classes = list; paintClsBox();
+}
+function paintClsBox(){
+  const el = $('clsbox'); if (!el) return;
+  const cl = B.classes.slice();
+  if (B.cls && !cl.some(c => c.gr + '-' + c.cl === B.cls)){ const a = B.cls.split('-').map(Number); cl.push({ gr: a[0], cl: a[1], n: 0 }); }
+  el.innerHTML = cl.length ? '<label>반 <select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>' + cl.map(c => { const v = c.gr + '-' + c.cl; return '<option value="' + v + '"' + (v === B.cls ? ' selected' : '') + '>' + esc(clsLabel(c)) + ' (' + c.n + ')</option>'; }).join('') + '</select></label>' : '';
+}
+function isMine(r){ return !!r.id && (r.id === lastId || Object.keys(MINE).some(k => MINE[k] && MINE[k].id === r.id)); }
+function paintBoard(){
+  const el = $('boardbody'); if (!el) return;
+  const PS = CONFIG.pageSize, list = B.matches || B.rows, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
+  if (B.err){ el.innerHTML = '<p class="empty">순위표를 불러오지 못했어요. 잠시 뒤에 다시 눌러 주세요. <button type="button" class="linkbtn" id="retryBoard">다시 불러오기</button></p>'; return; }
+  const rows = list.map((r, i) => {
+    const rank = r.rank != null ? r.rank : B.offset + i + 1, me = isMine(r);
+    return '<tr class="' + (rank === 1 ? 'r1 ' : '') + (me ? 'me' : '') + '"><td class="rk">' + rank + '</td><td>' + esc(r.name) + (me ? '<i class="you">나</i>' : '') + '</td><td class="big">' + r.score + '점</td><td>' + esc(stratShort(r)) + '</td></tr>';
+  }).join('');
+  const m = !TEST() && MINE[B.k];
+  const mine = m ? '<p class="mine">내 기록 ' + m.score + '점 · ' + m.rank + '위 <button type="button" class="linkbtn" id="seeMine">내 답안지 보기</button></p>' : '';
+  el.innerHTML =
+    '<p class="rnote">' + S.year + '학년도 · ' + esc(viewSchool()) + (B.cls ? ' · ' + esc(B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반') : '') + ' · ' + esc(kLabel(B.k)) + ' · 기록 ' + B.total + '개' + (TEST() ? ' · 테스트 모드(이 컴퓨터 기록)' : '') + '</p>' +
+    '<div class="rtools"><input type="text" id="fq" maxlength="8" placeholder="별명 찾기" value="' + esc(B.q) + '" aria-label="별명 찾기"><button type="button" class="ghost" id="fbtn" style="padding:7px 12px">찾기</button></div>' +
+    '<div class="tablewrap"><table class="tbl"><thead><tr><th>순위</th><th>별명</th><th>점수</th><th>찍는 방법</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="4" class="empty">' + (B.matches ? '찾는 별명이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!') + '</td></tr>') + '</tbody></table></div>' +
+    (B.matches ? '<button type="button" class="linkbtn" id="allBoard">전체 순위 보기</button>'
+      : '<div class="pager"><button type="button" data-o="' + Math.max(0, B.offset - PS) + '"' + (B.offset <= 0 ? ' disabled' : '') + '>← 이전</button><span>' + (Math.floor(B.offset / PS) + 1) + ' / ' + Math.max(1, Math.ceil(B.total / PS)) + '쪽</span><button type="button" data-o="' + Math.min(last, B.offset + PS) + '"' + (B.offset >= last ? ' disabled' : '') + '>다음 →</button></div>') +
+    mine;
+}
+async function findName(){
+  const q = cleanName($('fq').value); B.q = q;
+  if (!q){ B.matches = null; paintBoard(); return; }
+  try {
+    if (TEST()) B.matches = ties(localList(B.k, S.year, viewSchool()).filter(r => !B.cls || B.cls === r.gr + '-' + r.cl)).filter(r => String(r.name).includes(q)).slice(0, 50);
+    else {
+      const j = await http('GET', CONFIG.coinUrl + '?game=gf' + B.k + '&year=' + S.year + '&school=' + encodeURIComponent(viewSchool()) + (B.cls ? '&cls=' + encodeURIComponent(B.cls) : '') + '&q=' + encodeURIComponent(q), null, 8000);
+      B.matches = (j && j.matches) || [];
+    }
+  } catch (e) { B.matches = []; }
+  paintBoard();
+}
+
+/* ---------- 이벤트 ---------- */
+document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('change', () => { $('numrow').hidden = val('strat') !== 'one'; }));
+document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => { syncRank(); setBoard(+val('known')); }));
+$('run1').addEventListener('click', () => {
+  const c = cur();
+  renderSingle(c.s, c.strat, exam(c.s, c.strat));
+  reveal($('single'));
+});
+document.querySelectorAll('.btn[data-n]').forEach(b => b.addEventListener('click', () => {
+  const c = cur(), n = +b.dataset.n;
+  renderBatch(c.s, [{strat: c.strat, scores: runMany(c.s, c.strat, n)}], n);
+  reveal($('batch'));
+}));
+$('cmp').addEventListener('click', () => {
+  const c = cur(), n = 1000;
+  renderBatch(c.s, ['free', 'regular', 'one'].map(st => ({strat: st, scores: runMany(c.s, st, n)})), n);
+  reveal($('batch'));
+});
+$('rankBtn').addEventListener('click', challenge);
+$('who').addEventListener('click', e => { if (e.target.id === 'meBtn') openMeDialog(); });
+$('rank').addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.classList.contains('tab')) setBoard(+t.dataset.k);
+  else if (t.dataset.o != null && !t.disabled) loadBoard(Math.max(0, parseInt(t.dataset.o, 10) || 0));
+  else if (t.id === 'fbtn') findName();
+  else if (t.id === 'allBoard'){ B.q = ''; B.matches = null; loadBoard(0); }
+  else if (t.id === 'retryBoard') loadBoard(B.offset);
+  else if (t.id === 'seeMine'){ const m = MINE[B.k]; if (m) showRecord(m, '이 조건의 내 기록이에요. ' + m.rank + '위'); }
+});
+$('rank').addEventListener('change', e => {
+  const el = e.target;
+  if (el.id === 'clsSel'){ B.cls = el.value; B.q = ''; B.matches = null; loadBoard(0); }
+  else if (el.id === 'bSchool'){ S.vschool = el.value === S.school ? null : el.value; B.q = ''; B.cls = defCls(); B.classes = []; boardShell(); loadBoard(0); }
+});
+$('rank').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'fq') findName(); });
+if (window.MtryuMeSync) MtryuMeSync.watch(refreshMe);
+
+let rq = 0, lastW = 0;
+new ResizeObserver(() => {
+  const w = $('results').clientWidth;
+  if (w === lastW) return;
+  lastW = w;
+  cancelAnimationFrame(rq);
+  rq = requestAnimationFrame(() => drawn.forEach(d => d.fn()));
+}).observe($('results'));
+
+/* ---------- 시작: 예시 시험 1번과 1000번 반복, 순위표 ---------- */
+(async function init(){
+  const c0 = cur();
+  renderSingle(c0.s, c0.strat, exam(c0.s, c0.strat));
+  renderBatch(c0.s, [{strat: c0.strat, scores: runMany(c0.s, c0.strat, 1000)}], 1000);
+  syncRank(); boardShell();
+  await loadList(); await syncMe(); enforceMine(); await refreshMine();
+  syncRank(); setBoard(+val('known'));
+})();
+})();
+</script>
+</body>
+</html>

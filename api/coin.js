@@ -2,6 +2,7 @@
 // 강 건너기(api/scores.js)와 같은 Upstash Redis, 같은 학년도·학교 목록(api/config.js)을 써요.
 // 환경 변수는 강 건너기에서 이미 넣은 것을 그대로 쓰면 돼요. (새로 넣을 것 없어요)
 //
+// 골드핑거(gf0·gf5·gf10·gf15 = 아는 문제 0·5·10·15개)의 순위 읽기·삭제도 여기서 해요. 기록 저장(POST)은 /api/goldfinger 만 받아요.
 // game 값: run(연속 맞추기) · tune10 / tune5 / tune2(상대도수 줄타기, 상대도수 범위 0.5±0.10 / 0.05 / 0.02마다 따로) · spot(동전 조작 탐정) · bet(내기 시뮬레이터)
 //        · dalembert(달랑베르를 이겨라: 달랑베르(4·4·4)를 이긴 판의 던진 횟수. 던진 결과(seq)와 처음 배치(pl)를 보내면 서버가 다시 돌려서 확인해요)
 //
@@ -21,7 +22,7 @@ const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCl
 const { badName } = require('./_names');
 const C = require('./_coinlib');
 
-const GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert'];
+const GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert', 'gf0', 'gf5', 'gf10', 'gf15'];
 const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
 const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
@@ -145,6 +146,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      if (g.startsWith('gf')) return send(res, 400, { error: 'bad-game' });   // 골드핑거 기록은 /api/goldfinger 가 서버에서 시험을 만들어 채점해요
       const b = body;
       if (!b || !(await validYearSchool(b.year, b.school))) return send(res, 400, { error: 'bad-request' });
       // 같은 IP에서 1분에 120번까지 (학교는 같은 IP를 쓰는 경우가 많아서 넉넉하게)
