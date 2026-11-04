@@ -26,8 +26,9 @@ function buildExperiment(b, badName) {
   if (cases.length < MIN_CASES || cases.length > MAX_CASES) return null;
   if (cases.some(c => !c || badName(c))) return null;
   if (new Set(cases).size !== cases.length) return null;                 // 같은 이름의 경우가 둘이면 결과를 읽을 수 없어요
-  if (w.some(x => !Number.isFinite(x) || x <= 0 || x > 1e6)) return null;
+  if (w.some(x => !Number.isFinite(x) || x < 0 || x > 1)) return null;   // 상대도수는 0 이상 1 이하
   const sum = w.reduce((a, c) => a + c, 0);
+  if (!(sum > 0)) return null;
   const p = w.map(x => x / sum);
   return { tool, cases, p };
 }
@@ -43,7 +44,8 @@ function roll(p, count) {
   const cum = [];
   let acc = 0;
   for (let i = 0; i < p.length; i++) { acc += p[i]; cum.push(acc); }
-  cum[cum.length - 1] = Infinity;   // 부동소수점 오차로 마지막 경우가 빠지는 일이 없게
+  let lastPos = p.length - 1; while (lastPos > 0 && !(p[lastPos] > 0)) lastPos--;
+  cum[lastPos] = Infinity;   // 부동소수점 오차로 마지막 경우가 빠지는 일이 없게 (상대도수 0인 경우는 절대 나오지 않아요)
   const rnd = new Uint32Array(count);
   crypto.randomFillSync(rnd);
   const out = new Uint8Array(count);

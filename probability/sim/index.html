@@ -235,7 +235,8 @@ function randU32(count) {
 function localRoll(p, count) {
   const cum = []; let a = 0;
   for (let i = 0; i < p.length; i++) { a += p[i]; cum.push(a); }
-  cum[cum.length - 1] = Infinity;
+  let lastPos = p.length - 1; while (lastPos > 0 && !(p[lastPos] > 0)) lastPos--;
+  cum[lastPos] = Infinity;   // 상대도수 0인 경우는 절대 나오지 않아요
   const r = randU32(count), out = new Uint8Array(count);
   for (let i = 0; i < count; i++) { const u = r[i] / 4294967296; let k = 0; while (u >= cum[k]) k++; out[i] = k; }
   return out;
@@ -353,7 +354,7 @@ function checkBuild() {
   if (S.mode === 'equal') p = S.cases.map(() => 1 / S.cases.length);
   else {
     const w = S.cases.map(c => parseW(c.w));
-    if (w.some(x => !(x > 0 && x <= 1))) errs.push('상대도수는 0보다 크고 1 이하인 수로 써 주세요. (예: 0.25 또는 1/4)');
+    if (w.some(x => !(x >= 0 && x <= 1))) errs.push('상대도수는 0 이상 1 이하인 수로 써 주세요. (예: 0.25 또는 1/4)');
     else {
       sum = w.reduce((a, c) => a + c, 0);
       if (Math.abs(sum - 1) > 0.001) errs.push('상대도수의 합이 1이 되어야 해요.');
@@ -1067,7 +1068,7 @@ app.addEventListener('click', async ev => {
   else if (a === 'fix') {
     const w = S.cases.map(c => parseW(c.w)), last = S.cases.length - 1;
     const others = w.slice(0, last).reduce((x, y) => x + (y > 0 ? y : 0), 0), rest = Math.round((1 - others) * 1e6) / 1e6;
-    if (rest > 0) { S.cases[last].w = String(rest); render(); } else toast('앞의 값들의 합이 이미 1 이상이에요. 값을 줄여 주세요.');
+    if (rest >= 0) { S.cases[last].w = String(rest); render(); } else toast('앞의 값들의 합이 이미 1 이상이에요. 값을 줄여 주세요.');
   }
   else if (a === 'start') startExperiment();
   else if (a === 'rebuild') { S.screen = 'build'; render(); }
