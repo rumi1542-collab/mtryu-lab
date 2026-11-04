@@ -53,6 +53,17 @@ fieldset.grp legend{padding:0;margin:0 0 8px;font-size:13px;font-weight:700;colo
 .opt input:checked + .face b{color:var(--purple)}
 .opt input:checked + .face b::after{content:" ✓"}
 .opt input:focus-visible + .face{outline:3px solid var(--pink);outline-offset:2px}
+.opt.box{position:relative;border:2px solid var(--line);border-radius:10px;background:var(--surface);transition:border-color .15s,background-color .15s}
+.opt.box:hover{border-color:var(--purple)}
+.opt.box:has(.head input:checked){border-color:var(--purple);background:var(--tint)}
+.opt.box .head{position:relative;display:block}
+.opt.box .head input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.opt.box .face,.opt.box:hover .face,.opt.box .head input:checked + .face{border-color:transparent;background:transparent}
+.opt.box .head input:focus-visible + .face{outline:3px solid var(--pink);outline-offset:-1px}
+.opt.box .numrow{margin:0;padding:0 12px 12px;gap:6px}
+.opt.box .chip span{width:34px;height:34px;font-size:15px}
+.chip input:disabled + span{opacity:.4}
+.chip input:disabled{cursor:not-allowed}
 .numrow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
 .numrow > span{font-size:13px;color:var(--muted);margin-right:2px}
 .chip{position:relative;display:block}
@@ -63,6 +74,9 @@ fieldset.grp legend{padding:0;margin:0 0 8px;font-size:13px;font-weight:700;colo
 .chip input:focus-visible + span{outline:3px solid var(--pink);outline-offset:2px}
 
 .actions{display:grid;gap:10px;margin-top:4px}
+.actions.two{grid-template-columns:2fr 1fr}
+.actions.two .ghost{padding:13px 8px;font-size:15px}
+.backrow{margin:0 0 -14px}
 button{font-family:var(--f-body);cursor:pointer}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
 button:disabled{cursor:not-allowed;opacity:.55}
@@ -118,7 +132,9 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .ob{display:grid;place-items:center;width:100%;max-width:28px;height:19px;margin:0 auto;border:1.5px solid var(--omr-line);border-radius:50%;font-size:11px;line-height:1;font-variant-numeric:tabular-nums}
 .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
 .omr.draft .ob{cursor:pointer;background:transparent;font-family:inherit;color:inherit;padding:0}
-.omr.draft .ob:hover{border-color:var(--purple)}
+.omr.draft .ob:hover:not(:disabled){border-color:var(--purple)}
+.omr.draft .ob:disabled{cursor:not-allowed;opacity:.5}
+.omr.draft .orow.known .ob:disabled{opacity:.45}
 .omr.draft .ob:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
 .omr.draft .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
 .ob.fix{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--omr-red)}
@@ -176,6 +192,19 @@ select,input[type=text]{height:38px;border:2px solid var(--line);border-radius:1
 .mine{margin:10px 0 0;font-size:14px;font-weight:700}
 .empty{margin:0;padding:12px 0;font-size:14px;color:var(--muted)}
 
+.pat{display:grid;gap:3px;min-width:206px}
+.pat small{font-size:11px;color:var(--muted)}
+.pat .pl{display:flex;gap:2px}
+.pat i{display:grid;place-items:center;width:19px;height:21px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font:500 11px var(--f-body);font-style:normal;font-variant-numeric:tabular-nums}
+.pat i.k{background:var(--pink-soft);border-color:var(--pink-line)}
+.pat i.h{background:var(--purple);border-color:var(--purple);color:#fff;font-weight:700}
+.patnote{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.patnote i{display:inline-block;width:12px;height:12px;margin:0 3px -2px 0;border:1px solid var(--line);border-radius:3px;vertical-align:baseline}
+.patnote i.k{background:var(--pink-soft);border-color:var(--pink-line)}
+.patnote i.h{background:var(--purple);border-color:var(--purple)}
+.nextrow{margin:12px 0 0}
+.nextrow .primary{width:auto;padding:11px 20px}
+
 /* 반복 실험 */
 .tbl-wrap{overflow-x:auto}
 .tbl.num th,.tbl.num td{text-align:right}
@@ -207,6 +236,7 @@ svg .mk{fill:var(--pink);stroke:var(--halo);stroke-width:1}
     <p class="lead">20문제, 문제당 5점이에요. 아는 문제는 맞히고 나머지는 찍을 때, 찍는 방법에 따라 점수가 어떻게 달라지는지 실험해 보세요. 정답은 1~5번이 각각 4개씩 들어 있어요.</p>
   </header>
 
+  <div id="examPage">
   <div class="layout">
     <section class="controls" aria-label="시험 조건">
       <p class="testnote" id="testnote" hidden>테스트 모드예요. 순위 기록은 이 컴퓨터에만 저장되고, 서버에는 아무것도 올라가지 않아요.</p>
@@ -214,71 +244,58 @@ svg .mk{fill:var(--pink);stroke:var(--halo);stroke-width:1}
         <legend>아는 문제</legend>
         <div class="opts two">
           <label class="opt"><input type="radio" name="known" value="0" checked><span class="face"><b>모두 찍기</b><small>20문제를 찍어요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="5"><span class="face"><b>5문제 알아요</b><small>나머지 15문제를 찍어요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="10"><span class="face"><b>10문제 알아요</b><small>나머지 10문제를 찍어요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="15"><span class="face"><b>15문제 알아요</b><small>나머지 5문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="5"><span class="face"><b>5문제 알아요</b><small>1~5번은 맞혀요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="10"><span class="face"><b>10문제 알아요</b><small>1~10번은 맞혀요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="15"><span class="face"><b>15문제 알아요</b><small>1~15번은 맞혀요</small></span></label>
         </div>
       </fieldset>
 
       <fieldset class="grp">
         <legend>찍는 방법</legend>
         <div class="opts">
-          <label class="opt"><input type="radio" name="strat" value="free" checked><span class="face"><b>내맘대로</b><small>문제마다 1~5 중에서 무작위로 골라요</small></span></label>
-          <label class="opt"><input type="radio" name="strat" value="regular"><span class="face"><b>규칙적</b><small>1, 2, 3, 4, 5 순서로 반복해요</small></span></label>
-          <label class="opt"><input type="radio" name="strat" value="one"><span class="face"><b>한 번호</b><small>찍는 문제는 모두 같은 번호로 써요</small></span></label>
-        </div>
-        <div class="numrow" id="numrow" hidden>
-          <span>찍을 번호</span>
-          <label class="chip"><input type="radio" name="one" value="1"><span>1</span></label>
-          <label class="chip"><input type="radio" name="one" value="2"><span>2</span></label>
-          <label class="chip"><input type="radio" name="one" value="3" checked><span>3</span></label>
-          <label class="chip"><input type="radio" name="one" value="4"><span>4</span></label>
-          <label class="chip"><input type="radio" name="one" value="5"><span>5</span></label>
-        </div>
-      </fieldset>
-
-      <fieldset class="grp">
-        <legend>정답 배치 (연습과 반복 실험)</legend>
-        <div class="opts two">
-          <label class="opt"><input type="radio" name="layout" value="equal" checked><span class="face"><b>각 번호 4개씩</b><small>1~5번이 정확히 4개씩</small></span></label>
-          <label class="opt"><input type="radio" name="layout" value="random"><span class="face"><b>완전 무작위</b><small>문제마다 1~5 무작위</small></span></label>
-        </div>
-      </fieldset>
-
-      <div class="actions">
-        <button type="button" class="primary" id="run1">시험 1번 보기 (연습)</button>
-        <div class="repeat">
-          <span>같은 조건으로 반복하기</span>
-          <div class="btns">
-            <button type="button" class="btn" data-n="100">100번</button>
-            <button type="button" class="btn" data-n="1000">1000번</button>
-            <button type="button" class="btn" data-n="10000">10000번</button>
+          <label class="opt"><input type="radio" name="strat" value="free"><span class="face"><b>내맘대로</b><small>문제마다 1~5 중에서 무작위로 골라요</small></span></label>
+          <div class="opt box" id="oneBox">
+            <label class="head"><input type="radio" name="strat" value="one"><span class="face"><b>한 번호</b><small>찍는 문제는 모두 같은 번호로 써요</small></span></label>
+            <div class="numrow" role="group" aria-label="찍을 번호">
+              <span>찍을 번호</span>
+              <label class="chip"><input type="radio" name="one" value="1" disabled><span>1</span></label>
+              <label class="chip"><input type="radio" name="one" value="2" disabled><span>2</span></label>
+              <label class="chip"><input type="radio" name="one" value="3" checked disabled><span>3</span></label>
+              <label class="chip"><input type="radio" name="one" value="4" disabled><span>4</span></label>
+              <label class="chip"><input type="radio" name="one" value="5" disabled><span>5</span></label>
+            </div>
           </div>
         </div>
-        <button type="button" class="ghost" id="cmp">세 가지 찍는 방법 비교 (각 1000번)</button>
-      </div>
+      </fieldset>
 
-      <div class="rankbox">
-        <h3>순위 도전</h3>
-        <p class="who" id="who"></p>
-        <button type="button" class="hot" id="rankBtn" disabled>순위 도전하기</button>
-        <p class="hint" id="rankHint"></p>
-        <p class="msg" id="rankMsg" role="status"></p>
+      <p class="who" id="who"></p>
+      <div class="actions two">
+        <button type="button" class="primary" id="run1">시험 보기</button>
+        <button type="button" class="ghost" id="resetBtn">초기화</button>
       </div>
+      <p class="hint" id="rankHint"></p>
+      <p class="msg" id="rankMsg" role="status"></p>
     </section>
 
     <div class="results" id="results">
       <section class="sec" id="single" aria-live="polite"></section>
+    </div>
+  </div>
+  </div>
+
+  <div id="rankpage" hidden>
+    <div class="results" id="results2">
+      <div class="backrow"><button type="button" class="ghost" data-go="exam">← 시험 화면으로</button></div>
       <section class="sec" id="rank"></section>
       <section class="sec" id="batch"></section>
       <section class="sec think">
         <h2>생각해 볼 문제</h2>
         <ol>
-          <li>아는 문제가 0개일 때 세 가지 찍는 방법의 평균을 비교해 보세요. 평균이 달라지나요?</li>
-          <li>'한 번호'로 찍으면 점수가 거의 흔들리지 않는 조건은 무엇일까요? 아는 문제 수와 정답 배치를 바꿔 가며 찾아보세요.</li>
+          <li>아는 문제가 0개일 때 '내맘대로'와 '한 번호'의 평균을 비교해 보세요. 평균이 달라지나요?</li>
+          <li>'한 번호'로 찍으면 점수가 거의 흔들리지 않는 조건은 무엇일까요? 아는 문제 수를 바꿔 가며 찾아보세요.</li>
           <li>아는 문제가 5개씩 늘면 평균은 몇 점씩 늘어날까요? 이론 평균을 식으로 나타내 보세요.</li>
           <li>한 번 본 점수와 1000번의 평균 중에서 어느 쪽으로 찍는 방법을 비교해야 할까요? 이유도 말해 보세요.</li>
-          <li>순위표에서 위쪽에 있는 친구들이 쓴 찍는 방법을 살펴보세요. 순위는 방법의 결과일까요, 운의 결과일까요?</li>
+          <li>순위표에서 위쪽에 있는 친구들의 찍은 모양을 살펴보세요. 순위는 방법의 결과일까요, 운의 결과일까요?</li>
         </ol>
       </section>
     </div>
@@ -314,9 +331,7 @@ function guessFor(strat, one, i){
 }
 function exam(s, strat, draft){
   const key = makeKey(s.layout);
-  const order = shuffle(Array.from({length: N}, (_, i) => i));
-  const isKnown = new Array(N).fill(false);
-  for (let t = 0; t < s.known; t++) isKnown[order[t]] = true;
+  const isKnown = Array.from({length: N}, (_, i) => i < s.known);   // 아는 문제는 앞 번호부터 (5문제면 1~5번)
   const mine = [], status = [];
   let hits = 0, guessHits = 0;
   for (let i = 0; i < N; i++){
@@ -349,7 +364,10 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rid = () => Math.random().toString(36).slice(2, 10);
 const val = name => document.querySelector('input[name=' + name + ']:checked').value;
-const cur = () => ({s: {known: +val('known'), layout: val('layout'), one: +val('one')}, strat: val('strat')});
+const pick = name => { const e = document.querySelector('input[name=' + name + ']:checked'); return e ? e.value : ''; };
+const cur = () => ({s: {known: +val('known'), layout: 'equal', one: +val('one')}, strat: pick('strat') || 'free'});
+// 마킹을 보고 찍는 방법 이름을 정해요 (서버와 같은 규칙): 찍은 문제가 모두 같은 번호면 한 번호, 아니면 내맘대로
+const stratOfMarks = (marks, k) => { const g = marks.filter((v, i) => i >= k); const one = g.length && g.every(v => v === g[0]) ? g[0] : 0; return { strat: one ? 'one' : 'free', one }; };
 const stratName = (strat, one) => strat === 'free' ? '내맘대로' : strat === 'regular' ? '규칙적 (1, 2, 3, 4, 5 반복)' : '한 번호 (' + one + '번)';
 const stratShort = r => r.strat === 'free' ? '내맘대로' : r.strat === 'regular' ? '규칙적' : r.strat === 'one' ? '한 번호 ' + r.one + '번' : '';
 const kLabel = k => k === 0 ? '모두 찍기' : '아는 문제 ' + k + '개';
@@ -442,7 +460,7 @@ async function refreshMine() {
 async function refreshMe() {
   await syncMe(); enforceMine(); await refreshMine();
   S.vschool = null; B.cls = defCls(); B.classes = [];
-  syncRank(); setBoard(B.k);
+  syncRank(); if (!$('rankpage').hidden) setBoard(B.k);
 }
 function openMeDialog() { if (window.MtryuMe && window.MtryuMe.openDialog) window.MtryuMe.openDialog({ required: true }); }
 
@@ -494,7 +512,6 @@ function mountHist(host, counts, n, o){
 function renderSingle(s, strat, r, opt){
   opt = opt || {};
   const k = s.known;
-  const counts = [1, 2, 3, 4, 5].map(v => r.key.filter(x => x === v).length);
   const orow = i => {
     const st = r.status[i], mine = r.mine[i], ans = r.key[i], ok = st !== 'miss';
     let b = '';
@@ -508,39 +525,45 @@ function renderSingle(s, strat, r, opt){
   const brk = k === 0
     ? '20문제를 모두 찍어서 ' + r.guessHits + '개 맞혔어요.'
     : '맞힌 ' + r.hits + '문제 = 아는 문제 ' + k + '개 + 찍어서 맞힌 ' + r.guessHits + '개 (찍은 ' + (N - k) + '문제 중)';
-  const keys = counts.map((c, i) => '<li class="' + (strat === 'one' && s.one === i + 1 ? 'on' : '') + '">' + (i + 1) + '번 ' + c + '개</li>').join('');
   $('single').innerHTML =
-    '<h2>' + (opt.ranked ? '순위 도전 결과' : '시험 1번 본 결과 (연습)') + '</h2>' +
+    '<h2>' + '시험 결과' + '</h2>' +
     '<p class="cond">' + esc(condText(s, strat, true)) + '</p>' +
     '<div class="score"><span class="num">' + r.score + '</span><span class="unit">점</span><span class="of">/ 100점</span></div>' +
     '<p class="brk">' + brk + '</p>' +
     (opt.note ? '<p class="saved">' + opt.note + '</p>' : '') +
+    (opt.ranked ? '<p class="nextrow"><button type="button" class="primary" data-go="rank">순위표 보기 ➔</button></p>' : '') +
     omr +
-    '<ul class="legend"><li><span class="lg lg-mk"></span>내가 마킹한 답</li><li><span class="lg lg-o"></span>맞음</li><li><span class="lg lg-x"></span>틀림</li><li><span class="lg lg-fix"></span>정답 칸</li><li><span class="sw"></span>아는 문제</li></ul>' +
-    '<p class="keys-h">이번 시험의 정답 분포' + (strat === 'one' ? ' (찍은 ' + s.one + '번 표시)' : '') + '</p>' +
-    '<ul class="keys">' + keys + '</ul>';
+    '<ul class="legend"><li><span class="lg lg-mk"></span>내가 마킹한 답</li><li><span class="lg lg-o"></span>맞음</li><li><span class="lg lg-x"></span>틀림</li><li><span class="lg lg-fix"></span>정답 칸</li><li><span class="sw"></span>아는 문제</li></ul>';
 }
-/* 첫 화면: 빈 OMR 답안지. 찍는 방법을 고르면 답이 채워지고, 칸을 눌러 직접 바꿀 수도 있어요 */
-let draft = null;
+/* 첫 화면: 빈 OMR 답안지. 아는 문제(앞 번호부터)는 분홍색으로 잠기고, 나머지는 찍는 방법을 고르면 답이 적혀요. 칸을 눌러 직접 바꿀 수도 있어요 */
+let draft = null;   // 내가 마킹한 답 20칸 (0이면 비어 있어요)
+const knownN = () => +val('known');
 function fillDraft(){
-  const c = cur();
-  draft = Array.from({length: N}, (_, i) => guessFor(c.strat, c.s.one, i));
+  const st = pick('strat'), one = +val('one');
+  draft = st ? Array.from({length: N}, () => st === 'one' ? one : rnd(5) + 1) : null;
   renderBlank();
 }
 function renderBlank(){
+  const k = knownN();
   const orow = i => {
+    const kn = i < k;
     let b = '';
-    for (let j = 1; j <= 5; j++) b += '<button type="button" class="ob' + (draft && draft[i] === j ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '" aria-pressed="' + (!!draft && draft[i] === j) + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
-    return '<div class="orow" role="group" aria-label="' + (i + 1) + '번 문제"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
+    for (let j = 1; j <= 5; j++) {
+      const on = !kn && draft && draft[i] === j;
+      b += '<button type="button" class="ob' + (on ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '"' + (kn ? ' disabled' : '') + ' aria-pressed="' + on + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
+    }
+    return '<div class="orow' + (kn ? ' known' : '') + '" role="group" aria-label="' + (i + 1) + '번 문제' + (kn ? ' (아는 문제, 정답으로 채점해요)' : '') + '"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
   };
   const th = '<div class="omr-th"><span>문항</span>' + [1, 2, 3, 4, 5].map(v => '<span>' + v + '</span>').join('') + '</div>';
   const half = a => '<div class="omr-col">' + th + Array.from({length: 10}, (_, t) => orow(a + t)).join('') + '</div>';
+  const left = N - k;
   $('single').innerHTML =
     '<h2>OMR 답안지</h2>' +
-    '<p class="cond">' + (draft
-      ? '고른 찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. 아는 문제는 시험을 볼 때 정답으로 바뀌어요. 준비되면 <b>시험 1번 보기 (연습)</b>를 누르세요.'
-      : '왼쪽에서 아는 문제와 찍는 방법을 고르면 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.') + '</p>' +
-    '<div class="omr draft" role="group" aria-label="OMR 답안지 (칸을 눌러 답을 적어요)"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>';
+    '<p class="cond">' + (k ? '분홍색 1~' + k + '번은 아는 문제라서 정답으로 채점해요. ' : '') + (draft
+      ? '찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. 준비되면 <b>시험 보기</b>를 누르세요.'
+      : '왼쪽에서 찍는 방법을 고르면 ' + (k ? k + '번 이후의 ' : '') + left + '문제에 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.') + '</p>' +
+    '<div class="omr draft" role="group" aria-label="OMR 답안지 (칸을 눌러 답을 적어요)"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>' +
+    '<p class="nextrow"><button type="button" class="ghost" data-go="rank">순위표 보기 ➔</button></p>';
 }
 function showRecord(rec, note, ranked){
   renderSingle({known: rec.k, layout: 'equal', one: rec.one || 3}, rec.strat, fromRecord(rec), {ranked: ranked !== false, note});   // 순위 시험의 정답은 늘 각 번호 4개씩이에요
@@ -563,11 +586,11 @@ function renderBatch(s, list, n){
   const figs = items.map((it, i) =>
     '<figure>' + (multi ? '<figcaption>' + esc(stratName(it.strat, s.one)) + '</figcaption>' : '') + '<div class="hist" id="h' + i + '"></div></figure>').join('');
   $('batch').innerHTML =
-    '<h2>' + (multi ? '세 가지 찍는 방법 비교' : n.toLocaleString('ko-KR') + '번 반복한 결과') + '</h2>' +
-    '<p class="cond">' + esc(multi ? '각 ' + n.toLocaleString('ko-KR') + '번 반복 · ' + condText(s, null, false) : n.toLocaleString('ko-KR') + '번 반복 · ' + condText(s, items[0].strat, true)) + '</p>' +
+    '<h2>' + (multi ? '찍는 방법별 점수 분포' : n.toLocaleString('ko-KR') + '번 반복한 결과') + '</h2>' +
+    '<p class="cond">' + esc(multi ? '컴퓨터로 각 ' + n.toLocaleString('ko-KR') + '번 시험을 본 결과 · ' + condText(s, null, false) : n.toLocaleString('ko-KR') + '번 반복 · ' + condText(s, items[0].strat, true)) + '</p>' +
     '<div class="tbl-wrap"><table class="tbl num"><thead><tr><th>찍는 방법</th><th>평균</th><th>최저</th><th>최고</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     figs +
-    '<p class="note">금색 점선은 이론 평균(20 + 4 × 아는 문제 수 = ' + th + '점), 분홍 ▲는 이번 반복의 실제 평균이에요. 세로축은 상대도수(%)' + (multi ? '이고 세 그래프의 눈금이 같아요' : '예요') + '.</p>';
+    '<p class="note">금색 점선은 이론 평균(20 + 4 × 아는 문제 수 = ' + th + '점), 분홍 ▲는 이번 반복의 실제 평균이에요. 세로축은 상대도수(%)' + (multi ? '이고 두 그래프의 눈금이 같아요' : '예요') + '.</p>';
   items.forEach((it, i) => {
     mountHist($('h' + i), it.counts, n, {
       H: multi ? 200 : 250, ymax, step, theory: th, mean: it.st.mean,
@@ -576,50 +599,59 @@ function renderBatch(s, list, n){
   });
 }
 
-/* ---------- 순위 도전 ---------- */
+/* ---------- 시험 보기 (= 순위 기록) ---------- */
 let busy = false;
 const rmsg = t => { $('rankMsg').textContent = t || ''; };
 function syncRank(){
-  const btn = $('rankBtn'), hint = $('rankHint'), who = $('who');
+  const btn = $('run1'), hint = $('rankHint'), who = $('who');
   $('testnote').hidden = !TEST();
-  const k = +val('known');
+  const k = knownN();
   if (ME) who.innerHTML = esc(S.school) + ' · <b>' + esc(ME.nick) + '</b> · ' + S.year + '학년도';
-  else who.innerHTML = '내 정보를 입력하면 우리 학교 순위에 도전할 수 있어요. <button type="button" class="linkbtn" id="meBtn">내 정보 입력</button>';
+  else who.innerHTML = '내 정보를 입력하면 우리 학교 순위에 올라가요. <button type="button" class="linkbtn" id="meBtn">내 정보 입력</button>';
+  btn.disabled = busy;
+  btn.textContent = busy ? '채점하는 중…' : '시험 보기';
   const done = !TEST() && MINE[k];
-  btn.disabled = busy || !ME;
-  btn.textContent = busy ? '채점하는 중…' : done ? '내 기록 보기 (' + kLabel(k) + ')' : '순위 도전하기 (' + kLabel(k) + ')';
   hint.textContent = ME
-    ? '아는 문제 수마다 한 번만 도전할 수 있어요. 찍는 방법은 위에서 고른 대로 서버가 시험을 만들어 채점해요. 정답 배치는 늘 각 번호 4개씩이에요. 내 정보를 바꾸려면 오른쪽 위 이름표를 눌러 주세요.'
+    ? (done ? kLabel(k) + ' 시험은 이미 봤어요. 아는 문제 수마다 한 번만 볼 수 있어요.' : '시험 보기를 누르면 서버가 정답을 만들어 채점하고, 점수가 바로 순위표에 올라가요. 아는 문제 수마다 한 번만 볼 수 있어요.')
     : '순위에는 별명으로 올라가요. 실명과 학번은 올라가지 않아요.';
 }
 async function challenge(){
   if (busy) return;
   rmsg('');
-  const c = cur(), k = c.s.known;
+  const k = knownN();
   if (!ME){ rmsg('내 정보를 먼저 입력해 주세요.'); openMeDialog(); return; }
-  if (!TEST() && MINE[k]){ showRecord(MINE[k], '이 조건의 내 기록이에요. ' + MINE[k].rank + '위 · 한 번만 도전할 수 있어요.'); setBoard(k); return; }
+  if (!TEST() && MINE[k]){ showRecord(MINE[k], '이미 시험을 본 조건이에요. 내 기록은 ' + MINE[k].rank + '위예요. 한 번만 볼 수 있어요.'); return; }
+  const marks = Array.from({length: N}, (_, i) => i < k ? 0 : (draft && draft[i]) || 0);
+  if (marks.some((v, i) => i >= k && !v)){ rmsg('아직 답을 적지 않은 문제가 있어요. 찍는 방법을 고르거나 칸을 눌러 답을 적어 주세요.'); return; }
   busy = true; syncRank();
   try {
     if (TEST()){
-      const s = {known: k, layout: 'equal', one: c.s.one}, r = exam(s, c.strat);
-      const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: c.strat, one: c.strat === 'one' ? c.s.one : 0, score: r.score};
+      const sm = stratOfMarks(marks, k), s = {known: k, layout: 'equal', one: sm.one}, r = exam(s, sm.strat, marks);
+      const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: sm.strat, one: sm.one, score: r.score, key: r.key.join(''), mine: r.mine.join(''), kn: r.status.map(x => x === 'known' ? '1' : '0').join('')};
       const l = localList(k, S.year, S.school); l.push(rec);
       try { localStorage.setItem(lkey(k, S.year, S.school), JSON.stringify(l)); } catch (e) {}
       lastId = rec.id;
-      renderSingle(s, c.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. (' + ties(l).find(x => x.id === rec.id).rank + '위)'});
-      reveal($('single')); setBoard(k);
+      renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. (' + ties(l).find(x => x.id === rec.id).rank + '위)'});
+      reveal($('single')); B.k = k;
     } else {
-      const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, strat: c.strat, one: c.s.one }, 12000);
-      showRecord({ k, strat: c.strat, one: c.s.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, '순위에 올렸어요! <b>' + j.rank + '위</b> (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' 기록 ' + j.total + '개 중)');
-      await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.cls = defCls(); setBoard(k);
+      const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, marks }, 12000);
+      showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, '순위에 올렸어요! <b>' + j.rank + '위</b> (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' 기록 ' + j.total + '개 중)');
+      await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.k = k; B.cls = defCls();
     }
   } catch (e) {
-    if (e && e.status === 409 && e.body && e.body.rec){ MINE[k] = e.body.rec; showRecord(e.body.rec, '이미 도전한 조건이에요. 내 기록은 ' + e.body.rec.rank + '위예요. 한 번만 도전할 수 있어요.'); setBoard(k); }
+    if (e && e.status === 409 && e.body && e.body.rec){ MINE[k] = e.body.rec; showRecord(e.body.rec, '이미 시험을 본 조건이에요. 내 기록은 ' + e.body.rec.rank + '위예요. 한 번만 볼 수 있어요.'); }
     else if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
     else if (e && e.status === 400) rmsg('서버가 이 기록을 받지 않았어요. 내 정보에서 별명과 학교를 확인해 주세요.');
     else rmsg('순위에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. (기록은 남지 않았어요.)');
   } finally { busy = false; syncRank(); }
 }
+function resetAll(){
+  document.querySelector('input[name=known][value="0"]').checked = true;
+  document.querySelectorAll('input[name=strat]').forEach(i => { i.checked = false; });
+  document.querySelector('input[name=one][value="3"]').checked = true;
+  syncOne(); draft = null; B.k = 0; rmsg(''); syncRank(); renderBlank();
+}
+const syncOne = () => { const on = pick('strat') === 'one'; document.querySelectorAll('input[name=one]').forEach(i => { i.disabled = !on; }); };
 
 /* ---------- 순위표 ---------- */
 const B = { k: 0, offset: 0, rows: [], total: 0, cls: '', classes: [], matches: null, q: '', seq: 0, err: false, loading: true };
@@ -631,7 +663,13 @@ function boardShell(){
     '<div class="tabs" role="group" aria-label="순위표 선택"><span class="tl">아는 문제</span>' + tabs + '</div>' +
     '<div class="rtools">' + sch + '<span id="clsbox"></span></div><div id="boardbody"><p class="empty">불러오는 중…</p></div>';
 }
-function setBoard(k){ B.k = k; B.q = ''; B.matches = null; B.classes = []; B.cls = defCls(); boardShell(); loadBoard(0); }
+function setBoard(k){ B.k = k; B.q = ''; B.matches = null; B.classes = []; B.cls = defCls(); boardShell(); loadBoard(0); drawDist(); }
+// 순위표 아래 분포: 같은 조건으로 컴퓨터가 두 가지 찍는 방법을 각각 1000번 본 결과
+function drawDist(){
+  if ($('rankpage').hidden) return;
+  const s = {known: B.k, layout: 'equal', one: 3}, n = 1000;
+  renderBatch(s, ['free', 'one'].map(st => ({strat: st, scores: runMany(s, st, n)})), n);
+}
 async function loadBoard(offset){
   const t = ++B.seq, k = B.k; B.offset = offset; B.matches = null; B.err = false;
   try {
@@ -673,23 +711,31 @@ function paintClsBox(){
   el.innerHTML = cl.length ? '<label>반 <select id="clsSel" aria-label="반별로 보기"><option value="">전체</option>' + cl.map(c => { const v = c.gr + '-' + c.cl; return '<option value="' + v + '"' + (v === B.cls ? ' selected' : '') + '>' + esc(clsLabel(c)) + ' (' + c.n + ')</option>'; }).join('') + '</select></label>' : '';
 }
 function isMine(r){ return !!r.id && (r.id === lastId || Object.keys(MINE).some(k => MINE[k] && MINE[k].id === r.id)); }
+// 찍은 모양: 20문제의 마킹을 10개씩 두 줄로 보여 줘요 (분홍: 아는 문제 · 보라: 찍어서 맞힌 문제)
+function pattern(r){
+  const mine = String(r.mine || ''), kn = String(r.kn || ''), key = String(r.key || '');
+  if (mine.length !== N) return '<span class="pat"><small>' + esc(stratShort(r)) + '</small></span>';
+  const line = a => Array.from({length: 10}, (_, t) => { const i = a + t, c = kn[i] === '1' ? 'k' : mine[i] === key[i] ? 'h' : ''; return '<i' + (c ? ' class="' + c + '"' : '') + '>' + esc(mine[i]) + '</i>'; }).join('');
+  return '<span class="pat"><small>' + esc(stratShort(r)) + '</small><span class="pl">' + line(0) + '</span><span class="pl">' + line(10) + '</span></span>';
+}
 function paintBoard(){
   const el = $('boardbody'); if (!el) return;
   const PS = CONFIG.pageSize, list = B.matches || B.rows, last = Math.max(0, Math.ceil(B.total / PS) - 1) * PS;
   if (B.err){ el.innerHTML = '<p class="empty">순위표를 불러오지 못했어요. 잠시 뒤에 다시 눌러 주세요. <button type="button" class="linkbtn" id="retryBoard">다시 불러오기</button></p>'; return; }
   const rows = list.map((r, i) => {
     const rank = r.rank != null ? r.rank : B.offset + i + 1, me = isMine(r);
-    return '<tr class="' + (rank === 1 ? 'r1 ' : '') + (me ? 'me' : '') + '"><td class="rk">' + rank + '</td><td>' + esc(r.name) + (me ? '<i class="you">나</i>' : '') + '</td><td class="big">' + r.score + '점</td><td>' + esc(stratShort(r)) + '</td></tr>';
+    return '<tr class="' + (rank === 1 ? 'r1 ' : '') + (me ? 'me' : '') + '"><td class="rk">' + rank + '</td><td>' + esc(r.name) + (me ? '<i class="you">나</i>' : '') + '</td><td class="big">' + r.score + '점</td><td>' + pattern(r) + '</td></tr>';
   }).join('');
   const m = !TEST() && MINE[B.k];
   const mine = m ? '<p class="mine">내 기록 ' + m.score + '점 · ' + m.rank + '위 <button type="button" class="linkbtn" id="seeMine">내 답안지 보기</button></p>' : '';
   el.innerHTML =
     '<p class="rnote">' + S.year + '학년도 · ' + esc(viewSchool()) + (B.cls ? ' · ' + esc(B.cls.split('-')[0] + '학년 ' + B.cls.split('-')[1] + '반') : '') + ' · ' + esc(kLabel(B.k)) + ' · 기록 ' + B.total + '개' + (TEST() ? ' · 테스트 모드(이 컴퓨터 기록)' : '') + '</p>' +
     '<div class="rtools"><input type="text" id="fq" maxlength="8" placeholder="별명 찾기" value="' + esc(B.q) + '" aria-label="별명 찾기"><button type="button" class="ghost" id="fbtn" style="padding:7px 12px">찾기</button></div>' +
-    '<div class="tablewrap"><table class="tbl"><thead><tr><th>순위</th><th>별명</th><th>점수</th><th>찍는 방법</th></tr></thead><tbody>' +
+    '<div class="tablewrap"><table class="tbl"><thead><tr><th>순위</th><th>별명</th><th>점수</th><th>찍은 모양</th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="4" class="empty">' + (B.matches ? '찾는 별명이 없어요.' : '아직 기록이 없어요. 첫 번째 주인공이 되어 보세요!') + '</td></tr>') + '</tbody></table></div>' +
     (B.matches ? '<button type="button" class="linkbtn" id="allBoard">전체 순위 보기</button>'
       : '<div class="pager"><button type="button" data-o="' + Math.max(0, B.offset - PS) + '"' + (B.offset <= 0 ? ' disabled' : '') + '>← 이전</button><span>' + (Math.floor(B.offset / PS) + 1) + ' / ' + Math.max(1, Math.ceil(B.total / PS)) + '쪽</span><button type="button" data-o="' + Math.min(last, B.offset + PS) + '"' + (B.offset >= last ? ' disabled' : '') + '>다음 →</button></div>') +
+    '<p class="patnote"><i class="k"></i>아는 문제 <i class="h"></i>찍어서 맞힌 문제 · 숫자는 마킹한 답이에요</p>' +
     mine;
 }
 async function findName(){
@@ -705,33 +751,34 @@ async function findName(){
   paintBoard();
 }
 
+/* ---------- 쪽 바꾸기: 시험 화면 ↔ 순위표 ---------- */
+function showPage(p){
+  const rk = p === 'rank';
+  $('examPage').hidden = rk; $('rankpage').hidden = !rk;
+  if (rk) setBoard(B.k);
+  window.scrollTo(0, 0);
+}
+const pageFromHash = () => location.hash === '#rank' ? 'rank' : 'exam';
+const go = p => { if (pageFromHash() === p) showPage(p); else location.hash = p; };
+window.addEventListener('hashchange', () => showPage(pageFromHash()));
+document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+
 /* ---------- 이벤트 ---------- */
-document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('change', () => { $('numrow').hidden = val('strat') !== 'one'; }));
-document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', fillDraft));
-document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (val('strat') === 'one') fillDraft(); }));
+document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', () => { syncOne(); fillDraft(); }));
+document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (pick('strat') === 'one') fillDraft(); }));
 $('single').addEventListener('click', e => {
-  const b = e.target.closest('.omr.draft .ob'); if (!b || !draft) return;
+  const b = e.target.closest('.omr.draft .ob'); if (!b || b.disabled) return;
   const q = +b.dataset.q, v = +b.dataset.v;
+  if (!draft) draft = new Array(N).fill(0);
   draft[q] = v;
   b.parentNode.querySelectorAll('.ob').forEach(x => { const on = +x.dataset.v === v; x.classList.toggle('mk', on); x.setAttribute('aria-pressed', on); });
 });
-document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => { syncRank(); setBoard(+val('known')); }));
-$('run1').addEventListener('click', () => {
-  const c = cur();
-  renderSingle(c.s, c.strat, exam(c.s, c.strat, draft));
-  reveal($('single'));
-});
-document.querySelectorAll('.btn[data-n]').forEach(b => b.addEventListener('click', () => {
-  const c = cur(), n = +b.dataset.n;
-  renderBatch(c.s, [{strat: c.strat, scores: runMany(c.s, c.strat, n)}], n);
-  reveal($('batch'));
+document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => {
+  const k = knownN(); B.k = k; rmsg(''); syncRank();
+  if (!TEST() && MINE[k]) showRecord(MINE[k], '이 조건은 이미 시험을 봤어요. 내 기록은 ' + MINE[k].rank + '위예요.'); else renderBlank();
 }));
-$('cmp').addEventListener('click', () => {
-  const c = cur(), n = 1000;
-  renderBatch(c.s, ['free', 'regular', 'one'].map(st => ({strat: st, scores: runMany(c.s, st, n)})), n);
-  reveal($('batch'));
-});
-$('rankBtn').addEventListener('click', challenge);
+$('run1').addEventListener('click', challenge);
+$('resetBtn').addEventListener('click', resetAll);
 $('who').addEventListener('click', e => { if (e.target.id === 'meBtn') openMeDialog(); });
 $('rank').addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t) return;
@@ -740,7 +787,7 @@ $('rank').addEventListener('click', e => {
   else if (t.id === 'fbtn') findName();
   else if (t.id === 'allBoard'){ B.q = ''; B.matches = null; loadBoard(0); }
   else if (t.id === 'retryBoard') loadBoard(B.offset);
-  else if (t.id === 'seeMine'){ const m = MINE[B.k]; if (m) showRecord(m, '이 조건의 내 기록이에요. ' + m.rank + '위'); }
+  else if (t.id === 'seeMine'){ const m = MINE[B.k]; if (m){ document.querySelector('input[name=known][value="' + m.k + '"]').checked = true; location.hash = 'exam'; showRecord(m, '이 조건의 내 기록이에요. ' + m.rank + '위'); syncRank(); } }
 });
 $('rank').addEventListener('change', e => {
   const el = e.target;
@@ -751,22 +798,22 @@ $('rank').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.i
 if (window.MtryuMeSync) MtryuMeSync.watch(refreshMe);
 
 let rq = 0, lastW = 0;
-new ResizeObserver(() => {
-  const w = $('results').clientWidth;
-  if (w === lastW) return;
+const rz = new ResizeObserver(() => {
+  const w = $('results').clientWidth + $('results2').clientWidth;
+  if (!w || w === lastW) return;
   lastW = w;
   cancelAnimationFrame(rq);
   rq = requestAnimationFrame(() => drawn.forEach(d => d.fn()));
-}).observe($('results'));
+});
+rz.observe($('results')); rz.observe($('results2'));
 
-/* ---------- 시작: 예시 시험 1번과 1000번 반복, 순위표 ---------- */
+/* ---------- 시작: 빈 OMR 답안지 ---------- */
 (async function init(){
-  const c0 = cur();
-  renderBlank();
-  renderBatch(c0.s, [{strat: c0.strat, scores: runMany(c0.s, c0.strat, 1000)}], 1000);
-  syncRank(); boardShell();
+  syncOne(); renderBlank(); syncRank(); boardShell();
+  if (pageFromHash() === 'rank') showPage('rank');
   await loadList(); await syncMe(); enforceMine(); await refreshMine();
-  syncRank(); setBoard(+val('known'));
+  syncRank();
+  if (pageFromHash() === 'rank') setBoard(B.k);
 })();
 })();
 </script>
