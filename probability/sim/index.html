@@ -622,7 +622,7 @@ const chartWidth = el => Math.max(300, Math.floor(el.clientWidth || 600));
 function paintOnce() {
   const box = $('#res1'); if (!box) return;
   const R = S.once; if (!R) { box.innerHTML = ''; box.dataset.sig = ''; return; }
-  const E = S.exp, names = E.names, m = names.length, live = !!E.remote, mineView = !live, showP = mineView && S.showTrue;
+  const E = S.exp, names = E.names, m = names.length, live = !!E.remote, mineView = !live, showP = live ? !!E.p : (mineView && S.showTrue);
   const maxCh = m > 5 ? 4 : 6, lab = names.map(n => short(n, maxCh));
   const sig = (showP ? 'p' : 'n') + m + (live ? 'L' : '');
   if (box.dataset.sig !== sig || !$('#lg1')) {
@@ -637,7 +637,7 @@ function paintOnce() {
     // 학생 화면: 왼쪽에 상대도수 변화 그래프, 오른쪽에 던진 결과와 도수 표를 작게 위아래로 (그래프 높이를 넘지 않게)
     const sideSec =
       '<div class="side"><div class="sidein"><section class="card"><h3><span id="h1"></span><small id="cap1"></small></h3><div class="logbox" id="lg1" tabindex="0" role="region" aria-label="던진 결과 목록. 스크롤해서 볼 수 있어요"></div></section>' +
-      '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th></tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div></div>';
+      '<section class="card"><h3>도수와 상대도수</h3><div class="scrolltbl"><table><thead><tr><th>경우</th><th>도수(번)</th><th>상대도수</th>' + (showP ? '<th>정한 확률</th>' : '') + '</tr></thead><tbody id="tb1"></tbody><tfoot id="tf1"></tfoot></table></div></section></div></div>';
     box.classList.remove('compact');
     box.innerHTML = live ? '<div class="livegrid">' + lineSec + sideSec + '</div>' : tables + '<div class="grid2">' + barSec + lineSec + '</div>';
   }
@@ -676,7 +676,7 @@ function drawCharts() {
     if (kind === 'sthist') { const st = S.play.stats; if (st) el.innerHTML = dotSvg(w, statsSel(st), S.play.sf); return; }
     if (kind === 'bar1' && S.once) el.innerHTML = barSvg(w, E.names, S.once.counts, E.names.map((_, i) => col(i, E.names.length)), '', '도수(번)', null, true);
     else if (kind === 'line1' && S.once) {
-      const L = lineSvg(w, S.once, E.names, E.p, !E.remote && S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
+      const L = lineSvg(w, S.once, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
       wireLine(el, L, w);
     } else if (kind === 'hist' && S.rep) {
       const R = S.rep, H = R.h || histBins(R.counts, R.n);
@@ -829,7 +829,8 @@ function openPlay(it, forceView, preview) {
   S.exp = { tool: it.tool, names: it.cases.slice(), p: null, remote: { id: it.id } };
   const view = forceView || ((it.mine || adminKey) ? 'stats' : 'live');
   S.play = { id: it.id, my: preview ? null : it.my || null, tally: preview ? null : it.tally || null, mine: !!it.mine, pick: null, busy: false, msg: '', err: false, view, sf: 'all', stats: null, preview: !!preview,
-    reveal: !preview && it.my ? { eq: it.eq, ok: it.ok, n: it.myN } : null };
+    reveal: !preview && it.my ? { eq: it.eq, ok: it.ok, n: it.myN, p: it.p } : null };
+  if (!preview && it.my && it.p) S.exp.p = it.p.slice();   // 판정한 뒤에는 만든 친구가 정한 확률을 보여 줘요
   liveReset(); S.once = null; S.rep = null; S.pick = 0; S.vis = null; S.ran = false; S.tab = 'once'; S.screen = 'play'; render(); window.scrollTo(0, 0);
   if (view === 'stats') loadStats();
 }
@@ -846,6 +847,7 @@ function judgeHtml() {
     const rv = P.reveal || {}, ok = !!rv.ok;
     return '<div class="card judge"><div class="reveal ' + (ok ? 'ok' : 'bad') + '"><h2>정답: 각 경우가 일어날 가능성이 ' + (rv.eq ? '같아요' : '같지 않아요') + '</h2>' +
       '<p>내 판단은 ‘' + (P.my === 'e' ? '같다' : '같지 않다') + '’ → <b>' + (ok ? '맞았어요! 🎉' : '아쉽게 틀렸어요') + '</b>' + (rv.n != null ? ' · 내가 던진 횟수 ' + fmt(rv.n) + '번' : '') + '</p></div>' +
+      (rv.p ? '<h3>만든 친구가 정한 확률</h3>' + legendHtml(E.names, rv.p, true) : '') +
       '<p class="hint">' + CAVEAT + '</p>' + tallyHtml(P.tally, P.my) +
       '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="list">← 목록으로</button>' + (P.practice ? '<span class="hint" style="align-self:center">정답을 알고 다시 던져 보는 중이에요. 이 결과는 기록되지 않아요.</span>' : '<button class="btn primary" data-act="practice">🎲 다시 던져 보기</button>') + '</div></div>';
   }
@@ -866,14 +868,14 @@ async function vote() {
     try {
       const st = await api({ act: 'stats', id: P.id, uid: ME.uid });
       P.my = P.pick; P.tally = { e: st.tally.e + (P.pick === 'e' ? 1 : 0), n: st.tally.n + (P.pick === 'n' ? 1 : 0) };
-      P.reveal = { eq: st.eq, ok: (P.pick === 'e') === st.eq, n: S.live.n }; stopLive(); syncLive();
+      P.reveal = { eq: st.eq, ok: (P.pick === 'e') === st.eq, n: S.live.n, p: st.p }; if (st.p) S.exp.p = st.p.slice(); S.once && paintOnce(); stopLive(); syncLive();
     } catch (e) { P.msg = errText(e); P.err = true; }
     P.busy = false; paintJudge(); return;
   }
   const bad = await needReady(); if (bad) { P.busy = false; P.msg = bad; P.err = true; paintJudge(); return; }
   try {
     const j = await api({ act: 'vote', id: P.id, uid: ME.uid, choice: P.pick, total: S.live.n, tok: S.live.tok });
-    P.my = j.my; P.tally = j.tally; P.reveal = { eq: j.eq, ok: j.ok, n: j.n }; listCount = null; S.list.items = null; stopLive(); syncLive();
+    P.my = j.my; P.tally = j.tally; P.reveal = { eq: j.eq, ok: j.ok, n: j.n, p: j.p }; if (j.p) S.exp.p = j.p.slice(); S.once && paintOnce(); listCount = null; S.list.items = null; stopLive(); syncLive();
     if (j.already) toast('이미 판단한 실험이에요. 처음 고른 것으로 보여 줄게요.');
   } catch (e) { P.msg = errText(e); P.err = true; }
   P.busy = false; paintJudge();

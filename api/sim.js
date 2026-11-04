@@ -92,7 +92,7 @@ function toItem(e, cnt, my, uid) {
   const c = classOf(e, e.school);   // 만든 친구의 학년·반 (옛 실험은 선운중만 2학년 2반으로 봐요)
   const item = { id: e.id, tool: e.tool, cases: e.cases, nick: e.nick, ts: e.ts, voters: cnt.e + cnt.n, feat: !!e.feat, featTs: e.feat || 0, mine, my: v ? v.c : null };
   if (c) { item.gr = c.gr; item.cl = c.cl; }
-  if (v) { item.eq = !!e.eq; item.ok = v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok; item.myN = v.n; }   // 판정한 뒤에만 정답을 알려 줘요
+  if (v) { item.eq = !!e.eq; item.p = e.p; item.ok = v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok; item.myN = v.n; }   // 판정한 뒤에만 정답을 알려 줘요
   if (mine || item.my) item.tally = { e: cnt.e, n: cnt.n };
   return item;
 }
@@ -225,7 +225,7 @@ module.exports = async function handler(req, res) {
       const r = await redisMulti([['HMGET', kV(b.id), 'e', 'n'], ['HGET', kU(b.id), uid]]);
       const v = parseVote(r[1]) || { c: b.choice, n: thrown, ok: false };
       // 판정한 뒤에는 정답(같다/같지 않다)과 맞았는지를 알려 줘요
-      return send(res, 200, { tally: { e: num(r[0][0]), n: num(r[0][1]) }, my: v.c, already: !first, eq: !!e.eq, ok: v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok, n: v.n });
+      return send(res, 200, { tally: { e: num(r[0][0]), n: num(r[0][1]) }, my: v.c, already: !first, eq: !!e.eq, p: e.p, ok: v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok, n: v.n });
     }
 
     // ── 집계 보기: 만든 사람과 관리자만 (누가 판정했는지는 알 수 없고, 옳은지·던진 횟수만 내보내요) ──
@@ -243,7 +243,7 @@ module.exports = async function handler(req, res) {
         items.push({ ok: v.ok == null ? (v.c === 'e') === !!e.eq : !!v.ok, n: Number(v.n) || 0 });
       }
       items.sort((a, c) => a.n - c.n);
-      return send(res, 200, { eq: !!e.eq, tally: { e: num(r[1][0]), n: num(r[1][1]) }, items: items.slice(0, 5000), legacy });
+      return send(res, 200, { eq: !!e.eq, p: e.p, tally: { e: num(r[1][0]), n: num(r[1][1]) }, items: items.slice(0, 5000), legacy });
     }
 
     // ── 관리자: 암호 확인 / 추천 실험 ──
