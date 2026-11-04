@@ -124,15 +124,20 @@ h2{font-size:20px}
 .prog-title{font-size:13px; color:var(--muted); margin-bottom:6px}
 .coins{display:flex; gap:14px; justify-content:center; margin:2px 0}
 .coin-wrap{perspective:500px; width:92px; height:92px}
-.coin-wrap.toss{animation:toss .9s cubic-bezier(.3,.6,.5,1)}
+.coin-wrap.toss{animation:toss var(--flip,.9s) cubic-bezier(.3,.6,.5,1)}
 @keyframes toss{0%{transform:translateY(0)} 40%{transform:translateY(-34px)} 100%{transform:translateY(0)}}
-.coin{width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .9s cubic-bezier(.25,.7,.3,1)}
+.coin{width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform var(--flip,.9s) cubic-bezier(.25,.7,.3,1)}
 .face{position:absolute; inset:0; border-radius:50%; overflow:hidden; backface-visibility:hidden; -webkit-backface-visibility:hidden; color:var(--coin-ink); border:4px solid var(--coin-edge); box-shadow:inset 0 0 0 2px var(--coin-hi), 0 3px 8px rgba(40,30,70,.25); background:radial-gradient(circle at 35% 30%, var(--coin-hi), var(--coin) 62%, var(--coin-edge) 130%)}
 .face.b{transform:rotateY(180deg); background:radial-gradient(circle at 35% 30%, var(--coin-hi), var(--coin-b) 62%, var(--coin-edge) 130%)}
 .face svg{width:100%; height:100%; display:block}
 .ct{font-family:var(--font-display); fill:currentColor; text-anchor:middle}
 .actions{display:flex; flex-direction:column; gap:8px; width:100%; margin-top:auto}
 .btn{height:46px; width:100%; padding:0 16px; border-radius:12px; border:2px solid var(--hot); background:var(--hot); color:var(--on-hot); font:400 18px var(--font-display); cursor:pointer}
+.speedbox{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--muted)}
+.speedbox .seg{flex:1; display:flex; border:2px solid var(--line); border-radius:10px; overflow:hidden}
+.speedbox .seg button{flex:1; height:34px; border:0; background:var(--surface); color:var(--ink); font:400 15px var(--font-display); cursor:pointer}
+.speedbox .seg button+button{border-left:1px solid var(--line)}
+.speedbox .seg button.on{background:var(--hot); color:var(--on-hot)}
 .btn.ghost{background:var(--surface); color:var(--ink); border-color:var(--line); height:40px; font-size:16px}
 .btn:disabled{opacity:.4; cursor:not-allowed}
 
@@ -339,6 +344,15 @@ h2{font-size:20px}
     });
   }
   function sum(a){ return a.reduce(function(x, y){ return x + y; }, 0); }
+  var SPEEDS = [
+    { label: '천천히', flip: 1500, gap: 1400 },
+    { label: '보통',   flip: 950,  gap: 800 },
+    { label: '빠르게', flip: 380,  gap: 150 }
+  ];
+  var speed = 1;
+  try { var sv = parseInt(localStorage.getItem('dalembert.speed'), 10); if (sv >= 0 && sv <= 2) speed = sv; } catch (e) {}
+  function applySpeed(){ document.documentElement.style.setProperty('--flip', SPEEDS[speed].flip + 'ms'); }
+  applySpeed();
   function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
   var state = {
@@ -491,6 +505,7 @@ h2{font-size:20px}
     } else if (state.phase === 'play'){
       info.innerHTML = '<div class="stage">2단계</div><h2>동전을 던져요</h2><p>' + lastText() + '</p>';
       ac.innerHTML =
+        '<div class="speedbox"><span>속도</span><div class="seg" role="group" aria-label="동전 던지기 속도">' + SPEEDS.map(function(sp, i){ return '<button type="button" data-sp="' + i + '" aria-pressed="' + (i === speed) + '"' + (i === speed ? ' class="on"' : '') + '>' + sp.label + '</button>'; }).join('') + '</div></div>' +
         '<button type="button" class="btn" id="btnThrow"' + ((state.flipping || state.auto) ? ' disabled' : '') + '>동전 던지기</button>' +
         '<button type="button" class="btn ghost" id="btnAuto">' + (state.auto ? '멈추기' : '끝까지 자동으로') + '</button>' +
         '<button type="button" class="btn ghost" id="btnBack"' + (state.flipping ? ' disabled' : '') + '>← 배치로 돌아가기</button>';
@@ -839,7 +854,7 @@ h2{font-size:20px}
     renderCenter();
     var c1 = Math.random() < 0.5, c2 = Math.random() < 0.5;   // true = 앞(그림 면)
     spin(0, c1); spin(1, c2);
-    return sleep(reduce ? 150 : 950).then(function(){
+    return sleep(reduce ? 150 : SPEEDS[speed].flip + 50).then(function(){
       var h = (c1 ? 1 : 0) + (c2 ? 1 : 0);
       var idxs = resolve(h);
       state.flipping = false;
@@ -860,7 +875,7 @@ h2{font-size:20px}
   function autoLoop(){
     if (!state.auto || state.phase !== 'play') return;
     throwCoins().then(function(){
-      if (state.auto && state.phase === 'play') setTimeout(autoLoop, reduce ? 200 : 800);
+      if (state.auto && state.phase === 'play') setTimeout(autoLoop, reduce ? 200 : SPEEDS[speed].gap);
     });
   }
 
@@ -887,6 +902,12 @@ h2{font-size:20px}
     var b = t.closest && t.closest('button');
     var id = b && b.id;
     if (b && b.dataset && b.dataset.o != null && b.closest('#rankView')){ loadRank(Math.max(0, parseInt(b.dataset.o, 10) || 0)); return; }
+    if (b && b.dataset && b.dataset.sp != null){
+      speed = parseInt(b.dataset.sp, 10) || 0; applySpeed();
+      try { localStorage.setItem('dalembert.speed', String(speed)); } catch (e) {}
+      Array.prototype.forEach.call(b.parentNode.children, function(x, i){ x.classList.toggle('on', i === speed); x.setAttribute('aria-pressed', i === speed); });
+      return;
+    }
     if (id === 'btnStart'){ if (ready()) startPlay(); }
     else if (id === 'btnThrow'){ throwCoins(); }
     else if (id === 'btnAuto'){
