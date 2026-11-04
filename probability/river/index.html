@@ -264,6 +264,19 @@ button{cursor:pointer}
 .gap{text-align:center;color:var(--muted);font-size:18px;line-height:14px;height:14px}
 .empty{padding:36px;text-align:center;color:var(--muted);font-size:18px}
 
+/* 게임 끝 알림 (양쪽 판이 보이도록 가운데 강 패널 아래쪽에만 작게) */
+.endpop{position:absolute;left:616px;width:368px;bottom:40px;z-index:40;background:#12163A;border:3px solid var(--green);border-radius:20px;padding:14px 18px 16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:8px;animation:epin .35s cubic-bezier(.2,.9,.3,1.2) both}
+.endpop.o{border-color:var(--orange)}.endpop.tie{border-color:var(--yellow)}.endpop.none{border-color:var(--line)}
+.endpop .ep-t{display:flex;align-items:center;justify-content:center;gap:10px}
+.endpop .ep-i{font-size:34px;line-height:1}
+.endpop .ep-t b{font-size:34px;font-weight:400;line-height:1.15;overflow-wrap:anywhere}
+.endpop p{margin:0;font-size:18px;line-height:1.5;color:#E3E7FF;text-align:center}
+.endpop p b{color:var(--yellow);font-weight:700}
+.endpop .go{height:52px;font-size:26px;padding:0;width:100%}
+@keyframes epin{from{transform:translateY(24px) scale(.94);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.endpop{animation:none}}
+
 /* 휴대폰(세로 화면): 한 장으로 줄이지 않고, 세로로 쌓아서 화면 폭에 맞춰요 */
 @media (max-width:820px){
   html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
@@ -315,6 +328,9 @@ button{cursor:pointer}
   .river .go{height:60px;font-size:28px}
   .dice{gap:24px;height:116px}
   .total{font-size:48px;height:52px}
+  #screen{order:2}
+  .endpop{position:static;order:1;margin:10px 10px 0;width:auto;padding:12px 14px 14px;animation:none}
+  .endpop .ep-t b{font-size:28px}.endpop p{font-size:16px}.endpop .go{height:48px;font-size:22px}
   /* 4. 결과 */
   .result{display:flex;flex-direction:column;gap:12px;padding:12px}
   .win{width:100%;padding:16px}.win h1{font-size:40px;max-width:100%}
@@ -574,6 +590,7 @@ function chrome() {
 function show(screen) {
   if (G) { G.id = -1; G = null; }
   state.screen = screen;
+  { const ep = document.getElementById('endpop'); if (ep) ep.remove(); }
   chrome();
   const root = $('#screen');
   if (screen === 'admin') { root.innerHTML = adminHTML(); refreshDelCount(); paintRecs(); }
@@ -1039,12 +1056,11 @@ async function runGame(id) {
 
 /* ---------- 4. 결과 ---------- */
 async function finish(winners, stalemate) {
-  const rolls = G.rolls;
+  const rolls = G.rolls, left = { a: G.left.a, b: G.left.b };
   G = null;
   state.result = { winners, rolls, stalemate: !!stalemate, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: defCls(), classes: [], status: winners.length ? 'saving' : 'none' };
-  show('result');
-  paintResult();
-  if (!winners.length) { loadBoardOnly(); return; }
+  endPopup(winners, stalemate, rolls, left);   // 게임 화면은 그대로 두고, 작은 알림만 띄워요 ('순위 보기'를 누르면 결과 화면으로)
+  if (!winners.length) return;
   let last = null;
   enforceMine();
   for (const p of winners) {
@@ -1059,6 +1075,31 @@ async function finish(winners, stalemate) {
   if (state.result.cls) { const pg = await Store.page(state.year, state.school, 0, CONFIG.pageSize, state.result.cls); state.result.top = pg.rows; state.result.total = pg.total; }   // 기본 보기는 내 반
   paintResult();
   loadClasses();
+}
+/* 게임이 끝나면 양쪽 판을 가리지 않는 작은 알림을 가운데 아래에 띄워요 */
+function endPopup(winners, stalemate, rolls, left) {
+  const old = el('endpop'); if (old) old.remove();
+  const nm = p => esc(cleanName(state[p].name));
+  let cls = '', icon1 = '🏆', title, sub;
+  if (winners.length === 1) {
+    const w = winners[0], l = w === 'a' ? 'b' : 'a';
+    cls = w === 'b' ? 'o' : '';
+    title = nm(w) + ' 승리!';
+    const jong = n => { const c = (cleanName(state[n].name).slice(-1) || '').charCodeAt(0) - 0xAC00; return c >= 0 && c <= 11171 && c % 28 !== 0; };   // 받침이 있는지
+    sub = `<b>${nm(w)}</b>${jong(w) ? '이' : '가'} 이겼어요 · <b>${nm(l)}</b>${jong(l) ? '은' : '는'} 토큰이 ${left[l]}개 남았어요<br>주사위를 <b>${rolls}</b>번 굴렸어요`;
+  } else if (winners.length === 2) {
+    cls = 'tie'; icon1 = '🤝'; title = '무승부!';
+    sub = `<b>${nm('a')}</b>, <b>${nm('b')}</b> 두 사람이 같은 <b>${rolls}</b>번째 굴림에 모두 부쉈어요`;
+  } else {
+    cls = 'none'; icon1 = '🤔'; title = '아무도 끝낼 수 없어요';
+    sub = '두 사람 모두 1번 칸에 토큰이 남아 있어요.<br>1번 칸은 주사위 합으로 부술 수 없어요';
+  }
+  const d = document.createElement('div');
+  d.id = 'endpop'; d.className = 'endpop ' + cls; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', '게임 결과');
+  d.innerHTML = `<div class="ep-t"><span class="ep-i">${icon1}</span><b class="jua">${title}</b></div><p>${sub}</p>
+    <button type="button" class="go" data-act="gotoresult">순위 보기</button>`;
+  $('#stage').appendChild(d);
+  if (window.innerWidth <= 820) window.scrollTo(0, 0);
 }
 /* 반 고르기 목록 (학년·반별 기록 수)을 불러와서 순위표에 보여 줘요 */
 async function loadClasses() {
@@ -1212,6 +1253,7 @@ document.addEventListener('click', e => {
     state.result = { winners: [], rolls: 0, stalemate: false, saved: null, rank: {}, ids: {}, top: [], total: 0, offset: 0, matches: null, q: '', cls: defCls(), classes: [], status: 'none', view: true };
     show('result'); loadBoardOnly();
   }
+  else if (act === 'gotoresult') { show('result'); paintResult(); if (!state.result.winners.length) loadBoardOnly(); }
   else if (act === 'tosetup') { enforceMine(); show('setup'); }
   else if (act === 'toserver') {
     if (b.dataset.sure) { show('setup'); return; }
