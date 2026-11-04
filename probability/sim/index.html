@@ -551,16 +551,16 @@ function wrapLabel(text, px, maxLines) {
   if (lines.length > maxLines) { const k = lines.slice(0, maxLines); k[maxLines - 1] = k[maxLines - 1].slice(0, -1) + '…'; return k; }
   return lines.length ? lines : [''];
 }
-function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode, rel, marks) {
+function barSvg(w, labels, vals, colors, xTitle, yTitle, markX, idxMode, rel, marks, stepFix) {
   const names = labels, m0 = vals.length, slot0 = (w - 64) / m0;
   if (idxMode && slot0 < 34 && labels.some(l => String(l).length > 2)) { labels = labels.map((_, i) => String(i + 1)); xTitle = xTitle || '경우 번호 (표의 순서)'; }   // 이름이 안 들어갈 만큼 많으면 번호로
   const wrapped = labels.map(l => wrapLabel(l, slot0 - 6, 3)), nl = Math.max.apply(null, wrapped.map(a => a.length));
   const h = chartH(), L = 52, R = 12, T = 26, B = 40 + nl * 15 + (xTitle ? 18 : 0), pw = w - L - R, ph = h - T - B, m = vals.length;
-  const mx = rel ? 1 : Math.max(1, Math.max.apply(null, vals)), step = rel ? 0.25 : niceStep(mx / 4), ymax = rel ? 1 : step * Math.ceil(mx / step), F = rel ? r3 : fmt;   // rel: 상대도수 모드(세로축 0~1)
+  const mx = rel ? 1 : Math.max(1, Math.max.apply(null, vals)), step = stepFix || (rel ? 0.25 : niceStep(mx / 4)), ymax = rel ? 1 : step * Math.ceil(mx / step), F = rel ? r3 : fmt;   // rel: 상대도수 모드(세로축 0~1)
   let s = '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + esc(yTitle) + ' 막대그래프">';
   for (let v = 0; v <= ymax + 1e-9; v += step) {
     const y = T + ph * (1 - v / ymax);
-    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (rel ? (v === 0 ? '0' : v === 1 ? '1' : String(v)) : fmt(v)) + '</text>';
+    s += '<line class="gridl" x1="' + L + '" x2="' + (w - R) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + (rel ? String(Math.round(v * 100) / 100) : fmt(v)) + '</text>';
   }
   s += '<line class="axis" x1="' + L + '" x2="' + (w - R) + '" y1="' + (T + ph) + '" y2="' + (T + ph) + '"/>';
   const slot = pw / m, bw = Math.min(slot * 0.66, 72), maxCh = Math.max(2, Math.floor(slot / 8));
@@ -722,8 +722,8 @@ function drawCharts() {
     const O = curOnce();
     if (kind === 'bar1' && O) {
       const cols = E.names.map((_, i) => col(i, E.names.length));
-      if (E.remote && S.bmode === 'rel') el.innerHTML = barSvg(w, E.names, O.counts.map(c => O.n ? c / O.n : 0), cols, '', '상대도수', null, true, true, E.p || null);
-      else el.innerHTML = barSvg(w, E.names, O.counts, cols, '', '도수(번)', null, true);
+      if (E.remote && S.bmode === 'rel') el.innerHTML = barSvg(w, E.names, O.counts.map(c => O.n ? c / O.n : 0), cols, '', '상대도수', null, true, true, E.p || null, 0.1);
+      else el.innerHTML = barSvg(w, E.names, O.counts, cols, '', '도수(번)', null, true, false, null, E.remote ? 50 : 0);
     }
     else if (kind === 'line1' && O) {
       const L = lineSvg(w, O, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
