@@ -1,13 +1,16 @@
 // 골드핑거 순위 도전 API (Vercel 서버리스 함수)
 // 순위에 올라가는 시험은 서버가 직접 만들고 채점해요. (정답 배치를 서버가 정하고, 아는 문제는 서버가 정답으로 채워서, 화면에서 점수를 꾸밀 수 없어요)
-// 학생이 정하는 건 '아는 문제 수'와 '찍은 답(마킹)'뿐이에요. 아는 문제는 앞 번호부터 k개(5문제면 1~5번)이고, 정답은 학생이 볼 수 없어요.
+// 시험은 두 단계예요. ① start: 서버가 정답 20개를 만들고 아는 문제 k개를 무작위로 골라, 아는 문제의 정답만 학생에게 알려 줘요.
+// ② 제출: 학생이 찍은 답(마킹)을 보내면 서버가 저장해 둔 그 시험지로 채점해요. 찍는 문제의 정답은 제출 전에는 학생이 알 수 없어요.
 // 기록은 동전 실험실과 같은 Upstash Redis에 같은 형식('cn:gf<아는 문제 수>:<학년도>:<학교>')으로 저장돼요.
 // 그래서 순위표 읽기·이름 찾기·반별 보기는 /api/coin 을, 기록 삭제·관리자 화면은 /api/coin · /api/admin 을 그대로 써요.
 // 환경 변수는 강 건너기에서 이미 넣은 것을 그대로 쓰면 돼요. (새로 넣을 것 없어요)
 //
-// POST /api/goldfinger {year,school,id,name,uid,gr?,cl?,k,marks:[20]}
+// POST /api/goldfinger {act:'start',year,school,uid,k}
+//        → { k, known:[20 true/false], answers:[20] }   answers 는 아는 문제 칸만 정답이고 나머지는 0. 호출할 때마다 새 시험지(아는 문제도 새로 뽑아요)
+// POST /api/goldfinger {year,school,id,name,uid,gr?,cl?,k,marks:[20]}   (start 로 받은 시험지를 한 번 채점하고 없애요. 시험지가 없으면 400 no-exam)
 //        → { score, key:[20], mine:[20], known:[20 true/false], strat, one, rank, total }
-//        k: 아는 문제 수(0·5·10·15) · marks: 학생이 OMR에 마킹한 답 20개(1~5). 아는 문제(앞 k개)는 서버가 정답으로 바꿔요
+//        k: 아는 문제 수(0·5·10·15) · marks: 학생이 OMR에 마킹한 답 20개(1~5). 아는 문제 칸은 서버가 정답으로 바꿔요
 //        strat(찍는 방법)은 서버가 마킹을 보고 정해요: 찍은 문제가 모두 같은 번호면 one(한 번호), 아니면 free(내맘대로)
 //        시험은 여러 번 볼 수 있고, 학교·학년도·아는 문제 수마다 한 사람(uid)의 가장 높은 점수 하나만 순위에 올라가요 (best·improved·tries 로 알려 줘요)
 // GET  /api/goldfinger?year=&school=&uid=   → { mine: { "0": rec|null, "5": rec|null, "10": rec|null, "15": rec|null } }   내 기록(순위 포함)
@@ -32,18 +35,26 @@ async function validYearSchool(year, school) {
   return c.years.includes(y) && c.schools.includes(school);
 }
 
-// 서버가 시험을 만들고 채점해요: 정답은 각 번호 4개씩, 아는 문제는 k개, 나머지는 고른 방법으로 찍어요
-function makeExam(k, marks) {
+// 시험지: 정답은 각 번호 4개씩 섞어서, 아는 문제는 k개를 무작위로 골라요
+function newSheet(k) {
   const key = [];
   for (let v = 1; v <= 5; v++) for (let c = 0; c < N / 5; c++) key.push(v);
   shuffle(key);
-  const known = Array.from({ length: N }, (_, i) => i < k);   // 아는 문제는 앞 번호부터
+  const order = shuffle(Array.from({ length: N }, (_, i) => i));
+  const known = new Array(N).fill(false);
+  for (let t = 0; t < k; t++) known[order[t]] = true;
+  return { k, key, known };
+}
+// 채점: 아는 문제는 정답으로 채우고 나머지는 학생이 마킹한 답으로 채점해요
+function grade(sheet, marks) {
+  const { key, known } = sheet;
   const mine = key.map((ans, i) => known[i] ? ans : marks[i]);
   let hits = 0; mine.forEach((v, i) => { if (v === key[i]) hits++; });
   const guessed = mine.filter((v, i) => !known[i]);
   const one = guessed.length && guessed.every(v => v === guessed[0]) ? guessed[0] : 0;
   return { key, mine, known, score: hits * PTS, strat: one ? 'one' : 'free', one };
 }
+const sheetKey = (uid, y, s) => 'gf:ex:' + uid + ':' + Number(y) + ':' + s;
 
 // 저장된 기록을 화면에 줄 모양으로 바꿔요 (익명 번호는 빼요)
 function view(o) {
@@ -78,22 +89,36 @@ module.exports = async function handler(req, res) {
       if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = null; } }
       if (!b || !(await validYearSchool(b.year, b.school))) return send(res, 400, { error: 'bad-request' });
       if (!(await rateLimit(req, 'gf', 120, 60))) return send(res, 429, { error: 'too-many' });
+      if (b.act === 'start') {   // 새 시험지 받기
+        const k0 = Number(b.k), uid0 = String(b.uid || '');
+        if (!KS.includes(k0) || !/^[a-f0-9]{32}$/.test(uid0)) return send(res, 400, { error: 'bad-request' });
+        const sh = newSheet(k0);
+        await redis(['SET', sheetKey(uid0, b.year, b.school), JSON.stringify({ k: sh.k, key: sh.key.join(''), known: sh.known.map(x => x ? '1' : '0').join('') }), 'EX', 7200]);
+        return send(res, 200, { k: k0, known: sh.known, answers: sh.key.map((v, i) => sh.known[i] ? v : 0) });
+      }
       const name = String(b.name || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
       const id = String(b.id || ''), uid = String(b.uid || '');
       const k = Number(b.k), marks = Array.isArray(b.marks) ? b.marks.map(Number) : [];
       if (!name || badName(name)) return send(res, 400, { error: 'bad-name' });
       if (!/^[a-z0-9]{4,16}$/.test(id)) return send(res, 400, { error: 'bad-id' });
       if (!/^[a-f0-9]{32}$/.test(uid)) return send(res, 400, { error: 'bad-uid' });   // 한 사람의 기록을 가려내려면 익명 번호(내 정보)가 꼭 필요해요
-      if (!KS.includes(k) || marks.length !== N || !marks.every((v, i) => i < k || (Number.isInteger(v) && v >= 1 && v <= 5))) return send(res, 400, { error: 'bad-record' });   // 아는 문제 칸은 비어 있어도 돼요
+      if (!KS.includes(k) || marks.length !== N || !marks.every(v => v === 0 || (Number.isInteger(v) && v >= 1 && v <= 5))) return send(res, 400, { error: 'bad-record' });
       const year = Number(b.year), school = b.school, key = keyOf(k, year, school);
 
       // 같은 사람이 동시에 두 번 보내도 한 번만 받아요 (몇 초만 막아요)
       const lock = await redis(['SET', 'gf:lock:' + uid + ':' + k + ':' + year + ':' + school, '1', 'NX', 'EX', 3]);
       if (!lock) return send(res, 429, { error: 'busy' });
 
+      // start 로 받아 둔 시험지가 있어야 채점해요 (한 번 채점하면 없애요)
+      let sheet = null;
+      try { const raw = await redis(['GET', sheetKey(uid, year, school)]); if (raw) { const o = JSON.parse(raw); sheet = { k: o.k, key: Array.from(o.key, Number), known: Array.from(o.known, c => c === '1') }; } } catch (e) {}
+      if (!sheet || sheet.k !== k) return send(res, 400, { error: 'no-exam' });
+      if (!marks.every((v, i) => sheet.known[i] || (v >= 1 && v <= 5))) return send(res, 400, { error: 'bad-record' });   // 찍는 문제는 모두 답을 적어야 해요
+      await redis(['DEL', sheetKey(uid, year, school)]);
+
       // 시험은 여러 번 볼 수 있고, 순위표에는 그 사람의 가장 높은 점수 하나만 올라가요
       const had = await findMine(k, year, school, uid);
-      const ex = makeExam(k, marks);
+      const ex = grade(sheet, marks);
       const ts = Date.now();
       const gr = Number(b.gr), cl = Number(b.cl), cls = isClass(gr, cl) ? { gr, cl } : {};   // 학년·반 (번호는 받지 않아요)
       const rec = Object.assign({ id, name, ts, uid }, cls, {

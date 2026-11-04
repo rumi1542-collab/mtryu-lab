@@ -135,7 +135,8 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .omr.draft .ob:hover:not(:disabled){border-color:var(--purple)}
 .omr.draft .ob:disabled{cursor:not-allowed;opacity:.5}
 .omr.draft .orow:not(.known) .ob.mk:disabled{opacity:1}
-.omr.draft .orow.known .ob:disabled{opacity:.45}
+.omr.draft .orow.known .ob:disabled{opacity:.4}
+.omr.draft .orow.known .ob.mk:disabled{opacity:1;background:var(--omr-fill);border-color:var(--omr-fill)}
 .omr.draft .ob:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
 .omr.draft .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
 .ob.fix{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--omr-red)}
@@ -234,7 +235,7 @@ svg .mk{fill:var(--pink);stroke:var(--halo);stroke-width:1}
   <header class="top">
     <p class="eyebrow">확률 실험실</p>
     <h1><span class="gold">골드</span>핑거</h1>
-    <p class="lead">20문제, 문제당 5점이에요. 아는 문제는 맞히고 나머지는 찍을 때, 찍는 방법에 따라 점수가 어떻게 달라지는지 실험해 보세요. 정답은 1~5번이 각각 4개씩 들어 있어요.</p>
+    <p class="lead">20문제, 문제당 5점이에요. 아는 문제는 맞히고 나머지는 찍을 때, 찍는 방법에 따라 점수가 어떻게 달라지는지 실험해 보세요. 정답은 1~5번이 각각 4개씩 들어 있어요. 아는 문제는 시험지마다 무작위로 뽑히고, 그 정답은 미리 보여 줘요.</p>
   </header>
 
   <div id="examPage">
@@ -245,9 +246,9 @@ svg .mk{fill:var(--pink);stroke:var(--halo);stroke-width:1}
         <legend>아는 문제</legend>
         <div class="opts two">
           <label class="opt"><input type="radio" name="known" value="0" checked><span class="face"><b>모두 찍기</b><small>20문제를 찍어요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="5"><span class="face"><b>5문제 알아요</b><small>1~5번은 맞혀요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="10"><span class="face"><b>10문제 알아요</b><small>1~10번은 맞혀요</small></span></label>
-          <label class="opt"><input type="radio" name="known" value="15"><span class="face"><b>15문제 알아요</b><small>1~15번은 맞혀요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="5"><span class="face"><b>5문제 알아요</b><small>나머지 15문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="10"><span class="face"><b>10문제 알아요</b><small>나머지 10문제를 찍어요</small></span></label>
+          <label class="opt"><input type="radio" name="known" value="15"><span class="face"><b>15문제 알아요</b><small>나머지 5문제를 찍어요</small></span></label>
         </div>
       </fieldset>
 
@@ -332,7 +333,7 @@ function guessFor(strat, one, i){
 }
 function exam(s, strat, draft){
   const key = makeKey(s.layout);
-  const isKnown = Array.from({length: N}, (_, i) => i < s.known);   // 아는 문제는 앞 번호부터 (5문제면 1~5번)
+  const isKnown = Array.from({length: N}, (_, i) => i < s.known);   // 반복 실험용: 정답이 무작위로 섞여 있어서 어느 문제를 알아도 점수 분포는 같아요
   const mine = [], status = [];
   let hits = 0, guessHits = 0;
   for (let i = 0; i < N; i++){
@@ -368,7 +369,7 @@ const val = name => document.querySelector('input[name=' + name + ']:checked').v
 const pick = name => { const e = document.querySelector('input[name=' + name + ']:checked'); return e ? e.value : ''; };
 const cur = () => ({s: {known: +val('known'), layout: 'equal', one: +val('one')}, strat: pick('strat') || 'free'});
 // 마킹을 보고 찍는 방법 이름을 정해요 (서버와 같은 규칙): 찍은 문제가 모두 같은 번호면 한 번호, 아니면 내맘대로
-const stratOfMarks = (marks, k) => { const g = marks.filter((v, i) => i >= k); const one = g.length && g.every(v => v === g[0]) ? g[0] : 0; return { strat: one ? 'one' : 'free', one }; };
+const stratOfMarks = (marks, known) => { const g = marks.filter((v, i) => !known[i]); const one = g.length && g.every(v => v === g[0]) ? g[0] : 0; return { strat: one ? 'one' : 'free', one }; };
 const stratName = (strat, one) => strat === 'free' ? '내맘대로' : strat === 'regular' ? '규칙적 (1, 2, 3, 4, 5 반복)' : '한 번호 (' + one + '번)';
 const stratShort = r => r.strat === 'free' ? '내맘대로' : r.strat === 'regular' ? '규칙적' : r.strat === 'one' ? '한 번호 ' + r.one + '번' : '';
 const kLabel = k => k === 0 ? '모두 찍기' : '아는 문제 ' + k + '개';
@@ -461,7 +462,7 @@ async function refreshMine() {
 async function refreshMe() {
   await syncMe(); enforceMine(); await refreshMine();
   S.vschool = null; B.cls = defCls(); B.classes = [];
-  syncRank(); if (!$('rankpage').hidden) setBoard(B.k);
+  syncRank(); startExam(); if (!$('rankpage').hidden) setBoard(B.k);
 }
 function openMeDialog() { if (window.MtryuMe && window.MtryuMe.openDialog) window.MtryuMe.openDialog({ required: true }); }
 
@@ -536,33 +537,57 @@ function renderSingle(s, strat, r, opt){
     omr +
     '<ul class="legend"><li><span class="lg lg-mk"></span>내가 마킹한 답</li><li><span class="lg lg-o"></span>맞음</li><li><span class="lg lg-x"></span>틀림</li><li><span class="lg lg-fix"></span>정답 칸</li><li><span class="sw"></span>아는 문제</li></ul>';
 }
-/* 첫 화면: 빈 OMR 답안지. 아는 문제(앞 번호부터)는 분홍색으로 잠기고, 나머지는 찍는 방법을 고르면 답이 적혀요. 칸을 눌러 직접 바꿀 수도 있어요 */
+/* ---------- 시험지와 OMR 답안지 ----------
+   아는 문제 수를 고르면 서버(테스트 모드에서는 이 화면)가 새 시험지를 만들어요. 아는 문제는 무작위로 뽑혀서 분홍색으로 잠기고 정답이 이미 마킹돼 있어요.
+   그 정답을 보고 나머지(찍는 문제)를 어떻게 찍을지 정해요. 찍는 문제의 정답은 시험 보기를 눌러야 알 수 있어요. */
 let draft = null;   // 내가 마킹한 답 20칸 (0이면 비어 있어요)
+let EX = null;      // 지금 받은 시험지 { k, known: [20 true/false], ans: [20] (아는 문제 칸만 정답), key?(테스트 모드), used }
+let exSeq = 0;
 const knownN = () => +val('known');
-function fillDraft(){
+function makeDraft(){
   const st = pick('strat'), one = +val('one');
-  draft = st ? Array.from({length: N}, () => st === 'one' ? one : rnd(5) + 1) : null;
+  return st ? Array.from({length: N}, () => st === 'one' ? one : rnd(5) + 1) : null;
+}
+function fillDraft(){ draft = makeDraft(); renderBlank(); }
+async function startExam(){
+  const k = knownN(), t = ++exSeq;
+  EX = null; draft = makeDraft(); renderBlank();
+  if (!ME) return;
+  try {
+    let sh;
+    if (TEST()){   // 테스트 모드: 서버에 보내지 않고 이 화면에서 시험지를 만들어요
+      const key = makeKey('equal'), order = shuffle(Array.from({length: N}, (_, i) => i)), known = new Array(N).fill(false);
+      for (let q = 0; q < k; q++) known[order[q]] = true;
+      sh = { known, answers: key.map((v, i) => known[i] ? v : 0), key };
+    } else sh = await http('POST', CONFIG.apiUrl, { act: 'start', year: S.year, school: S.school, uid: ME.uid, k }, 9000);
+    if (t !== exSeq) return;
+    if (!sh || !Array.isArray(sh.known) || sh.known.length !== N) throw new Error('bad');
+    EX = { k, known: sh.known, ans: sh.answers, key: sh.key || null, used: false };
+    rmsg('');
+  } catch (e) { if (t !== exSeq) return; rmsg('시험지를 받지 못했어요. 인터넷을 확인하고 아는 문제를 다시 눌러 주세요.'); }
   renderBlank();
 }
 function renderBlank(){
-  const k = knownN(), lock = pick('strat') === 'one';   // 한 번호로 찍을 때는 답을 바꿀 수 없어요
+  const k = knownN(), lock = pick('strat') === 'one', ready = !!EX;   // 한 번호로 찍을 때는 답을 바꿀 수 없어요
   const orow = i => {
-    const kn = i < k;
+    const kn = ready && EX.known[i];
     let b = '';
     for (let j = 1; j <= 5; j++) {
-      const on = !kn && draft && draft[i] === j;
-      b += '<button type="button" class="ob' + (on ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '"' + (kn || lock ? ' disabled' : '') + ' aria-pressed="' + on + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
+      const on = kn ? EX.ans[i] === j : !!(ready && draft && draft[i] === j);
+      b += '<button type="button" class="ob' + (on ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '"' + (kn || lock || !ready ? ' disabled' : '') + ' aria-pressed="' + on + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
     }
-    return '<div class="orow' + (kn ? ' known' : '') + '" role="group" aria-label="' + (i + 1) + '번 문제' + (kn ? ' (아는 문제, 정답으로 채점해요)' : '') + '"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
+    return '<div class="orow' + (kn ? ' known' : '') + '" role="group" aria-label="' + (i + 1) + '번 문제' + (kn ? ' (아는 문제, 정답 ' + EX.ans[i] + '번)' : '') + '"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
   };
   const th = '<div class="omr-th"><span>문항</span>' + [1, 2, 3, 4, 5].map(v => '<span>' + v + '</span>').join('') + '</div>';
   const half = a => '<div class="omr-col">' + th + Array.from({length: 10}, (_, t) => orow(a + t)).join('') + '</div>';
-  const left = N - k;
+  const msg = !ME ? '내 정보를 입력하면 시험지가 나와요.'
+    : !ready ? '시험지를 받는 중이에요…'
+    : (k ? '분홍색 ' + k + '문제는 아는 문제예요. 정답이 이미 적혀 있어요. 이 정답을 보고 나머지 ' + (N - k) + '문제를 어떻게 찍을지 정해 보세요. ' : '') + (draft
+      ? (lock ? '한 번호로 답을 적어 놨어요. 한 번호로 찍을 때는 답을 바꿀 수 없어요. 번호를 바꾸려면 왼쪽에서 다른 번호를 고르세요. ' : '찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. ') + '준비되면 <b>시험 보기</b>를 누르세요.'
+      : '왼쪽에서 찍는 방법을 고르면 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.');
   $('single').innerHTML =
     '<h2>OMR 답안지</h2>' +
-    '<p class="cond">' + (k ? '분홍색 1~' + k + '번은 아는 문제라서 정답으로 채점해요. ' : '') + (draft
-      ? (lock ? '한 번호로 답을 적어 놨어요. 한 번호로 찍을 때는 답을 바꿀 수 없어요. 번호를 바꾸려면 왼쪽에서 다른 번호를 고르세요. ' : '찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. ') + '준비되면 <b>시험 보기</b>를 누르세요.'
-      : '왼쪽에서 찍는 방법을 고르면 ' + (k ? k + '번 이후의 ' : '') + left + '문제에 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.') + '</p>' +
+    '<p class="cond">' + msg + '</p>' +
     '<div class="omr draft" role="group" aria-label="OMR 답안지 (칸을 눌러 답을 적어요)"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>' +
     '<p class="nextrow"><button type="button" class="ghost" data-go="rank">순위표 보기 ➔</button></p>';
 }
@@ -620,13 +645,19 @@ async function challenge(){
   rmsg('');
   const k = knownN();
   if (!ME){ rmsg('내 정보를 먼저 입력해 주세요.'); openMeDialog(); return; }
-  const marks = Array.from({length: N}, (_, i) => i < k ? 0 : (draft && draft[i]) || 0);
-  if (marks.some((v, i) => i >= k && !v)){ rmsg('아직 답을 적지 않은 문제가 있어요. 찍는 방법을 고르거나 칸을 눌러 답을 적어 주세요.'); return; }
+  if (!EX){ rmsg('시험지를 받는 중이에요. 잠시 뒤에 다시 눌러 주세요.'); return; }
+  if (EX.used){ await startExam(); if (EX) rmsg('새 시험지를 받았어요. 아는 문제의 정답을 보고 찍을 답을 정한 뒤 시험 보기를 눌러 주세요.'); return; }
+  const marks = Array.from({length: N}, (_, i) => EX.known[i] ? 0 : (draft && draft[i]) || 0);
+  if (marks.some((v, i) => !EX.known[i] && !v)){ rmsg('아직 답을 적지 않은 문제가 있어요. 찍는 방법을 고르거나 칸을 눌러 답을 적어 주세요.'); return; }
   busy = true; syncRank();
   try {
     if (TEST()){
-      const sm = stratOfMarks(marks, k), s = {known: k, layout: 'equal', one: sm.one}, r = exam(s, sm.strat, marks);
-      const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: sm.strat, one: sm.one, score: r.score, key: r.key.join(''), mine: r.mine.join(''), kn: r.status.map(x => x === 'known' ? '1' : '0').join('')};
+      const mine = EX.key.map((a, i) => EX.known[i] ? a : marks[i]);
+      const status = mine.map((v, i) => EX.known[i] ? 'known' : v === EX.key[i] ? 'hit' : 'miss');
+      const hits = status.filter(x => x !== 'miss').length;
+      const r = {key: EX.key, mine, status, hits, guessHits: status.filter(x => x === 'hit').length, score: hits * PTS};
+      const sm = stratOfMarks(mine, EX.known), s = {known: k, layout: 'equal', one: sm.one};
+      const rec = {id: rid(), name: ME.nick, ts: Date.now(), gr: ME.gr, cl: ME.cl, k, strat: sm.strat, one: sm.one, score: r.score, key: r.key.join(''), mine: r.mine.join(''), kn: status.map(x => x === 'known' ? '1' : '0').join('')};
       rec.u = ME.uid;
       let l = localList(k, S.year, S.school);
       const old = l.find(x => x.u === ME.uid), improved = !old || rec.score > old.score;
@@ -636,14 +667,16 @@ async function challenge(){
       try { localStorage.setItem(lkey(k, S.year, S.school), JSON.stringify(l)); } catch (e) {}
       lastId = bestRec.id;
       renderSingle(s, sm.strat, r, {ranked: true, note: '테스트 모드: 이 컴퓨터에만 저장했어요. ' + bestNote(r.score, bestRec.score, improved, ties(l).find(x => x.id === bestRec.id).rank)});
-      reveal($('single')); B.k = k;
+      reveal($('single')); B.k = k; EX.used = true;
     } else {
       const j = await http('POST', CONFIG.apiUrl, { year: S.year, school: S.school, id: rid(), name: ME.nick, uid: ME.uid, gr: ME.gr, cl: ME.cl, k, marks }, 12000);
+      EX.used = true;
       showRecord({ k, strat: j.strat, one: j.one, score: j.score, key: j.key, mine: j.mine, known: j.known }, bestNote(j.score, j.best, j.improved, j.rank) + ' (' + esc(S.school) + ' · ' + esc(kLabel(k)) + ' ' + j.total + '명 중' + (j.tries > 1 ? ' · ' + j.tries + '번째 시험' : '') + ')');
       await refreshMine(); lastId = MINE[k] ? MINE[k].id : ''; B.k = k; B.cls = defCls();
     }
   } catch (e) {
-    if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
+    if (e && e.status === 400 && e.body && e.body.error === 'no-exam'){ busy = false; await startExam(); rmsg('시험지가 없어져서 새 시험지를 받았어요. 정답을 확인하고 다시 시험 보기를 눌러 주세요.'); }
+    else if (e && e.status === 429) rmsg('잠시 뒤에 다시 눌러 주세요.');
     else if (e && e.status === 400) rmsg('서버가 이 기록을 받지 않았어요. 내 정보에서 별명과 학교를 확인해 주세요.');
     else rmsg('순위에 연결하지 못했어요. 인터넷을 확인하고 다시 눌러 주세요. (기록은 남지 않았어요.)');
   } finally { busy = false; syncRank(); }
@@ -654,7 +687,7 @@ function resetAll(){
   document.querySelector('input[name=known][value="0"]').checked = true;
   document.querySelectorAll('input[name=strat]').forEach(i => { i.checked = false; });
   document.querySelector('input[name=one][value="3"]').checked = true;
-  syncOne(); draft = null; B.k = 0; rmsg(''); syncRank(); renderBlank();
+  syncOne(); B.k = 0; rmsg(''); syncRank(); startExam();
 }
 const syncOne = () => { const on = pick('strat') === 'one'; document.querySelectorAll('input[name=one]').forEach(i => { i.disabled = !on; }); };
 
@@ -769,8 +802,9 @@ window.addEventListener('hashchange', () => showPage(pageFromHash()));
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
 
 /* ---------- 이벤트 ---------- */
-document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', () => { syncOne(); fillDraft(); }));
-document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (pick('strat') === 'one') fillDraft(); }));
+const redraft = () => { if (EX && EX.used) startExam(); else fillDraft(); };   // 채점이 끝난 시험지는 쓸 수 없으니 새 시험지를 받아요
+document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', () => { syncOne(); redraft(); }));
+document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (pick('strat') === 'one') redraft(); }));
 $('single').addEventListener('click', e => {
   const b = e.target.closest('.omr.draft .ob'); if (!b || b.disabled || pick('strat') === 'one') return;
   const q = +b.dataset.q, v = +b.dataset.v;
@@ -778,9 +812,8 @@ $('single').addEventListener('click', e => {
   draft[q] = v;
   b.parentNode.querySelectorAll('.ob').forEach(x => { const on = +x.dataset.v === v; x.classList.toggle('mk', on); x.setAttribute('aria-pressed', on); });
 });
-document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => {
-  const k = knownN(); B.k = k; rmsg(''); syncRank();
-  renderBlank();
+document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('click', () => {   // 누를 때마다 새 시험지 (아는 문제를 다시 뽑아요)
+  B.k = knownN(); rmsg(''); syncRank(); startExam();
 }));
 $('run1').addEventListener('click', challenge);
 $('resetBtn').addEventListener('click', resetAll);
@@ -817,7 +850,7 @@ rz.observe($('results')); rz.observe($('results2'));
   syncOne(); renderBlank(); syncRank(); boardShell();
   if (pageFromHash() === 'rank') showPage('rank');
   await loadList(); await syncMe(); enforceMine(); await refreshMine();
-  syncRank();
+  syncRank(); startExam();
   if (pageFromHash() === 'rank') setBoard(B.k);
 })();
 })();
