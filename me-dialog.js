@@ -183,6 +183,7 @@
       .catch(function (err) { if (!host || my !== st.seq || (err && err.name === 'AbortError')) return; failed(q, text); });
   }
   function loadQuick(q) {
+    return;   // 자주 쓰는 학교 동그라미(예시 버튼)는 보여 주지 않아요
     if (st.quickLoaded || st.picked) return;
     st.quickLoaded = true;
     fetch('/api/config').then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
