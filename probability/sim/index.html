@@ -743,9 +743,8 @@ function blockSvg(w, R0, names, p, showP, k, vis, colf) {
   if (showP && p) p.forEach((v, c) => { if (shown(c)) s += '<line x1="' + L + '" x2="' + (w - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="' + colf(c) + '" stroke-width="1.5" stroke-dasharray="6 5" opacity=".55"/>'; });
   for (let c = 0; c < m; c++) {
     if (!shown(c) || !nb) continue;
-    const pts = D.ys[c].map((v, b) => X(b + 1).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ');
-    if (nb > 1) s += '<polyline fill="none" stroke="' + colf(c) + '" stroke-width="' + (faint ? 1 : 1.5) + '" opacity="' + (faint ? '.35' : '.6') + '" stroke-linejoin="round" points="' + pts + '"/>';
-    if (nb <= 60) D.ys[c].forEach((v, b) => { s += '<circle cx="' + X(b + 1).toFixed(1) + '" cy="' + Y(v).toFixed(1) + '" r="4" fill="' + colf(c) + '" stroke="#fff" stroke-width="1"' + (faint ? ' opacity=".6"' : '') + '/>'; });
+    const r = nb <= 60 ? 4 : nb <= 200 ? 3 : 2;   // 선으로 잇지 않고 점으로만 찍어요 (묶음이 많으면 점을 작게)
+    D.ys[c].forEach((v, b) => { s += '<circle cx="' + X(b + 1).toFixed(1) + '" cy="' + Y(v).toFixed(1) + '" r="' + r + '" fill="' + colf(c) + '" stroke="#fff" stroke-width="' + (r > 2 ? 1 : 0.5) + '"' + (faint ? ' opacity=".6"' : '') + '/>'; });
   }
   s += '</g>';
   if (!nb) s += '<text x="' + (L + pw / 2) + '" y="' + (T + ph / 2) + '" text-anchor="middle" fill="#7B6B8F">던진 횟수가 ' + k + '번이 되면 첫 번째 묶음이 생겨요</text>';
