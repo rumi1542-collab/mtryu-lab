@@ -17,7 +17,7 @@
 :root{
   --bg:#f8f4fc; --surface:#ffffff; --ink:#2b2040; --muted:#6a5e80; --line:#e3d8f0;
   --pink:#c92a7a; --pink-soft:#fce4f0; --pink-stone:#e0408f;
-  --violet:#6a45c2; --violet-soft:#ebe5fa; --violet-stone:#7c5ad6;
+  --violet:#6a45c2; --violet-soft:#ebe5fa; --violet-stone:#7c5ad6; --teal:#14907f;
   --river:#d9e4fb; --river-line:#bccff4;
   --coin:#c9ccd3; --coin-hi:#f3f4f7; --coin-b:#b6bac4; --coin-edge:#8b909b; --coin-ink:#454a58;
   --on-hot:#ffffff; --hot:#c92a7a;
@@ -28,7 +28,7 @@
   :root:not([data-theme="light"]){
     --bg:#17111f; --surface:#221a2e; --ink:#f3ecfa; --muted:#aa9cc2; --line:#3a2d4d;
     --pink:#f06fb0; --pink-soft:#35192b; --pink-stone:#f06fb0;
-    --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa;
+    --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa; --teal:#4fd1c0;
     --river:#1d2a4d; --river-line:#2c3d6b;
     --coin:#b3b8c4; --coin-hi:#dfe2ea; --coin-b:#9ca2b1; --coin-edge:#6b7283; --coin-ink:#2f3440;
     --on-hot:#1a0f24; --hot:#f06fb0;
@@ -38,7 +38,7 @@
 :root[data-theme="dark"]{
   --bg:#17111f; --surface:#221a2e; --ink:#f3ecfa; --muted:#aa9cc2; --line:#3a2d4d;
   --pink:#f06fb0; --pink-soft:#35192b; --pink-stone:#f06fb0;
-  --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa;
+  --violet:#a78bfa; --violet-soft:#241d47; --violet-stone:#a78bfa; --teal:#4fd1c0;
   --river:#1d2a4d; --river-line:#2c3d6b;
   --coin:#b3b8c4; --coin-hi:#dfe2ea; --coin-b:#9ca2b1; --coin-edge:#6b7283; --coin-ink:#2f3440;
   --on-hot:#1a0f24; --hot:#f06fb0;
@@ -144,7 +144,7 @@ h2{font-size:20px}
 .record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
 .rec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
 .rec-head .meta{color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums}
-.rec-grid{display:grid; grid-template-columns:200px minmax(0,1fr); gap:16px 32px; align-items:start}
+.rec-grid{display:grid; grid-template-columns:238px minmax(0,1fr); gap:16px 32px; align-items:start}
 .rec-chart{min-width:0}
 .chart{display:block; width:100%; height:auto; max-width:400px; margin-left:0}
 .chart .gl{stroke:var(--line); stroke-width:1}
@@ -153,7 +153,10 @@ h2{font-size:20px}
 .chart .tl{fill:var(--ink); font:13px var(--font-display); text-anchor:middle}
 .chart .vl{fill:var(--ink); font:12px var(--font-body); text-anchor:middle; font-variant-numeric:tabular-nums}
 .chart .yt{text-anchor:end}
-.chart .br{fill:var(--hot)}
+.chart .sb{text-anchor:middle}
+.chart .br0{fill:var(--violet)}
+.chart .br1{fill:var(--hot)}
+.chart .br2{fill:var(--teal)}
 .chart .th{stroke:var(--ink); stroke-width:2; stroke-dasharray:4 3}
 @media (max-width:700px){ .rec-grid{grid-template-columns:minmax(0,1fr)} .chart{margin-left:0} }
 .bar-row{display:grid; grid-template-columns:64px minmax(0,1fr) 92px; gap:8px; align-items:center; font-size:14px}
@@ -163,10 +166,11 @@ h2{font-size:20px}
 .tick{position:absolute; top:-4px; bottom:-4px; width:0; border-left:2px dashed var(--ink)}
 .bv{font-variant-numeric:tabular-nums; text-align:right}
 .note{color:var(--muted); font-size:13px; margin:0}
-.chips{display:grid; grid-template-columns:repeat(4,38px); gap:6px}
-.chip{width:38px; height:38px; border-radius:8px; display:grid; place-items:center; font-style:normal; font-size:17px; font-variant-numeric:tabular-nums; border:1px solid var(--line); background:var(--bg)}
-.chip.c1{background:color-mix(in srgb, var(--hot) 20%, var(--surface))}
-.chip.c0,.chip.c2{background:color-mix(in srgb, var(--violet) 20%, var(--surface))}
+.chips{display:grid; grid-template-columns:repeat(4,52px); gap:6px}
+.chip{width:52px; height:38px; border-radius:8px; display:grid; place-items:center; font-style:normal; font-size:15px; font-variant-numeric:tabular-nums; border:1px solid var(--line); background:var(--bg)}
+.chip.c0{background:color-mix(in srgb, var(--violet) 22%, var(--surface))}
+.chip.c1{background:color-mix(in srgb, var(--hot) 22%, var(--surface))}
+.chip.c2{background:color-mix(in srgb, var(--teal) 24%, var(--surface))}
 .rec-foot{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; font-size:14px}
 .link{background:none; border:none; color:var(--muted); text-decoration:underline; cursor:pointer; font:inherit; padding:6px 0}
 #fx{position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:50}
@@ -365,7 +369,7 @@ h2{font-size:20px}
     flipping: false,
     auto: false,
     last: null,
-    seq: [],
+    seq: [], pairs: [],
     tally: [0, 0, 0],
     wins: [0, 0, 0],
     winner: null,
@@ -536,7 +540,7 @@ h2{font-size:20px}
     return 10000;
   }
   function chartHTML(total, ended){
-    var W = 420, HH = 250, L = 40, R = 10, T = 36, BM = 40, pw = W - L - R, ph = HH - T - BM;
+    var W = 420, HH = 268, L = 40, R = 10, T = 36, BM = 58, pw = W - L - R, ph = HH - T - BM;
     var th = THEORY.map(function(p){ return total * p / 100; });
     var maxV = Math.max.apply(null, state.tally.concat(ended ? th : [0]));
     var step = niceStep(maxV), top = Math.ceil(Math.max(maxV, 4) / step) * step;
@@ -552,10 +556,10 @@ h2{font-size:20px}
     H.forEach(function(h){
       var cnt = state.tally[h], pct = total ? Math.round(cnt * 100 / total) : 0;
       var cx = L + gw * (h + 0.5), y = Y(cnt), ly = ended ? Math.min(y, Y(th[h])) : y;
-      if (cnt > 0) s += '<rect class="br" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
+      if (cnt > 0) s += '<rect class="br' + h + '" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
       s += '<text class="vl" x="' + cx.toFixed(1) + '" y="' + (ly - 7).toFixed(1) + '">' + cnt + '번' + (total ? ' · ' + pct + '%' : '') + '</text>';
       if (ended) s += '<line class="th" x1="' + (cx - bw / 2 - 8).toFixed(1) + '" x2="' + (cx + bw / 2 + 8).toFixed(1) + '" y1="' + Y(th[h]).toFixed(1) + '" y2="' + Y(th[h]).toFixed(1) + '"/>';
-      s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 14) + '">앞면 ' + h + '개</text>';
+      s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 28) + '">앞면 ' + h + '개</text><text class="tx sb" x="' + cx.toFixed(1) + '" y="' + (HH - 10) + '">' + ['뒤뒤', '앞뒤 · 뒤앞', '앞앞'][h] + '</text>';
     });
     return s + '</svg>';
   }
@@ -567,7 +571,7 @@ h2{font-size:20px}
       ? '점선은 이론적으로 기대되는 도수(25%, 50%, 25%)예요. 던진 횟수가 늘수록 막대가 점선에 가까워지는지 살펴보세요.'
       : (total ? '' : '동전을 던지면 앞면의 수가 막대로 쌓여요.');
     $('#seqEmpty').hidden = state.seq.length > 0;
-    $('#chips').innerHTML = state.seq.map(function(h){ return '<i class="chip c' + h + '">' + h + '</i>'; }).join('');
+    $('#chips').innerHTML = state.seq.map(function(h, i){ return '<i class="chip c' + h + '">' + (state.pairs[i] || h) + '</i>'; }).join('');
     $('#wins').textContent = pname(0) + ' ' + state.wins[0] + '승 · ' + pname(1) + ' ' + state.wins[1] + '승 · 무승부 ' + state.wins[2];
   }
 
@@ -806,7 +810,7 @@ h2{font-size:20px}
     state.crossed = [0, 0];
     state.rounds = 0;
     state.last = null;
-    state.seq = [];
+    state.seq = []; state.pairs = [];
     state.winner = null;
     state.auto = false;
     state.myRank = 0; state.saving = false; state.saveErr = false;
@@ -826,10 +830,10 @@ h2{font-size:20px}
     wrap.classList.remove('toss'); void wrap.offsetWidth; wrap.classList.add('toss');
   }
 
-  function resolve(h){
+  function resolve(h, pair){
     state.rounds++;
     state.tally[h]++;
-    state.seq.push(h);
+    state.seq.push(h); state.pairs.push(pair);
     var idxs = [-1, -1];
     for (var p = 0; p < 2; p++){
       var col = state.cols[p][h];
@@ -856,7 +860,7 @@ h2{font-size:20px}
     spin(0, c1); spin(1, c2);
     return sleep(reduce ? 150 : SPEEDS[speed].flip + 50).then(function(){
       var h = (c1 ? 1 : 0) + (c2 ? 1 : 0);
-      var idxs = resolve(h);
+      var idxs = resolve(h, (c1 ? '앞' : '뒤') + (c2 ? '앞' : '뒤'));
       state.flipping = false;
       render();
       [0, 1].forEach(function(p){
@@ -919,7 +923,7 @@ h2{font-size:20px}
     else if (id === 'btnReplace'){ state.phase = 'setup'; render(); }
     else if (id === 'btnRankView' || id === 'btnGoRank'){ S.vschool = null; B.cls = defCls(); B.q = ''; B.matches = null; B.classes = []; B.ready = true; $('#rankQ').value = ''; paintSelects(); location.hash = 'rank'; }
     else if (id === 'btnBackGame'){ location.hash = 'game'; }
-    else if (id === 'btnClear'){ state.tally = [0, 0, 0]; state.wins = [0, 0, 0]; state.seq = []; render(); }
+    else if (id === 'btnClear'){ state.tally = [0, 0, 0]; state.wins = [0, 0, 0]; state.seq = []; state.pairs = []; render(); }
   });
 
   var qTimer = 0;
