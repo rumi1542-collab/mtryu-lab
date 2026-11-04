@@ -29,6 +29,7 @@
     '.three{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.three .in{width:64px;padding:0 6px;text-align:center}.three b{font-size:15px}.three b+.in{margin-left:6px}' +
     '@media (max-width:420px){.grid{grid-template-columns:1fr}}' +
     '.in{width:100%;min-height:44px;padding:0 12px;border:2px solid #2B0F3F;border-radius:10px;font:inherit;font-size:16px;color:#2B0F3F;background:#fff}' +
+    '.in::placeholder{color:#B8ADC6;opacity:1;font-weight:400}' +   // 예시 글자는 연하게: 입력한 글자(진한색)와 헷갈리지 않게
     '.in:focus-visible,button:focus-visible{outline:3px solid #FF2D95;outline-offset:1px}' +
     '.res{list-style:none;margin:0;padding:0;border:2px solid #E6D8F2;border-radius:10px;max-height:200px;overflow:auto}.res:empty{display:none}' +
     '.res li+li{border-top:1px solid #E6D8F2}' +
