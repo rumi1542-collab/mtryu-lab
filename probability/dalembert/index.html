@@ -139,9 +139,9 @@ h2{font-size:20px}
 .record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
 .rec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
 .rec-head .meta{color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums}
-.rec-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:16px 28px; align-items:start}
+.rec-grid{display:grid; grid-template-columns:200px minmax(0,1fr); gap:16px 32px; align-items:start}
 .rec-chart{min-width:0}
-.chart{display:block; width:100%; height:auto; max-width:520px; margin-left:auto}
+.chart{display:block; width:100%; height:auto; max-width:400px; margin-left:0}
 .chart .gl{stroke:var(--line); stroke-width:1}
 .chart .ax{stroke:var(--muted); stroke-width:1.5}
 .chart .tx{fill:var(--muted); font:12px var(--font-body)}
@@ -158,8 +158,8 @@ h2{font-size:20px}
 .tick{position:absolute; top:-4px; bottom:-4px; width:0; border-left:2px dashed var(--ink)}
 .bv{font-variant-numeric:tabular-nums; text-align:right}
 .note{color:var(--muted); font-size:13px; margin:0}
-.chips{display:flex; flex-wrap:wrap; gap:4px}
-.chip{width:24px; height:24px; border-radius:6px; display:grid; place-items:center; font-style:normal; font-size:13px; font-variant-numeric:tabular-nums; border:1px solid var(--line); background:var(--bg)}
+.chips{display:grid; grid-template-columns:repeat(4,38px); gap:6px}
+.chip{width:38px; height:38px; border-radius:8px; display:grid; place-items:center; font-style:normal; font-size:17px; font-variant-numeric:tabular-nums; border:1px solid var(--line); background:var(--bg)}
 .chip.c1{background:color-mix(in srgb, var(--hot) 20%, var(--surface))}
 .chip.c0,.chip.c2{background:color-mix(in srgb, var(--violet) 20%, var(--surface))}
 .rec-foot{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; font-size:14px}
@@ -521,7 +521,7 @@ h2{font-size:20px}
     return 10000;
   }
   function chartHTML(total, ended){
-    var W = 420, HH = 230, L = 40, R = 10, T = 26, BM = 40, pw = W - L - R, ph = HH - T - BM;
+    var W = 420, HH = 250, L = 40, R = 10, T = 36, BM = 40, pw = W - L - R, ph = HH - T - BM;
     var th = THEORY.map(function(p){ return total * p / 100; });
     var maxV = Math.max.apply(null, state.tally.concat(ended ? th : [0]));
     var step = niceStep(maxV), top = Math.ceil(Math.max(maxV, 4) / step) * step;
@@ -536,9 +536,9 @@ h2{font-size:20px}
     var gw = pw / 3, bw = Math.min(64, gw * 0.5);
     H.forEach(function(h){
       var cnt = state.tally[h], pct = total ? Math.round(cnt * 100 / total) : 0;
-      var cx = L + gw * (h + 0.5), y = Y(cnt);
+      var cx = L + gw * (h + 0.5), y = Y(cnt), ly = ended ? Math.min(y, Y(th[h])) : y;
       if (cnt > 0) s += '<rect class="br" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
-      s += '<text class="vl" x="' + cx.toFixed(1) + '" y="' + (y - 6).toFixed(1) + '">' + cnt + '번' + (total ? ' · ' + pct + '%' : '') + '</text>';
+      s += '<text class="vl" x="' + cx.toFixed(1) + '" y="' + (ly - 7).toFixed(1) + '">' + cnt + '번' + (total ? ' · ' + pct + '%' : '') + '</text>';
       if (ended) s += '<line class="th" x1="' + (cx - bw / 2 - 8).toFixed(1) + '" x2="' + (cx + bw / 2 + 8).toFixed(1) + '" y1="' + Y(th[h]).toFixed(1) + '" y2="' + Y(th[h]).toFixed(1) + '"/>';
       s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 14) + '">앞면 ' + h + '개</text>';
     });
