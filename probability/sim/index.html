@@ -432,19 +432,14 @@ function labHtml() {
   head += '</div>' + (mineView ? '<div id="pubbox"></div>' : S.play.view === 'stats' ? '<p class="hint">올려 둔 실험의 집계예요. 정답은 만든 친구가 정한 확률이에요. 아래에서 직접 던져 볼 수도 있어요.</p>' : '<p class="hint">던진 결과만 볼 수 있어요. 🎲 던지기로 한 번씩, ▶ 계속 던지기로 빠르게 던져 볼 수 있어요. 확신이 들 때 ⏸ 멈추고 가능성이 같은지 판단해 주세요.</p>') + '</div>';
   if (remote) {
     if (S.play.view === 'stats') return head + '<div id="statsbox"></div>' + liveHtml('🎲 던져 보기');
-    const showLive = !S.play.my || S.once || S.play.practice;
     if (S.play.preview) head += '<div class="card" style="background:#FFF4D6;border-color:#eda100"><b>👀 관리자 미리보기</b> — 아직 판정하지 않은 학생에게 보이는 화면이에요. 여기서 한 판정은 기록되지 않아요.</div>';
-    return head + (showLive ? liveHtml() : '') + '<div id="judge"></div>';
+    return head + liveHtml() + '<div id="judge"></div>';
   }
 
   const pickOpts = names.map((n, i) => '<option value="' + i + '"' + (i === S.pick ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
-  const tabs = '<div class="tabs" role="tablist" aria-label="실험 방법"><button class="tab" role="tab" id="t-once" data-act="tab" data-v="once" aria-selected="' + (S.tab === 'once') + '">n번 던지기</button><button class="tab" role="tab" id="t-rep" data-act="tab" data-v="rep" aria-selected="' + (S.tab === 'rep') + '">n번씩 k회 반복하기</button></div>';
+  const tabs = '<div class="tabs" role="tablist" aria-label="실험 방법"><button class="tab" role="tab" id="t-once" data-act="tab" data-v="once" aria-selected="' + (S.tab === 'once') + '">던져 보기</button><button class="tab" role="tab" id="t-rep" data-act="tab" data-v="rep" aria-selected="' + (S.tab === 'rep') + '">n번씩 k회 반복하기</button></div>';
 
-  const once = '<div id="p-once" role="tabpanel" aria-labelledby="t-once" class="card" style="border-top-left-radius:0"' + (S.tab === 'once' ? '' : ' hidden') + '>' +
-    '<div class="ctl"><label class="f">던지는 횟수 n<input id="n1" type="number" min="1" max="' + MAX_ROLL + '" value="' + S.n1 + '"></label>' +
-    '<div class="quick" aria-label="자주 쓰는 횟수">' + [10, 100, 1000, 10000].map(v => '<button data-act="q1" data-v="' + v + '">' + fmt(v) + '번</button>').join('') + '</div>' +
-    '<button class="btn primary" id="run1" data-act="run1">던지기</button></div>' +
-    '<p id="m1" class="msg"></p><div id="res1"></div></div>';
+  const once = '<div id="p-once" role="tabpanel" aria-labelledby="t-once" class="card" style="border-top-left-radius:0"' + (S.tab === 'once' ? '' : ' hidden') + '><div id="livecard">' + liveInner() + '</div></div>';
 
   const rep = '<div id="p-rep" role="tabpanel" aria-labelledby="t-rep" class="card" style="border-top-left-radius:0"' + (S.tab === 'rep' ? '' : ' hidden') + '>' +
     '<p class="hint">경우를 하나 고르고, n번 던졌을 때 그 경우가 몇 번 나왔는지(도수)를 k회 모아서 분포로 나타내요.</p>' +
@@ -458,15 +453,19 @@ function labHtml() {
   return head + opts + '<div>' + tabs + once + rep + '</div>' + (remote ? '<div id="judge"></div>' : '');
 }
 
+// 던지기 버튼 줄 + 결과 영역 (친구 실험 화면과 도구 제작 화면이 똑같이 써요)
+function liveInner() {
+  return '<div class="ctl"><button class="btn" id="liveone" data-act="liveone">🎲 던지기</button><button class="btn primary" id="livego" data-act="livego">▶ 계속 던지기</button><button class="btn" id="livestop" data-act="livestop">⏸ 멈춤</button><button class="btn" id="livereset" data-act="livereset">↺ 처음부터 다시</button><span class="hint" style="align-self:center">지금까지 <b id="livecnt">0</b>번 (최대 ' + fmt(MAX_LIVE) + '번)</span></div>' +
+    '<p id="livemsg" class="msg" style="margin:0"></p><div id="res1" style="margin-top:12px"></div>';
+}
 function liveHtml(title) {
-  return '<div class="card" id="livecard">' + (title ? '<h2>' + title + '</h2>' : '') + '<div class="ctl"><button class="btn" id="liveone" data-act="liveone">🎲 던지기</button><button class="btn primary" id="livego" data-act="livego">▶ 계속 던지기</button><button class="btn" id="livestop" data-act="livestop">⏸ 멈춤</button><button class="btn" id="livereset" data-act="livereset">↺ 처음부터 다시</button><span class="hint" style="align-self:center">지금까지 <b id="livecnt">0</b>번 (최대 ' + fmt(MAX_LIVE) + '번)</span></div>' +
-    '<p id="livemsg" class="msg" style="margin:0"></p><div id="res1" style="margin-top:12px"></div></div>';
+  return '<div class="card" id="livecard">' + (title ? '<h2>' + title + '</h2>' : '') + liveInner() + '</div>';
 }
 function syncLive() {
   const L = S.live, go = $('#livego'), st = $('#livestop'), one = $('#liveone'); if (!go) return;
-  const done = !!S.play.my && !S.play.practice, full = L.n >= MAX_LIVE;
+  const full = L.n >= MAX_LIVE;
   const rs = $('#livereset'); if (rs) rs.disabled = L.running || L.busy || (!L.n && !L.queue.length);
-  go.disabled = L.running || done || full; st.disabled = !L.running; one.disabled = L.running || L.busy || done || full;
+  go.disabled = L.running || full; st.disabled = !L.running; one.disabled = L.running || L.busy || full;
   go.innerHTML = L.running ? '<span class="spin"></span> 던지는 중' : '▶ 계속 던지기';
   const c = $('#livecnt'); if (c) c.textContent = fmt(L.n);
   const m = $('#livemsg'); if (m) { m.textContent = L.msg || ''; m.className = 'msg' + (L.msg ? ' err' : ''); }
@@ -488,6 +487,10 @@ async function fetchBatch(count) {
   const L = S.live; if (L.busy) return;
   const n = Math.min(count, MAX_LIVE - L.fTotal); if (n <= 0) return;
   const g = L.gen, E = S.exp; L.busy = true; syncLive();
+  if (!E.remote) {   // 도구 제작 화면: 이 브라우저에서 직접 던져요
+    localRoll(E.p, n).forEach((c, i) => L.queue.push({ c, total: L.fTotal + i + 1, tok: '' }));
+    L.fTotal += n; L.busy = false; syncLive(); return;
+  }
   try {
     const j = await api({ act: 'step', id: E.remote.id, uid: ME.uid, n, total: L.fTotal, tok: L.fTok, preview: S.play.view === 'stats' || S.play.preview });
     if (g !== L.gen) return;
@@ -505,8 +508,8 @@ function revealOne() {
   return true;
 }
 async function startLive() {
-  const L = S.live; if (L.running || L.busy || (S.play.my && !S.play.practice) || L.n >= MAX_LIVE) return;
-  const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
+  const L = S.live; if (L.running || L.busy || L.n >= MAX_LIVE) return;
+  const bad = S.exp.remote ? await needReady() : ''; if (bad) { L.msg = bad; syncLive(); return; }
   L.running = true; L.msg = ''; syncLive(); paintJudge();
   L.timer = setInterval(() => {
     if (!L.running) return;
@@ -516,8 +519,8 @@ async function startLive() {
   }, STEP_MS);
 }
 async function throwOnce() {
-  const L = S.live; if (L.running || L.busy || (S.play.my && !S.play.practice) || L.n >= MAX_LIVE) return;
-  const bad = await needReady(); if (bad) { L.msg = bad; syncLive(); return; }
+  const L = S.live; if (L.running || L.busy || L.n >= MAX_LIVE) return;
+  const bad = S.exp.remote ? await needReady() : ''; if (bad) { L.msg = bad; syncLive(); return; }
   L.msg = ''; await fetchBatch(1);
   if (revealOne()) { flushLive(); syncLive(); paintJudge(); }
 }
@@ -535,7 +538,7 @@ function analyzeOnce(idx, m) {
 function niceStep(raw) { const e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e; }
 
 /* ---------- 그래프 (SVG, 화면 폭에 맞춰 글자 크기를 유지해요) ---------- */
-const chartH = () => (S.exp && S.exp.remote ? 300 : 320);
+const chartH = () => 300;
 // 가로축 이름이 길면 칸 너비에 맞춰 줄을 바꿔요 (띄어쓰기에서 먼저, 없으면 글자 수대로. 3줄이 넘으면 …)
 function wrapLabel(text, px, maxLines) {
   const cw = c => (c.charCodeAt(0) > 255 ? 13 : 7.2), words = String(text).split(/\s+/).filter(Boolean), lines = [];
@@ -644,7 +647,7 @@ const chartWidth = el => Math.max(300, Math.floor(el.clientWidth || 600));
 const BLK_SIZES = [10, 50, 100, 500];
 function gpanelHtml(names) {
   if (S.gtab === 'bar') return '<div class="blkctl"><span>보기</span>' + [['cnt', '도수'], ['rel', '상대도수']].map(t => '<button type="button" class="btn sm" data-act="bmode" data-v="' + t[0] + '" aria-pressed="' + (S.bmode === t[0]) + '">' + t[1] + '</button>').join('') + '</div>' +
-    '<div class="chart" data-chart="bar1"></div><p class="hint">' + (S.bmode === 'rel' ? '경우마다 전체 던진 횟수 중 차지한 비율(상대도수)이에요. 세로축은 0~1이에요.' + (S.exp.p ? ' 점선은 만든 친구가 정한 확률이에요.' : '') : '경우마다 몇 번 나왔는지(도수) 보여요.') + '</p>';
+    '<div class="chart" data-chart="bar1"></div><p class="hint">' + (S.bmode === 'rel' ? '경우마다 전체 던진 횟수 중 차지한 비율(상대도수)이에요. 세로축은 0~1이에요.' + (truthP() ? (S.exp.remote ? ' 점선은 만든 친구가 정한 확률이에요.' : ' 점선은 내가 정한 확률이에요.') : '') : '경우마다 몇 번 나왔는지(도수) 보여요.') + '</p>';
   if (S.gtab === 'blk') return '<div class="blkctl"><span>묶음 크기</span>' + BLK_SIZES.map(k => '<button type="button" class="btn sm" data-act="blk" data-v="' + k + '" aria-pressed="' + (S.blk === k) + '">' + k + '번씩</button>').join('') + '</div>' +
     '<div class="chart" data-chart="blk1"></div>' + pickHtml(names) + '<p class="hint" id="blkinfo"></p>' +
     '<p class="hint">던진 결과를 ' + S.blk + '번씩 끊어서, 묶음마다 상대도수를 점으로 찍어요. 묶음이 클수록 점들이 모여요. 다 채워진 묶음만 보여요.</p>';
@@ -662,11 +665,13 @@ function gpanelPaint() {
   drawCharts();
 }
 // 아직 던지지 않았어도 친구 실험 화면에는 빈 결과·표·그래프 틀을 보여 줘요
-function curOnce() { return S.once || (S.exp && S.exp.remote ? analyzeOnce([], S.exp.names.length) : null); }
+function curOnce() { return S.once || (S.exp ? analyzeOnce([], S.exp.names.length) : null); }
+// 그래프·표에 보여 줄 ‘정한 확률’: 친구 실험은 판정한 뒤에, 내 도구는 ‘내가 정한 확률 보기’를 켰을 때
+function truthP() { const E = S.exp; return !E || !E.p ? null : (E.remote ? E.p : (S.showTrue ? E.p : null)); }
 function paintOnce() {
   const box = $('#res1'); if (!box) return;
   const R = curOnce(); if (!R) { box.innerHTML = ''; box.dataset.sig = ''; return; }
-  const E = S.exp, names = E.names, m = names.length, live = !!E.remote, mineView = !live, showP = live ? !!E.p : (mineView && S.showTrue);
+  const E = S.exp, names = E.names, m = names.length, live = true, showP = !!truthP();
   const maxCh = m > 5 ? 4 : 6, lab = names.map(n => short(n, maxCh));
   const sig = (showP ? 'p' : 'n') + m + (live ? 'L' : '');
   if (box.dataset.sig !== sig || !$('#lg1')) {
@@ -722,14 +727,14 @@ function drawCharts() {
     const O = curOnce();
     if (kind === 'bar1' && O) {
       const cols = E.names.map((_, i) => col(i, E.names.length));
-      if (E.remote && S.bmode === 'rel') el.innerHTML = barSvg(w, E.names, O.counts.map(c => O.n ? c / O.n : 0), cols, '', '상대도수', null, true, true, E.p || null, 0.1);
-      else el.innerHTML = barSvg(w, E.names, O.counts, cols, '', '도수(번)', null, true, false, null, E.remote ? 50 : 0);
+      if (S.bmode === 'rel') el.innerHTML = barSvg(w, E.names, O.counts.map(c => O.n ? c / O.n : 0), cols, '', '상대도수', null, true, true, truthP(), 0.1);
+      else el.innerHTML = barSvg(w, E.names, O.counts, cols, '', '도수(번)', null, true, false, null, 50);
     }
     else if (kind === 'line1' && O) {
-      const L = lineSvg(w, O, E.names, E.p, E.remote ? !!E.p : S.showTrue, S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
+      const L = lineSvg(w, O, E.names, E.p, !!truthP(), S.vis, lineCol); el.innerHTML = L.svg + '<div class="tip" hidden></div>';
       wireLine(el, L, w);
     } else if (kind === 'blk1' && O) {
-      el.innerHTML = blockSvg(w, O, E.names, E.p, !!E.p, S.blk, S.vis, lineCol);
+      el.innerHTML = blockSvg(w, O, E.names, E.p, !!truthP(), S.blk, S.vis, lineCol);
       const info = $('#blkinfo'); if (info) info.textContent = blockInfo(O, E.names, S.blk);
     } else if (kind === 'hist' && S.rep) {
       const R = S.rep, H = R.h || histBins(R.counts, R.n);
@@ -940,7 +945,7 @@ function judgeHtml() {
       '<p>내 판단은 ‘' + (P.my === 'e' ? '같다' : '같지 않다') + '’ → <b>' + (ok ? '맞았어요! 🎉' : '아쉽게 틀렸어요') + '</b>' + (rv.n != null ? ' · 내가 던진 횟수 ' + fmt(rv.n) + '번' : '') + '</p></div>' +
       (rv.p ? '<h3>만든 친구가 정한 확률</h3>' + legendHtml(E.names, rv.p, true) : '') +
       '<p class="hint">' + CAVEAT + '</p>' + tallyHtml(P.tally, P.my) +
-      '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="list">← 목록으로</button>' + (P.practice ? '<span class="hint" style="align-self:center">정답을 알고 다시 던져 보는 중이에요. 이 결과는 기록되지 않아요.</span>' : '<button class="btn primary" data-act="practice">🎲 다시 던져 보기</button>') + '</div></div>';
+      '<div class="actions" style="justify-content:flex-start"><button class="btn" data-act="list">← 목록으로</button>' + '<span class="hint" style="align-self:center">위 실험 화면에서 더 던져 봐도 판단은 바뀌지 않아요.</span>' + '</div></div>';
   }
   const dis = L.n < 1 || L.running || L.busy || P.busy;
   const guide = L.n < 1 ? '<b>먼저 던져 본 뒤</b> 판단해 보세요.' : L.running ? '확신이 들면 <b>⏸ 멈춤</b>을 누르고 판단해 보세요.' : '지금까지 던진 ' + fmt(L.n) + '번의 결과를 바탕으로 골라 보세요. 한 번 제출하면 바꿀 수 없어요. (던진 횟수도 함께 기록돼요)';
@@ -1032,14 +1037,14 @@ function render() {
   else if (S.screen === 'lab') { setSub('확률 실험하기'); html = labHtml(); }
   else if (S.screen === 'list') { setSub('우리 학교 실험 판정하기'); html = listHtml(); }
   else if (S.screen === 'play') { setSub('친구가 올린 실험'); html = labHtml(); }
-  if (S.screen !== 'play') stopLive();
+  if (S.screen !== 'play' && S.screen !== 'lab') stopLive();
   app.innerHTML = html;
   if (S.screen === 'lab' || S.screen === 'play') { paintOnce(); paintRep(); paintPub(); paintJudge(); if (S.screen === 'play') { syncLive(); if (S.play.view === 'stats') paintStats(); } }
 }
 function startExperiment() {
   const ck = checkBuild(); if (!ck.ok) return;
   S.exp = { tool: S.tool.trim(), names: S.cases.map(c => c.name.trim()), p: ck.p, remote: null };
-  S.once = null; S.rep = null; S.pick = 0; S.vis = null; S.ran = false; S.tab = 'once'; S.showTrue = false; S.pub = { open: false, busy: false, id: null, key: '', msg: '', err: false };
+  liveReset(); S.once = null; S.rep = null; S.pick = 0; S.vis = null; S.ran = false; S.tab = 'once'; S.showTrue = false; S.pub = { open: false, busy: false, id: null, key: '', msg: '', err: false };
   S.screen = 'lab'; render(); window.scrollTo(0, 0);
 }
 
@@ -1071,15 +1076,10 @@ app.addEventListener('click', async ev => {
   else if (a === 'liveone') throwOnce();
   else if (a === 'livego') startLive();
   else if (a === 'livestop') stopLive();
-  else if (a === 'livereset') {   // 던진 결과를 모두 지우고 0번부터 다시. 판정을 낸 뒤라면 연습으로 이어져요(기록 안 남음)
-    liveReset(); S.once = null; S.ran = false; S.play.pick = null; S.play.msg = '';
-    if (S.play.my && !S.play.practice) { S.play.practice = true; render(); const lc = $('#livecard'); if (lc) lc.scrollIntoView({ block: 'start' }); }
-    else { paintOnce(); paintJudge(); syncLive(); }
-  }
+  else if (a === 'livereset') { liveReset(); S.once = null; S.ran = false; S.play.pick = null; S.play.msg = ''; paintOnce(); paintJudge(); syncLive(); }   // 던진 결과를 모두 지우고 0번부터 다시
   else if (a === 'gtab') { S.gtab = v; gpanelPaint(); }
   else if (a === 'blk') { S.blk = Number(v); gpanelPaint(); }
   else if (a === 'bmode') { S.bmode = v; gpanelPaint(); }
-  else if (a === 'practice') { liveReset(); S.once = null; S.ran = false; S.play.practice = true; render(); const lc = $('#livecard'); if (lc) lc.scrollIntoView({ block: 'start' }); }
   else if (a === 'run1') runOnce();
   else if (a === 'run2') runRep();
   else if (a === 'pub-open') { S.pub.open = true; S.pub.msg = ''; paintPub(); }
