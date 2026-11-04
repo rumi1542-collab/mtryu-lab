@@ -117,6 +117,10 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .onum{position:relative;display:grid;place-items:center;height:26px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
 .ob{display:grid;place-items:center;width:100%;max-width:28px;height:19px;margin:0 auto;border:1.5px solid var(--omr-line);border-radius:50%;font-size:11px;line-height:1;font-variant-numeric:tabular-nums}
 .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
+.omr.draft .ob{cursor:pointer;background:transparent;font-family:inherit;color:inherit;padding:0}
+.omr.draft .ob:hover{border-color:var(--purple)}
+.omr.draft .ob:focus-visible{outline:2px solid var(--purple);outline-offset:1px}
+.omr.draft .ob.mk{background:var(--omr-fill);border-color:var(--omr-fill);color:var(--paper);font-weight:700}
 .ob.fix{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--omr-red)}
 .onum.o::before{content:"";position:absolute;left:50%;top:50%;width:25px;height:25px;margin:-12.5px 0 0 -12.5px;border:2.2px solid var(--omr-red);border-radius:50%}
 .onum.x::before{content:"";position:absolute;left:50%;top:50%;width:2.4px;height:32px;margin:-16px 0 0 -1.2px;background:var(--omr-red);border-radius:2px;transform:rotate(38deg)}
@@ -308,7 +312,7 @@ function guessFor(strat, one, i){
   if (strat === 'regular') return i % 5 + 1;
   return one;
 }
-function exam(s, strat){
+function exam(s, strat, draft){
   const key = makeKey(s.layout);
   const order = shuffle(Array.from({length: N}, (_, i) => i));
   const isKnown = new Array(N).fill(false);
@@ -318,7 +322,7 @@ function exam(s, strat){
   for (let i = 0; i < N; i++){
     if (isKnown[i]){ mine.push(key[i]); status.push('known'); hits++; }
     else {
-      const g = guessFor(strat, s.one, i);
+      const g = draft && draft[i] ? draft[i] : guessFor(strat, s.one, i);
       mine.push(g);
       if (g === key[i]){ status.push('hit'); hits++; guessHits++; } else status.push('miss');
     }
@@ -516,19 +520,27 @@ function renderSingle(s, strat, r, opt){
     '<p class="keys-h">이번 시험의 정답 분포' + (strat === 'one' ? ' (찍은 ' + s.one + '번 표시)' : '') + '</p>' +
     '<ul class="keys">' + keys + '</ul>';
 }
-/* 첫 화면: 아직 시험을 보지 않은 빈 OMR 답안지 */
+/* 첫 화면: 빈 OMR 답안지. 찍는 방법을 고르면 답이 채워지고, 칸을 눌러 직접 바꿀 수도 있어요 */
+let draft = null;
+function fillDraft(){
+  const c = cur();
+  draft = Array.from({length: N}, (_, i) => guessFor(c.strat, c.s.one, i));
+  renderBlank();
+}
 function renderBlank(){
   const orow = i => {
     let b = '';
-    for (let j = 1; j <= 5; j++) b += '<span class="ob">' + j + '</span>';
-    return '<div class="orow" role="group" aria-label="' + (i + 1) + '번 문제, 아직 답을 적지 않았어요"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
+    for (let j = 1; j <= 5; j++) b += '<button type="button" class="ob' + (draft && draft[i] === j ? ' mk' : '') + '" data-q="' + i + '" data-v="' + j + '" aria-pressed="' + (!!draft && draft[i] === j) + '" aria-label="' + (i + 1) + '번 문제 ' + j + '번">' + j + '</button>';
+    return '<div class="orow" role="group" aria-label="' + (i + 1) + '번 문제"><span class="onum">' + (i + 1) + '</span>' + b + '</div>';
   };
   const th = '<div class="omr-th"><span>문항</span>' + [1, 2, 3, 4, 5].map(v => '<span>' + v + '</span>').join('') + '</div>';
   const half = a => '<div class="omr-col">' + th + Array.from({length: 10}, (_, t) => orow(a + t)).join('') + '</div>';
   $('single').innerHTML =
     '<h2>OMR 답안지</h2>' +
-    '<p class="cond">왼쪽에서 조건을 고르고 <b>시험 1번 보기 (연습)</b>를 눌러 보세요. 답을 마킹하고 채점해 줘요.</p>' +
-    '<div class="omr" role="group" aria-label="빈 OMR 답안지"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>';
+    '<p class="cond">' + (draft
+      ? '고른 찍는 방법대로 답을 적어 놨어요. 칸을 눌러 바꿀 수도 있어요. 아는 문제는 시험을 볼 때 정답으로 바뀌어요. 준비되면 <b>시험 1번 보기 (연습)</b>를 누르세요.'
+      : '왼쪽에서 아는 문제와 찍는 방법을 고르면 답이 적혀요. 칸을 눌러 직접 적을 수도 있어요.') + '</p>' +
+    '<div class="omr draft" role="group" aria-label="OMR 답안지 (칸을 눌러 답을 적어요)"><div class="omr-head">객관식 답란</div><div class="omr-cols">' + half(0) + half(10) + '</div></div>';
 }
 function showRecord(rec, note, ranked){
   renderSingle({known: rec.k, layout: 'equal', one: rec.one || 3}, rec.strat, fromRecord(rec), {ranked: ranked !== false, note});   // 순위 시험의 정답은 늘 각 번호 4개씩이에요
@@ -695,10 +707,18 @@ async function findName(){
 
 /* ---------- 이벤트 ---------- */
 document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('change', () => { $('numrow').hidden = val('strat') !== 'one'; }));
+document.querySelectorAll('input[name=strat]').forEach(i => i.addEventListener('click', fillDraft));
+document.querySelectorAll('input[name=one]').forEach(i => i.addEventListener('click', () => { if (val('strat') === 'one') fillDraft(); }));
+$('single').addEventListener('click', e => {
+  const b = e.target.closest('.omr.draft .ob'); if (!b || !draft) return;
+  const q = +b.dataset.q, v = +b.dataset.v;
+  draft[q] = v;
+  b.parentNode.querySelectorAll('.ob').forEach(x => { const on = +x.dataset.v === v; x.classList.toggle('mk', on); x.setAttribute('aria-pressed', on); });
+});
 document.querySelectorAll('input[name=known]').forEach(i => i.addEventListener('change', () => { syncRank(); setBoard(+val('known')); }));
 $('run1').addEventListener('click', () => {
   const c = cur();
-  renderSingle(c.s, c.strat, exam(c.s, c.strat));
+  renderSingle(c.s, c.strat, exam(c.s, c.strat, draft));
   reveal($('single'));
 });
 document.querySelectorAll('.btn[data-n]').forEach(b => b.addEventListener('click', () => {
