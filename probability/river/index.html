@@ -261,10 +261,10 @@ button{cursor:pointer}
 .rowx .tn{font-family:'Jua','Noto Sans KR',sans-serif;font-size:24px}
 .rowx .bw{display:flex;flex-direction:column;gap:3px;justify-content:center;padding:4px 0}
 .rowx .bl{display:flex;align-items:center;gap:6px}
-.rowx .bl i{font-style:normal;font-size:13px;color:var(--muted);width:30px;flex:none;white-space:nowrap}
+.rowx .bl i{font-style:normal;font-size:13px;color:var(--muted);width:34px;flex:none;white-space:nowrap}
 .rowx .bars{display:flex;align-items:flex-end;gap:2px;height:26px}
 .rowx .bars span{display:block;width:10px;border-radius:2px}
-.rowx .bars.lo span{opacity:.75}
+.rowx .bars.lo span{opacity:.4}
 .gap{text-align:center;color:var(--muted);font-size:18px;line-height:14px;height:14px}
 .empty{padding:36px;text-align:center;color:var(--muted);font-size:18px}
 
@@ -1184,7 +1184,7 @@ function paintResult() {
     const p = idToP[r.id]; const me = !!p;
     const bars = (r.setup || []).map(c => `<span style="height:${c === 0 ? 3 : Math.min(c, 6) * 4}px;background:${c === 0 ? '#4A54B0' : (me ? COLOR[p] : '#AEB6F0')}"></span>`).join('');
     const lbars = Array.isArray(r.lsetup) ? r.lsetup.map(c => `<span style="height:${c === 0 ? 3 : Math.min(c, 6) * 4}px;background:${c === 0 ? '#4A54B0' : (me ? COLOR[p === 'a' ? 'b' : 'a'] : '#FF8FA3')}"></span>`).join('') : '';
-    const bw = `<span class="bw"><span class="bl"><i>이김</i><span class="bars">${bars}</span></span>${lbars ? `<span class="bl"><i>짐</i><span class="bars lo">${lbars}</span></span>` : ''}</span>`;
+    const bw = `<span class="bw"><span class="bl"><i>win</i><span class="bars">${bars}</span></span>${lbars ? `<span class="bl"><i>lose</i><span class="bars lo">${lbars}</span></span>` : ''}</span>`;
     const bg = rank <= 3 ? medal[rank - 1] : null;
     return `<div class="rowx${me ? ' me' : ''}${p === 'b' ? ' o' : ''}"><span><span class="rk" style="${bg ? `background:${bg};color:#12163A` : ''}">${rank}</span></span>
       <span class="nm"><span class="t">${esc(r.name)}</span>${!R.cls && Number.isInteger(r.gr) && Number.isInteger(r.cl) ? `<span class="rcl">${r.gr}-${r.cl}</span>` : ''}${me ? '<em>방금 기록</em>' : ''}</span><span class="tn">${r.rolls}번</span>${bw}</div>`;
@@ -1208,7 +1208,7 @@ function paintResult() {
   board.innerHTML = `<div class="bhead"><div><small>${state.year}학년도 · ${esc(state.school)} · 같은 횟수는 최근 기록이 위</small><h2 class="jua">${R.cls ? esc(R.cls.split('-')[0] + '학년 ' + R.cls.split('-')[1] + '반') + ' 순위' : '전체 순위'} <span class="cnt">${total}명</span></h2></div>
       <span class="mode${Store.mode === 'local' ? ' local' : ''}">${Store.mode === 'local' ? '이 컴퓨터 기록' : '학교 전체 기록'}</span>${Store.mode === 'local' ? '<button type="button" class="pbtn wide" data-act="retryload">서버에서 다시 불러오기</button>' : ''}</div>
     <div class="strip">${clsSel}<form class="findrow" data-form="find" autocomplete="off"><input id="findQ" type="text" maxlength="8" placeholder="내 이름 찾기" value="${esc(R.q || '')}"><button type="submit" class="pbtn wide">찾기</button></form>${mine}</div>
-    <div class="cols"><span>순위</span><span>이름</span><span>굴린 횟수</span><span>처음 배치 (이김 / 짐)</span></div>
+    <div class="cols"><span>순위</span><span>이름</span><span>굴린 횟수</span><span>처음 배치 (win / lose)</span></div>
     <div class="rows">${rows}</div>${pager}`;
 }
 async function loadPage(offset) {
