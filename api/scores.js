@@ -10,7 +10,7 @@
 // GET    /api/scores?...&cls=2-3                       → 같은 형식인데 2학년 3반 기록만 (rank·total도 그 반 안에서)
 // GET    /api/scores?year=&school=&classes=1           → { classes:[{gr,cl,n}], none, total } 학년·반별 기록 수
 // GET    /api/scores?year=&school=&q=이름              → { matches, total } 이름 찾기 (cls도 같이 쓸 수 있어요)
-// POST   /api/scores  {year,school,id,name,rolls,setup,uid?,gr?,cl?} → { rank, top }  기록 저장 (name은 순위에 보이는 별명, gr·cl은 학년·반, uid는 공개하지 않는 익명 번호)
+// POST   /api/scores  {year,school,id,name,rolls,setup,lsetup?,uid?,gr?,cl?} → { rank, top }  기록 저장 (name은 순위에 보이는 별명, gr·cl은 학년·반, uid는 공개하지 않는 익명 번호)
 // DELETE /api/scores?year=&school=&id=        (헤더 x-admin-key 필요)    기록 1개 삭제
 // DELETE /api/scores?year=&school=&ids=a,b,c  (헤더 x-admin-key 필요)    여러 건 삭제
 // DELETE /api/scores?year=&school=&all=1      (헤더 x-admin-key 필요)    순위 전체 삭제
@@ -91,11 +91,14 @@ module.exports = async function handler(req, res) {
       // 1번 칸은 주사위 합이 될 수 없어서, 거기에 토큰이 있으면 이길 수 없어요
       if (setup[0] !== 0) return send(res, 400, { error: 'bad-setup' });
 
+      // 진 쪽 처음 배치(선택): 이름 없이 분포만 함께 저장해요
+      const ls = b.lsetup;
+      const lsetup = Array.isArray(ls) && ls.length === 12 && ls.every(n => Number.isInteger(n) && n >= 0 && n <= 12) && ls.reduce((x, y) => x + y, 0) === 12 ? ls : undefined;
       const key = 'rd:' + Number(b.year) + ':' + b.school;
       const ts = Date.now();
       const uid = /^[a-f0-9]{32}$/.test(String(b.uid || '')) ? String(b.uid) : undefined;   // 기기별 익명 번호 (없어도 돼요)
       const gr = Number(b.gr), cl = Number(b.cl), cls = isClass(gr, cl) ? { gr, cl } : {};   // 학년·반 (번호는 받지 않아요)
-      const member = JSON.stringify(Object.assign({ id, name, rolls, setup, ts, uid }, cls));
+      const member = JSON.stringify(Object.assign({ id, name, rolls, setup, lsetup, ts, uid }, cls));
       const score = rolls - ts / 1e13; // 굴린 횟수가 같으면 최근에 기록한 사람이 위
       await redis(['ZADD', key, score, member]);
       const rank0 = await redis(['ZRANK', key, member]);
