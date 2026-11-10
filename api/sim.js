@@ -13,6 +13,7 @@
 //   {act:'stats',   id, uid}                                           집계(만든 사람·관리자만) → { eq, tally, items:[{ok,n}], legacy }
 //   {act:'remove',  id, uid}                                           내가 올린 실험 지우기 (관리자는 헤더 x-admin-key 로 누구 것이든)
 //   {act:'feature', id, on:true|false}                                 추천 실험으로 올리기/내리기 (관리자만, 헤더 x-admin-key)
+//   {act:'adminedit', id, tool, cases, w, nick?}                       실험 고치기 (관리자만) — 판정 기록은 새 정답으로 다시 채점
 //   {act:'resetvotes', id}                                             판단 기록만 지우기 (관리자만)
 //   {act:'adminping'}                                                  관리자 암호 확인 (관리자만)
 //
@@ -260,6 +261,37 @@ module.exports = async function handler(req, res) {
       if (b.on) e.feat = Date.now(); else delete e.feat;
       await redis(['SET', kE(b.id), JSON.stringify(e), 'EX', TTL]);
       return send(res, 200, { ok: true, feat: !!e.feat });
+    }
+
+    // ── 관리자: 실험 고치기 (도구 이름·경우 이름·확률·만든 친구 별명). 판정한 기록은 새 정답에 맞게 다시 채점해요 ──
+    if (act === 'adminedit') {
+      if (!okId(b.id)) return send(res, 400, { error: 'bad-request' });
+      if (!(await rateLimit(req, 'simadm', 30, 600))) return send(res, 429, { error: 'too-many' });
+      if (!isAdmin(req)) return send(res, 401, { error: 'unauthorized' });
+      const e = parse(await redis(['GET', kE(b.id)]));
+      if (!e) return send(res, 404, { error: 'not-found' });
+      const ex = L.buildExperiment(b, badName);
+      if (!ex) return send(res, 400, { error: 'bad-experiment' });
+      let nick = e.nick;
+      if (b.nick != null) {
+        nick = String(b.nick).replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
+        if (!nick || badName(nick)) return send(res, 400, { error: 'bad-name' });
+      }
+      const eq = L.isEqual(ex.p), flip = eq !== !!e.eq;
+      Object.assign(e, { tool: ex.tool, cases: ex.cases, p: ex.p, eq, nick });
+      const cmds = [['SET', kE(b.id), JSON.stringify(e), 'EX', TTL]];
+      if (flip) {
+        // 정답(같다/같지 않다)이 바뀌었으면 판정한 학생들의 맞음·틀림을 다시 계산해요
+        const flat = (await redis(['HGETALL', kU(b.id)])) || [];
+        for (let i = 0; i + 1 < flat.length; i += 2) {
+          const v = parseVote(flat[i + 1]);
+          if (!v || v.n == null) continue;   // 예전 기록(한 글자)은 그대로 둬요
+          cmds.push(['HSET', kU(b.id), flat[i], JSON.stringify({ c: v.c, n: v.n, ok: (v.c === 'e') === eq })]);
+        }
+      }
+      await redisMulti(cmds);
+      expCache.delete(b.id);
+      return send(res, 200, { ok: true, eq, changedAnswer: flip });
     }
 
     // ── 관리자: 판단 기록만 지우기 (실험은 그대로 두고 모든 판단·집계를 0으로) ──

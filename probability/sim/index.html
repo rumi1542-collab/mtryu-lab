@@ -402,7 +402,10 @@ function buildHtml() {
       (eq ? '' : '<input class="cw" data-i="' + i + '" inputmode="decimal" value="' + esc(c.w) + '" placeholder="' + esc(pw) + '" aria-label="' + (i + 1) + '번째 경우의 상대도수" autocomplete="off">') +
       '<button class="del" data-act="del" data-i="' + i + '" aria-label="' + (i + 1) + '번째 경우 삭제"' + (S.cases.length <= MIN_CASES ? ' disabled' : '') + '>✕</button></div>';
   });
-  return '<div class="card"><h2>① 도구 이름</h2>' +
+  const ed = S.edit;
+  return (ed ? '<div class="card"><h2>🛠 관리자: 실험 고치기</h2><p class="hint">도구 이름·경우 이름·상대도수·만든 친구 별명을 고칠 수 있어요. 확률을 바꾸면 이미 판정한 친구들의 맞음·틀림도 새 정답에 맞게 다시 계산돼요.</p>' +
+    '<label class="hint" for="enick">만든 친구 별명</label> <input id="enick" maxlength="8" value="' + esc(ed.nick) + '" aria-label="만든 친구 별명" autocomplete="off" style="max-width:200px"></div>' : '') +
+    '<div class="card"><h2>① 도구 이름</h2>' +
     '<input id="tool" maxlength="16" value="' + esc(S.tool) + '" placeholder="예) ' + esc(ex.tool) + '" aria-label="도구 이름" autocomplete="off" style="max-width:420px">' +
     (eq ? '<p class="hint">입력칸의 흐린 글씨는 예시예요. 직접 써 주세요.</p>'
         : '<div class="quick" role="group" aria-label="예시 고르기"><span class="hint" style="align-self:center">예시 보기</span>' + EX.unequal.map((e, k) => '<button data-act="ex" data-i="' + k + '" aria-pressed="' + (k === S.exIdx) + '">' + esc(e.tool) + '</button>').join('') + '</div>' +
@@ -417,7 +420,8 @@ function buildHtml() {
     '<span class="hint">경우는 ' + MIN_CASES + '~' + MAX_CASES + '개까지</span></div>' +
     '<div id="sumline">' + sumHtml(ck) + '</div></div>' +
     '<p id="bmsg" class="msg' + (S.touched && ck.errs.length ? ' err' : '') + '">' + esc(buildMsg(ck)) + '</p>' +
-    '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn primary" id="go" data-act="start"' + (ck.ok ? '' : ' disabled') + '>확률 실험하기 →</button></div>';
+    (ed ? '<div class="actions"><button class="btn" data-act="editcancel">취소</button><button class="btn primary" id="go" data-act="editsave"' + (ck.ok ? '' : ' disabled') + '>💾 저장하기</button></div>'
+      : '<div class="actions"><button class="btn" data-act="home">← 처음으로</button><button class="btn primary" id="go" data-act="start"' + (ck.ok ? '' : ' disabled') + '>확률 실험하기 →</button></div>');
 }
 
 function legendHtml(names, p, showP) {
@@ -908,6 +912,7 @@ function itemsHtml() {
       (adminKey && !it.mine ? '<button class="btn sm primary" data-act="openlive" data-id="' + esc(it.id) + '">' + (done ? '🎲 결과 다시 보기' : '🎲 판정하기') + '</button>' : '') +
       (it.mine ? '<button class="btn sm" data-act="copy" data-id="' + esc(it.id) + '">링크 복사</button>' : '') +
       (adminKey ? '<button class="btn sm" data-act="feat" data-id="' + esc(it.id) + '" data-on="' + (it.feat ? '0' : '1') + '">' + (it.feat ? '⭐ 추천 해제' : '☆ 추천하기') + '</button>' : '') +
+      (adminKey ? '<button class="btn sm" data-act="editx" data-id="' + esc(it.id) + '">✏️ 수정</button>' : '') +
       (adminKey ? '<button class="btn sm danger" data-act="resetv" data-id="' + esc(it.id) + '">판단 초기화</button>' : '') +
       (it.mine || adminKey ? '<button class="btn sm danger" data-act="remove" data-id="' + esc(it.id) + '">삭제</button>' : '') + '</div></article>';
   };
@@ -1060,7 +1065,7 @@ app.addEventListener('click', async ev => {
   }
   const b = ev.target.closest('[data-act]'); if (!b || b.disabled) return;
   const a = b.dataset.act, v = b.dataset.v, i = Number(b.dataset.i);
-  if (a === 'mode') { S.mode = v; defaults(v); S.screen = 'build'; render(); window.scrollTo(0, 0); }
+  if (a === 'mode') { S.edit = null; S.mode = v; defaults(v); S.screen = 'build'; render(); window.scrollTo(0, 0); }
   else if (a === 'home') { S.screen = 'home'; render(); }
   else if (a === 'add') { if (S.cases.length < MAX_CASES) { S.cases.push({ name: '', w: '' }); S.touched = true; render(); const r = $$('.cn'); r[r.length - 1].focus(); r[r.length - 1].select(); } }
   else if (a === 'ex') { S.exIdx = i; if (isBlankAll()) S.cases = blankRows(EX.unequal[i].cases.length); render(); }
@@ -1106,6 +1111,26 @@ app.addEventListener('click', async ev => {
   }
   else if (a === 'feat') {
     try { await api({ act: 'feature', id: b.dataset.id, on: b.dataset.on === '1' }); toast(b.dataset.on === '1' ? '추천 실험으로 올렸어요.' : '추천을 해제했어요.'); await loadItems(); } catch (e) { toast(errText(e)); }
+  }
+  else if (a === 'editx') {
+    const it = (S.list.items || []).find(x => x.id === b.dataset.id); if (!it) return;
+    try {
+      const st = await api({ act: 'stats', id: it.id, uid: ME ? ME.uid : '' });
+      S.mode = 'unequal'; S.tool = it.tool; S.exIdx = 0; S.touched = true; S.edit = { id: it.id, nick: it.nick };
+      S.cases = it.cases.map((n, k) => ({ name: n, w: String(Math.round(st.p[k] * 1e6) / 1e6) }));
+      S.screen = 'build'; render(); window.scrollTo(0, 0);
+    } catch (e) { toast(errText(e)); }
+  }
+  else if (a === 'editcancel') { S.edit = null; S.screen = 'list'; setSub('우리 학교 실험 판정하기'); render(); }
+  else if (a === 'editsave') {
+    const ck = checkBuild(); if (!ck.ok || !S.edit) return;
+    if (!window.confirm('이 실험을 이렇게 고칠까요?')) return;
+    b.disabled = true;
+    try {
+      const j = await api({ act: 'adminedit', id: S.edit.id, tool: S.tool.trim(), cases: S.cases.map(c => c.name.trim()), w: ck.p, nick: ($('#enick') || {}).value || S.edit.nick });
+      toast(j.changedAnswer ? '고쳤어요. 정답이 바뀌어서 판정 기록을 다시 채점했어요.' : '고쳤어요.');
+      S.edit = null; S.screen = 'list'; setSub('우리 학교 실험 판정하기'); listCount = null; await loadItems();
+    } catch (e) { b.disabled = false; toast(e.code === 'bad-name' ? '별명이나 이름에 쓸 수 없는 말이 있어요.' : e.code === 'bad-experiment' ? '이름이나 상대도수를 다시 확인해 주세요.' : errText(e)); }
   }
   else if (a === 'resetv') {
     if (!window.confirm('이 실험의 판단 기록을 모두 지울까요? (실험은 그대로 남아요)')) return;
