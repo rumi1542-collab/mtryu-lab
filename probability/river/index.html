@@ -181,6 +181,18 @@ button{cursor:pointer}
 .speed input{width:100%;margin:0;accent-color:var(--yellow)}
 .speed .tick{display:flex;justify-content:space-between;font-size:17px;color:var(--muted);margin-top:6px}
 .spacer{flex:1}
+.simc{padding:12px 18px}
+.simc h3{margin:0;font-size:21px;font-weight:400;font-family:'Jua','Noto Sans KR',sans-serif}
+.simc .sbar{display:flex;height:18px;border-radius:8px;overflow:hidden;background:var(--deep);margin:4px 0}
+.simc .sbar i{display:block;height:100%;transition:width .15s}
+.simc .slg{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:17px;line-height:1.35}
+.simc .slg b{font-weight:700}
+.simc .sctl{display:flex;gap:8px;align-items:center;margin-top:6px}
+.simc .sbtn{height:34px;padding:0 14px;white-space:nowrap;border-radius:10px;border:0;background:var(--line);color:var(--text);font:inherit;font-size:18px}
+.simc .sbtn.on{background:var(--yellow);color:var(--ink)}
+.simc .sbtn:disabled{opacity:.45;cursor:default}
+.simc .sn{display:block;margin:0 0 2px;font-size:17px;color:var(--muted);font-family:'Noto Sans KR',sans-serif}
+.simc .hint{font-size:17px;color:var(--muted);margin:0}
 .river .go{position:relative;height:68px;font-size:32px;padding:0}
 .river .go:disabled{font-size:18px}
 
@@ -916,8 +928,8 @@ function placeHTML() {
     ${wellPlace('a')}
     <aside class="river">${WAVES}
       <div class="card"><small>2단계</small><h1 class="jua">이름을 쓰고 토큰을 놓아요</h1>
-        <p>위 화살표로 토큰을 더하고, 아래 화살표로 빼요. 한 칸에 여러 개를 놓아도 돼요. 이름은 띄어쓰기 없이, 바른 말로 써 주세요. 순위표에 기록돼요.</p></div>
-      <div class="card">
+        <p>위·아래 화살표로 토큰을 더하고 빼요. 이름은 띄어쓰기 없이 바른 말로 써 주세요. 순위표에 기록돼요.</p></div>
+      <div class="card" id="progCard">
         <div class="prog"><div class="row"><span id="lbl-a"></span><span>${ta} / 12</span></div><div class="bar"><div style="width:${Math.round(ta / 12 * 100)}%;background:var(--green)"></div></div></div>
         <div class="prog"><div class="row"><span id="lbl-b"></span><span>${tb} / 12</span></div><div class="bar"><div style="width:${Math.round(tb / 12 * 100)}%;background:var(--orange)"></div></div></div>
       </div>
@@ -926,12 +938,59 @@ function placeHTML() {
         <input id="speed" type="range" min="1" max="4" step="1" value="${state.speed}">
         <div class="tick"><span>느리게</span><span>보통</span><span>빠르게</span><span>아주 빠르게</span></div>
       </div>
+      <div class="card simc" id="simCard"></div>
       <div class="spacer"></div>
       <button type="button" class="go" id="start" data-act="start" disabled>게임 시작</button>
       <button type="button" class="exitbtn" data-act="tosetup">← 서버 선택으로 돌아가기</button>
     </aside>
     ${wellPlace('b')}
   </main>`;
+}
+/* ---------- 컴퓨터로 계속 돌려보기 (배치 화면) ---------- */
+const SIM = { running: false, timer: null, key: '', n: 0, w: { a: 0, b: 0, tie: 0, none: 0 }, rolls: 0 };
+function simOne(ca, cb) {
+  const A = ca.slice(), B = cb.slice(); let la = 12, lb = 12, r = 0;
+  for (;;) {
+    r++;
+    const s = 2 + Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6);
+    if (A[s - 1] > 0) { A[s - 1]--; la--; }
+    if (B[s - 1] > 0) { B[s - 1]--; lb--; }
+    if (la === 0 || lb === 0) return { r, o: la === 0 && lb === 0 ? 'tie' : la === 0 ? 'a' : 'b' };
+    if (la === A[0] && lb === B[0]) return { r, o: 'none' };   // 1번 칸 토큰만 남으면 부술 수 없어요
+  }
+}
+function simTick() {
+  if (!$('#simCard')) return simStop();
+  const t0 = performance.now(); let k = 0;
+  do { const g = simOne(state.a.counts, state.b.counts); SIM.n++; SIM.w[g.o]++; SIM.rolls += g.r; k++; } while (k < 400 && performance.now() - t0 < 12);
+  simPaint();
+}
+function simStop() { SIM.running = false; if (SIM.timer) { clearInterval(SIM.timer); SIM.timer = null; } simPaint(); }
+function simGo() {
+  if (SIM.running) return; SIM.running = true;
+  SIM.timer = setInterval(simTick, 40); simPaint();
+}
+function simReset() { SIM.n = 0; SIM.w = { a: 0, b: 0, tie: 0, none: 0 }; SIM.rolls = 0; simPaint(); }
+function simSync(tokOk) {
+  const key = state.a.counts.join(',') + '|' + state.b.counts.join(',');
+  if (key !== SIM.key) { SIM.key = key; SIM.n = 0; SIM.w = { a: 0, b: 0, tie: 0, none: 0 }; SIM.rolls = 0; }
+  if (!tokOk && SIM.running) simStop();
+  simPaint(tokOk);
+}
+function simPaint(ok) {
+  const c = $('#simCard'); if (!c) return;
+  if (ok === undefined) ok = sum(state.a.counts) === 12 && sum(state.b.counts) === 12;
+  const pc0 = $('#progCard'); if (pc0) pc0.style.display = ok ? 'none' : '';   // 12개씩 다 놓으면 자리를 비워 줘요
+  const na = cleanName(state.a.name) || '1P', nb = cleanName(state.b.name) || '2P';
+  if (!ok) { c.innerHTML = '<h3>컴퓨터로 계속 돌려보기</h3><p class="hint">두 사람이 토큰을 12개씩 모두 놓으면, 컴퓨터가 그 배치로 게임을 계속 돌려 줘요.</p>'; return; }
+  const n = SIM.n, pc = v => n ? (v * 100 / n) : 0, f = v => pc(v).toFixed(1) + '%';
+  const parts = [['a', 'var(--green)', na + ' 승'], ['tie', 'var(--yellow)', '무승부'], ['b', 'var(--orange)', nb + ' 승']];
+  if (SIM.w.none) parts.push(['none', '#6B76D6', '승부 안 남']);
+  c.innerHTML = '<h3>컴퓨터로 계속 돌려보기</h3><span class="sn"><b>' + n.toLocaleString('ko-KR') + '</b>판' + (n ? ' · 한 판 평균 ' + (SIM.rolls / n).toFixed(1) + '번 굴림' : '') + '</span>' +
+    '<div class="sbar" aria-hidden="true">' + parts.map(p => '<i style="width:' + pc(SIM.w[p[0]]) + '%;background:' + p[1] + '"></i>').join('') + '</div>' +
+    '<div class="slg">' + parts.map(p => '<span><span style="color:' + p[1] + '">●</span> ' + esc(p[2]) + ' <b>' + (n ? f(SIM.w[p[0]]) : '-') + '</b></span>').join('') + '</div>' +
+    '<div class="sctl"><button type="button" class="sbtn' + (SIM.running ? '' : ' on') + '" data-act="' + (SIM.running ? 'simstop' : 'simgo') + '">' + (SIM.running ? '⏸ 멈춤' : '▶ 계속 돌리기') + '</button>' +
+    '<button type="button" class="sbtn" data-act="simreset"' + (n ? '' : ' disabled') + '>↺ 처음부터</button></div>';
 }
 function updateReady() {
   const a = state.a, b = state.b;
@@ -941,6 +1000,7 @@ function updateReady() {
   if (ia) ia.classList.toggle('bad', badA); if (ib) ib.classList.toggle('bad', badB);
   const namesOk = cleanName(a.name) !== '' && cleanName(b.name) !== '' && !badA && !badB;
   const tokOk = sum(a.counts) === 12 && sum(b.counts) === 12;
+  simSync(tokOk);
   const btn = $('#start'); if (!btn) return;
   btn.disabled = !(namesOk && tokOk);
   btn.textContent = (badA || badB) ? '사용할 수 없는 이름이에요. 바꿔 주세요' : btn.disabled ? (namesOk ? '토큰을 12개씩 모두 놓아 주세요' : (tokOk ? '이름을 입력해 주세요' : '이름을 쓰고 토큰 12개씩 놓아 주세요')) : '게임 시작';
@@ -1262,6 +1322,9 @@ document.addEventListener('click', e => {
     show('result'); loadBoardOnly();
   }
   else if (act === 'gotoresult') { show('result'); paintResult(); if (!state.result.winners.length) loadBoardOnly(); }
+  else if (act === 'simgo') simGo();
+  else if (act === 'simstop') simStop();
+  else if (act === 'simreset') simReset();
   else if (act === 'tosetup') { enforceMine(); show('setup'); }
   else if (act === 'toserver') {
     if (b.dataset.sure) { show('setup'); return; }
