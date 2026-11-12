@@ -141,6 +141,14 @@ h2{font-size:20px}
 .btn.ghost{background:var(--surface); color:var(--ink); border-color:var(--line); height:40px; font-size:16px}
 .btn:disabled{opacity:.4; cursor:not-allowed}
 
+.simbox .sh{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+.simbox h2{margin:0}
+.simbox .sbar{display:flex; height:26px; border-radius:10px; overflow:hidden; background:var(--line)}
+.simbox .sbar i{display:block; height:100%; transition:width .15s}
+.simbox .slg{display:flex; flex-wrap:wrap; gap:4px 18px; font-size:15px}
+.simbox .slg b{font-variant-numeric:tabular-nums}
+.simbox .sctl{display:flex; gap:8px; flex-wrap:wrap}
+.simbox .sctl .btn{width:auto; min-width:0; padding:0 18px}
 .record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
 .rec-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
 .rec-head .meta{color:var(--muted); font-size:14px; font-variant-numeric:tabular-nums}
@@ -289,6 +297,8 @@ h2{font-size:20px}
       <div class="bank-body" id="body1"></div>
     </section>
   </section>
+
+  <section class="record simbox" id="simBox" aria-label="컴퓨터로 계속 돌려보기" hidden></section>
 
   <section class="record" aria-label="던진 결과 기록">
     <div class="rec-head">
@@ -575,8 +585,55 @@ h2{font-size:20px}
     $('#wins').textContent = pname(0) + ' ' + state.wins[0] + '승 · ' + pname(1) + ' ' + state.wins[1] + '승 · 무승부 ' + state.wins[2];
   }
 
+  /* ---------- 컴퓨터로 계속 돌려보기 (돌 배치 화면) ---------- */
+  var SIM = { running: false, timer: null, key: '', n: 0, me: 0, dal: 0, tie: 0, throws: 0 };
+  function simOne(pl){
+    var A = [4, 4, 4], P = pl.slice(), a = 0, p = 0, t = 0;
+    while (a < N && p < N){
+      var r = Math.random() * 4, h = r < 1 ? 0 : r < 3 ? 1 : 2;   // 동전 2개: 앞면 0·1·2개 = 1:2:1
+      if (A[h] > 0){ A[h]--; a++; }
+      if (P[h] > 0){ P[h]--; p++; }
+      t++;
+    }
+    return { t: t, o: a === N && p === N ? 'tie' : p === N ? 'me' : 'dal' };
+  }
+  function simTick(){
+    if (state.phase !== 'setup' || !ready()) return simStop();
+    var t0 = performance.now(), k = 0;
+    do { var g = simOne(state.place[1]); SIM.n++; SIM[g.o]++; SIM.throws += g.t; k++; } while (k < 400 && performance.now() - t0 < 12);
+    renderSim();
+  }
+  function simStop(){ SIM.running = false; if (SIM.timer){ clearInterval(SIM.timer); SIM.timer = null; } renderSim(); }
+  function simGo(){ if (SIM.running) return; SIM.running = true; SIM.timer = setInterval(simTick, 40); renderSim(); }
+  function simReset(){ SIM.n = SIM.me = SIM.dal = SIM.tie = SIM.throws = 0; renderSim(); }
+  function renderSim(){
+    var box = $('#simBox'); if (!box) return;
+    var show = state.phase === 'setup';
+    box.hidden = !show; if (!show){ if (SIM.running) simStop(); return; }
+    var key = state.place[1].join(',');
+    if (key !== SIM.key){ SIM.key = key; SIM.n = SIM.me = SIM.dal = SIM.tie = SIM.throws = 0; }
+    if (!ready()){
+      if (SIM.running){ SIM.running = false; if (SIM.timer){ clearInterval(SIM.timer); SIM.timer = null; } }
+      box.innerHTML = '<div class="sh"><h2>컴퓨터로 계속 돌려보기</h2></div><p class="note">돌 ' + N + '개를 모두 놓으면, 컴퓨터가 그 배치로 달랑베르와 게임을 계속 돌려 줘요.</p>';
+      return;
+    }
+    var n = SIM.n, pc = function(v){ return n ? v * 100 / n : 0; }, f = function(v){ return n ? pc(v).toFixed(1) + '%' : '-'; };
+    var nm = esc(pname(1)), dn = esc(pname(0));
+    var parts = [['dal', 'var(--pink)', dn + ' 승'], ['tie', 'var(--muted)', '무승부'], ['me', 'var(--violet)', nm + ' 승']];
+    box.innerHTML = '<div class="sh"><h2>컴퓨터로 계속 돌려보기</h2><span class="meta">' + n.toLocaleString('ko-KR') + '판' + (n ? ' · 한 판 평균 ' + (SIM.throws / n).toFixed(1) + '번 던짐' : '') + '</span></div>' +
+      '<div class="sbar" aria-hidden="true">' + parts.map(function(q){ return '<i style="width:' + pc(SIM[q[0]]) + '%;background:' + q[1] + '"></i>'; }).join('') + '</div>' +
+      '<div class="slg">' + parts.map(function(q){ return '<span><span style="color:' + q[1] + '">●</span> ' + q[2] + ' <b>' + f(SIM[q[0]]) + '</b></span>'; }).join('') + '</div>' +
+      '<div class="sctl"><button type="button" class="btn" data-sim="' + (SIM.running ? 'stop' : 'go') + '">' + (SIM.running ? '⏸ 멈춤' : '▶ 계속 돌리기') + '</button>' +
+      '<button type="button" class="btn ghost" data-sim="reset"' + (n ? '' : ' disabled') + '>↺ 처음부터</button></div>';
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-sim]') : null; if (!b || b.disabled) return;
+    var a = b.getAttribute('data-sim'); if (a === 'go') simGo(); else if (a === 'stop') simStop(); else if (a === 'reset') simReset();
+  });
+
   function render(){
     renderBanks();
+    renderSim();
     renderCenter();
     renderRecord();
     state.fresh = [];
