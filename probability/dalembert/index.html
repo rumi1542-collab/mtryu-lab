@@ -143,6 +143,36 @@ h2{font-size:20px}
 
 .simbox .sh{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
 .simbox h2{margin:0}
+.simbox .sgrid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:14px 28px; align-items:start}
+.simbox .tgrid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:14px 28px; align-items:start}
+.simbox h3.sub{margin:10px 0 6px; font-size:15px; font-weight:700}
+.simbox h3.sub small{font-weight:400; color:var(--muted); font-size:13px}
+.simbox .latest{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+.simbox .cc{display:flex; flex-direction:column; align-items:center; gap:4px; font-size:14px}
+.simbox .cap{font-size:13px; color:var(--muted)}
+.simbox .cap.hd{color:var(--ink); font-weight:700}
+.mcoin{position:relative; display:block; width:64px; height:64px}
+.mcoin .face,.mcoin .face.b{transform:none; backface-visibility:visible; -webkit-backface-visibility:visible}
+.mcoin.spin{animation:mflip .28s ease-out}
+@keyframes mflip{from{transform:rotateY(180deg) scale(.7); opacity:.4}to{transform:none; opacity:1}}
+.rbadge{display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:112px; padding:8px 14px; border-radius:14px; background:var(--line); line-height:1.25}
+.rbadge small{font-size:12px; color:var(--muted)}
+.rbadge strong{font-family:var(--font-display); font-weight:400; font-size:28px}
+.rbadge span{font-size:13px}
+.rbadge.c0{background:color-mix(in srgb, var(--violet) 22%, var(--surface))}
+.rbadge.c1{background:color-mix(in srgb, var(--hot) 22%, var(--surface))}
+.rbadge.c2{background:color-mix(in srgb, var(--teal) 24%, var(--surface))}
+.rlog{display:flex; flex-wrap:wrap; gap:4px; max-height:104px; overflow:hidden; padding:8px; border:1px dashed var(--line); border-radius:10px}
+.rlog .chip{width:44px; height:28px; font-size:13px; border-radius:7px}
+.rlog .chip.last{outline:2px solid var(--ink)}
+.stbl{width:100%; border-collapse:collapse; font-size:14px; font-variant-numeric:tabular-nums}
+.stbl th,.stbl td{padding:7px 8px; border-bottom:1px solid var(--line); text-align:right}
+.stbl th:first-child,.stbl td:first-child{text-align:left}
+.stbl th{font-size:13px; color:var(--muted); font-weight:400}
+.stbl tr.tot td{font-weight:700; border-bottom:0}
+.dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px}
+.dot.c0{background:var(--violet)} .dot.c1{background:var(--hot)} .dot.c2{background:var(--teal)}
+@media (max-width:700px){ .simbox .sgrid,.simbox .tgrid{grid-template-columns:minmax(0,1fr)} }
 .simbox .sctl{display:flex; gap:8px; flex-wrap:wrap}
 .simbox .sctl .btn{width:auto; min-width:0; padding:0 18px}
 .record{background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; display:flex; flex-direction:column; gap:12px}
@@ -581,20 +611,30 @@ h2{font-size:20px}
     $('#wins').textContent = pname(0) + ' ' + state.wins[0] + '승 · ' + pname(1) + ' ' + state.wins[1] + '승 · 무승부 ' + state.wins[2];
   }
 
-  /* ---------- 동전 계속 던져 보기 (돌 배치 화면): 앞면 0·1·2개의 상대도수 ---------- */
-  var SIM = { running: false, timer: null, n: 0, c: [0, 0, 0] };
+  /* ---------- 동전 계속 던져 보기 (돌 배치 화면): 던진 결과·표·상대도수 막대그래프 ---------- */
+  // q = (1번 동전 앞면이면 2) + (2번 동전 앞면이면 1)  →  0 뒤뒤, 1 뒤앞, 2 앞뒤, 3 앞앞
+  var QN = ['뒤뒤', '뒤앞', '앞뒤', '앞앞'], QH = [0, 1, 1, 2];
+  var SIM = { running: false, timer: null, n: 0, p: [0, 0, 0, 0], log: [], k: 0 };
   function simTick(){
     if (state.phase !== 'setup' || !$('#simBox')) return simStop();
-    var k = Math.min(20000, Math.max(1, Math.floor(SIM.n / 15)));   // 처음엔 천천히(들쭉날쭉), 갈수록 빠르게
-    for (var i = 0; i < k; i++) SIM.c[(Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.5 ? 1 : 0)]++;
-    SIM.n += k; renderSim();
+    var k = Math.min(20000, Math.max(1, Math.floor(SIM.n / 15)));   // 처음엔 한 번씩 천천히(눈으로 확인), 갈수록 빠르게
+    var keep = Math.min(k, 200), q;
+    for (var i = 0; i < k; i++){
+      q = (Math.random() < 0.5 ? 2 : 0) + (Math.random() < 0.5 ? 1 : 0);
+      SIM.p[q]++;
+      if (i >= k - keep) SIM.log.push(q);
+    }
+    if (SIM.log.length > 200) SIM.log.splice(0, SIM.log.length - 200);
+    SIM.n += k; SIM.k = k; renderSim();
   }
   function simStop(){ SIM.running = false; if (SIM.timer){ clearInterval(SIM.timer); SIM.timer = null; } renderSim(); }
   function simGo(){ if (SIM.running) return; SIM.running = true; SIM.timer = setInterval(simTick, 40); renderSim(); }
-  function simReset(){ SIM.n = 0; SIM.c = [0, 0, 0]; renderSim(); }
+  function simReset(){ SIM.n = 0; SIM.p = [0, 0, 0, 0]; SIM.log = []; SIM.k = 0; renderSim(); }
+  function fmtN(v){ return v.toLocaleString('ko-KR'); }
+  function simHeads(){ var p = SIM.p; return [p[0], p[1] + p[2], p[3]]; }   // 앞면 0·1·2개인 던지기 수
   function simChart(){
-    var n = SIM.n, W = 420, HH = 270, L = 46, R = 10, T = 30, BM = 66, pw = W - L - R, ph = HH - T - BM;
-    var pct = SIM.c.map(function(v){ return n ? v * 100 / n : 0; });
+    var n = SIM.n, W = 420, HH = 250, L = 46, R = 10, T = 30, BM = 66, pw = W - L - R, ph = HH - T - BM;
+    var cnt = simHeads(), pct = cnt.map(function(v){ return n ? v * 100 / n : 0; });
     var mx = Math.max.apply(null, pct), top = mx > 60 ? 100 : 60, step = top === 100 ? 25 : 10;
     var Y = function(v){ return T + ph - v / top * ph; };
     var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + HH + '" role="img" aria-label="앞면의 수별 상대도수 막대그래프">';
@@ -604,21 +644,51 @@ h2{font-size:20px}
     var gw = pw / 3, bw = Math.min(64, gw * 0.5);
     H.forEach(function(h){
       var cx = L + gw * (h + 0.5), y = Y(pct[h]);
-      if (n && SIM.c[h] > 0) s += '<rect class="br' + h + '" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
+      if (n && cnt[h] > 0) s += '<rect class="br' + h + '" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + (Y(0) - y).toFixed(1) + '" rx="4"/>';
       s += '<text class="vl" x="' + cx.toFixed(1) + '" y="' + (y - 7).toFixed(1) + '">' + (n ? pct[h].toFixed(1) + '%' : '-') + '</text>';
-      s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 42) + '">앞면 ' + h + '개</text><text class="tx sb" x="' + cx.toFixed(1) + '" y="' + (HH - 25) + '">' + ['뒤뒤', '앞뒤 · 뒤앞', '앞앞'][h] + '</text><text class="tx sb" x="' + cx.toFixed(1) + '" y="' + (HH - 8) + '">' + SIM.c[h].toLocaleString('ko-KR') + '번</text>';
+      s += '<text class="tl" x="' + cx.toFixed(1) + '" y="' + (HH - 42) + '">앞면 ' + h + '개</text><text class="tx sb" x="' + cx.toFixed(1) + '" y="' + (HH - 25) + '">' + ['뒤뒤', '앞뒤 · 뒤앞', '앞앞'][h] + '</text><text class="tx sb" x="' + cx.toFixed(1) + '" y="' + (HH - 8) + '">' + fmtN(cnt[h]) + '번</text>';
     });
     return s + '</svg>';
+  }
+  function mcoin(heads, spin){
+    var pic = typeof PIC_FACE === 'string' ? PIC_FACE : '', num = typeof NUM_FACE === 'string' ? NUM_FACE : '';
+    return '<span class="mcoin' + (spin ? ' spin' : '') + '"><span class="face' + (heads ? '' : ' b') + '">' + (heads ? pic : num) + '</span></span>';
+  }
+  function relBar(frac, cls){ var w = Math.round(frac * 100); return ' style="background:linear-gradient(90deg, color-mix(in srgb, var(--' + cls + ') 28%, transparent) ' + w + '%, transparent ' + w + '%)"'; }
+  function simPanel(){
+    var n = SIM.n, last = SIM.log.length ? SIM.log[SIM.log.length - 1] : -1, p = SIM.p, spin = SIM.running && SIM.k <= 2;
+    var c1 = p[2] + p[3], c2 = p[1] + p[3];
+    var f = function(v){ return n ? (v * 100 / n).toFixed(1) + '%' : '-'; };
+    var latest;
+    if (last < 0) latest = '<p class="note">▶ 계속 던지기를 누르면 동전 2개가 던져져요. 나온 결과가 바로 여기에 보여요.</p>';
+    else {
+      var a = last >= 2, b = last === 1 || last === 3, h = QH[last];
+      latest = '<div class="latest"><div class="cc">' + mcoin(a, spin) + '<b>1번 동전</b><span class="cap ' + (a ? 'hd' : '') + '">' + (a ? '앞' : '뒤') + '</span></div>' +
+        '<div class="cc">' + mcoin(b, spin) + '<b>2번 동전</b><span class="cap ' + (b ? 'hd' : '') + '">' + (b ? '앞' : '뒤') + '</span></div>' +
+        '<div class="rbadge c' + h + '"><small>' + fmtN(n) + '번째 던지기</small><strong>' + QN[last] + '</strong><span>앞면 ' + h + '개</span></div></div>';
+    }
+    var chips = SIM.log.slice(-48).map(function(q, i, arr){ return '<i class="chip c' + QH[q] + (i === arr.length - 1 ? ' last' : '') + '">' + QN[q] + '</i>'; }).join('');
+    var order = [3, 2, 1, 0];
+    var t2 = order.map(function(q){ return '<tr><td><i class="dot c' + QH[q] + '"></i>' + QN[q] + '</td><td>' + QH[q] + '개</td><td>' + fmtN(p[q]) + '</td><td' + (n ? relBar(p[q] / n, ['violet', 'hot', 'teal'][QH[q]]) : '') + '>' + f(p[q]) + '</td></tr>'; }).join('');
+    return '<div class="sgrid"><div>' +
+        '<h3 class="sub">방금 던진 결과</h3>' + latest +
+        '<h3 class="sub">결과 상자 <small>(최근 ' + Math.min(48, SIM.log.length) + '번, 던진 순서대로)</small></h3>' +
+        '<div class="rlog" aria-label="최근 던진 결과">' + (chips || '<span class="note">아직 던지지 않았어요.</span>') + '</div>' +
+      '</div><div>' + simChart() + '</div></div>' +
+      '<div class="tgrid"><div><h3 class="sub">동전별 앞면 표</h3><table class="stbl"><thead><tr><th>동전</th><th>던진 횟수</th><th>앞면 도수</th><th>앞면 상대도수</th></tr></thead><tbody>' +
+        '<tr><td>1번 동전</td><td>' + fmtN(n) + '</td><td>' + fmtN(c1) + '</td><td' + (n ? relBar(c1 / n, 'violet') : '') + '>' + f(c1) + '</td></tr>' +
+        '<tr><td>2번 동전</td><td>' + fmtN(n) + '</td><td>' + fmtN(c2) + '</td><td' + (n ? relBar(c2 / n, 'violet') : '') + '>' + f(c2) + '</td></tr></tbody></table></div>' +
+      '<div><h3 class="sub">결과별 표 <small>(1번 동전, 2번 동전 순서)</small></h3><table class="stbl"><thead><tr><th>결과</th><th>앞면 수</th><th>도수</th><th>상대도수</th></tr></thead><tbody>' + t2 +
+        '<tr class="tot"><td>합계</td><td></td><td>' + fmtN(n) + '</td><td>' + (n ? '100%' : '-') + '</td></tr></tbody></table></div></div>';
   }
   function renderSim(){
     var box = $('#simBox'); if (!box) return;
     var show = state.phase === 'setup';
     box.hidden = !show; if (!show){ if (SIM.running) simStop(); return; }
-    box.innerHTML = '<div class="sh"><h2>동전 계속 던져 보기</h2><span class="meta">' + SIM.n.toLocaleString('ko-KR') + '번 던졌어요</span></div>' +
-      '<p class="note">동전 2개를 던질 때 앞면이 0개, 1개, 2개 나오는 비율은 어떨까요? 던진 횟수가 늘수록 막대가 어떻게 변하는지 살펴보고 돌을 놓아 보세요.</p>' +
-      simChart() +
+    box.innerHTML = '<div class="sh"><h2>동전 계속 던져 보기</h2><span class="meta">' + fmtN(SIM.n) + '번 던졌어요</span></div>' +
+      '<p class="note">동전 2개를 던질 때 앞면이 0개, 1개, 2개 나오는 비율은 어떨까요? 나온 결과를 직접 보고, 던진 횟수가 늘수록 막대가 어떻게 변하는지 살펴보세요.</p>' +
       '<div class="sctl"><button type="button" class="btn" data-sim="' + (SIM.running ? 'stop' : 'go') + '">' + (SIM.running ? '⏸ 멈춤' : '▶ 계속 던지기') + '</button>' +
-      '<button type="button" class="btn ghost" data-sim="reset"' + (SIM.n ? '' : ' disabled') + '>↺ 처음부터</button></div>';
+      '<button type="button" class="btn ghost" data-sim="reset"' + (SIM.n ? '' : ' disabled') + '>↺ 처음부터</button></div>' + simPanel();
   }
   document.addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('[data-sim]') : null; if (!b || b.disabled) return;
