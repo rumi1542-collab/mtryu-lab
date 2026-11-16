@@ -27,7 +27,8 @@ const { configured, redis, redisMulti, send, getConfig, isAdmin, rateLimit, isCl
 const { badName } = require('./_names');
 const L = require('./_simlib');
 
-const KEEP = 100;               // 학교·학년도마다 최대 100개 (넘으면 오래된 것부터 지워요)
+const LIST_READ = 200;          // 목록을 만들 때 학교·학년도마다 최근 200개까지 읽어요 (실험은 자동으로 지우지 않아요. 지우기는 올린 학생 본인이나 관리자만 해요)
+const BULK_CHUNK = 150;         // 관리자 일괄 삭제는 한 번에 150개씩 (서버 시간 제한 때문에 나눠서 지워요)
 const LIST_MAX = 50;            // 목록에 보여 주는 최근 실험 수
 const STEP_MAX = 200;            // 한 번 요청으로 던지는 최대 횟수 (학생은 횟수를 정하지 못하고 속도만 골라요)
 const MAX_LIVE = 20000;         // 한 학생이 한 실험에서 이어서 던질 수 있는 최대 횟수
@@ -121,6 +122,51 @@ async function dropExperiment(e) {
   await redisMulti(cmds);
 }
 
+// 여러 실험을 한꺼번에 지워요 (한 번의 요청으로 묶어서 보내요)
+async function dropMany(list) {
+  const cmds = [];
+  list.forEach(e => {
+    cmds.push(['DEL', kE(e.id)], ['DEL', kV(e.id)], ['DEL', kU(e.id)], ['ZREM', kIdx(e.year, e.school), e.id]);
+    if (e.uid) cmds.push(['ZREM', kOwn(e.uid), e.id]);
+    expCache.delete(e.id);
+  });
+  if (cmds.length) await redisMulti(cmds);
+}
+
+// 관리자 일괄 삭제용: 조건(학년도·학교·반·기간)에 맞는 실험을 모아요
+const kstDayStart = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d || '')) ? Date.parse(d + 'T00:00:00+09:00') : NaN;
+async function collectMatches(b, withClass) {
+  const cfg = await getConfig();
+  const year = b.year ? Number(b.year) : 0, school = b.school ? String(b.school) : '';
+  if (year && !cfg.years.includes(year)) return { error: 'bad-year' };
+  if (school && !cfg.schools.includes(school)) return { error: 'bad-school' };
+  const f = kstDayStart(b.from), t = kstDayStart(b.to);
+  if ((b.from && isNaN(f)) || (b.to && isNaN(t))) return { error: 'bad-date' };
+  const lo = b.from ? f : '-inf', hi = b.to ? t + 86400000 - 1 : '+inf';
+  const hasCl = b.cl !== undefined && b.cl !== null && b.cl !== '';
+  const gr = b.gr !== undefined && b.gr !== null && b.gr !== '' ? Number(b.gr) : null, cl = hasCl ? Number(b.cl) : null;
+  if (hasCl && !isClass(gr == null ? 0 : gr, cl)) return { error: 'bad-class' };
+  const years = year ? [year] : cfg.years, schools = school ? [school] : cfg.schools;
+  const pairs = []; years.forEach(y => schools.forEach(sc => pairs.push([y, sc])));
+  const r = await redisMulti(pairs.map(p => ['ZRANGEBYSCORE', kIdx(p[0], p[1]), lo, hi]));
+  const ids = []; r.forEach(x => (x || []).forEach(id => ids.push(id)));
+  const found = [], stale = [];
+  for (let i = 0; i < ids.length; i += 100) {
+    const part = ids.slice(i, i + 100), got = (await redisMulti([['MGET'].concat(part.map(kE))]))[0] || [];
+    part.forEach((id, j) => { const e = parse(got[j]); if (e) found.push(e); else stale.push(id); });
+  }
+  const classes = {};
+  const out = found.filter(e => {
+    const c = classOf(e, e.school);
+    const key = c ? c.gr + '-' + c.cl : 'none';
+    classes[key] = (classes[key] || 0) + 1;
+    if (!hasCl) return true;
+    return !!c && c.cl === cl && (gr == null || c.gr === gr);
+  });
+  out.sort((a, c) => a.ts - c.ts);
+  return { matches: out, classes, stale, pairs };
+}
+
 module.exports = async function handler(req, res) {
   if (!configured()) return send(res, 503, { error: 'storage-not-configured' });
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { error: 'method-not-allowed' }); }
@@ -175,15 +221,6 @@ module.exports = async function handler(req, res) {
         ['ZADD', idx, ts, id], ['EXPIRE', idx, TTL],
         ['ZADD', kOwn(uid), ts, id], ['EXPIRE', kOwn(uid), TTL]
       ]);
-      // 학교당 KEEP개를 넘으면 오래된 것부터 지워요
-      const total = Number(await redis(['ZCARD', idx])) || 0;
-      if (total > KEEP) {
-        const oldIds = await redis(['ZRANGE', idx, 0, total - KEEP - 1]);
-        for (const oid of oldIds || []) {
-          const oe = parse(await redis(['GET', kE(oid)]));
-          if (oe) await dropExperiment(oe); else await redis(['ZREM', idx, oid]);
-        }
-      }
       return send(res, 200, { id });
     }
 
@@ -191,8 +228,8 @@ module.exports = async function handler(req, res) {
     if (act === 'list') {
       if (!(await validYearSchool(b.year, b.school))) return send(res, 400, { error: 'bad-request' });
       if (!(await rateLimit(req, 'siml', 300, 60))) return send(res, 429, { error: 'too-many' });
-      // 학교·학년도의 실험 전체(최대 KEEP개)를 불러와 추천 → 참여(판정 수) → 최근 순으로 정렬해요
-      const ids = await redis(['ZREVRANGE', kIdx(b.year, b.school), 0, KEEP - 1]);
+      // 학교·학년도의 최근 실험(최대 LIST_READ개)를 불러와 추천 → 참여(판정 수) → 최근 순으로 정렬해요
+      const ids = await redis(['ZREVRANGE', kIdx(b.year, b.school), 0, LIST_READ - 1]);
       const items = await loadItems(ids || [], uid);
       items.sort((a, c) => (c.featTs - a.featTs) || (c.voters - a.voters) || (c.ts - a.ts));
       items.forEach(it => { delete it.featTs; });
@@ -305,12 +342,32 @@ module.exports = async function handler(req, res) {
       return send(res, 200, { ok: true });
     }
 
+    // ── 관리자: 조건별 일괄 삭제 (학년도·학교·반·기간). dry:true 이면 지우지 않고 개수와 반 목록만 알려 줘요 ──
+    if (act === 'adminbulk') {
+      if (!(await rateLimit(req, 'simadmb', 600, 600))) return send(res, 429, { error: 'too-many' });
+      if (!isAdmin(req)) return send(res, 401, { error: 'unauthorized' });
+      const hasFilter = !!(b.year || b.school || (b.cl !== undefined && b.cl !== null && b.cl !== '') || b.from || b.to);
+      if (!b.dry && !hasFilter && b.all !== true) return send(res, 400, { error: 'need-filter' });
+      const r = await collectMatches(b);
+      if (r.error) return send(res, 400, { error: r.error });
+      const classes = Object.keys(r.classes).filter(k => k !== 'none').map(k => { const [g2, c2] = k.split('-').map(Number); return { gr: g2, cl: c2, n: r.classes[k] }; })
+        .sort((x, y) => x.gr - y.gr || x.cl - y.cl);
+      if (b.dry) return send(res, 200, { matched: r.matches.length, classes, noClass: r.classes.none || 0 });
+      const batch = r.matches.slice(0, BULK_CHUNK);
+      await dropMany(batch);
+      if (r.stale.length) {   // 본문이 이미 없어진(만료된) 번호는 목록에서도 정리해요
+        const cmds = []; r.pairs.forEach(p => r.stale.forEach(id => cmds.push(['ZREM', kIdx(p[0], p[1]), id])));
+        if (cmds.length && cmds.length <= 600) await redisMulti(cmds);
+      }
+      return send(res, 200, { removed: batch.length, remaining: r.matches.length - batch.length });
+    }
+
     // ── 지우기 ──
     if (act === 'remove') {
       if (!okId(b.id)) return send(res, 400, { error: 'bad-request' });
       const e = parse(await redis(['GET', kE(b.id)]));
       if (!e) return send(res, 404, { error: 'not-found' });
-      if (!isAdmin(req) && !(uid && e.uid === uid)) return send(res, 401, { error: 'unauthorized' });
+      if (!isAdmin(req) && !(uid && e.uid === uid)) return send(res, 401, { error: 'unauthorized' });   // 내가 올린 실험은 내가, 그 밖에는 관리자만 지울 수 있어요
       await dropExperiment(e);
       return send(res, 200, { ok: true });
     }

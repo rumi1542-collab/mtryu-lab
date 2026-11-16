@@ -18,14 +18,20 @@
 //
 // 순위 기준 (작은 점수가 위): run은 맞힌 횟수↑, tune은 예상과 안정된 횟수의 차이↓, spot은 맞힌 개수↑, bet은 맞힌 개수↑, dalembert는 던진 횟수↓ — 같으면 최근 기록이 위
 
-const { configured, redis, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts, rankList, rankValue, tieRank } = require('./_lib');
+const { configured, redis, redisMulti, classOf, send, getConfig, isAdmin, rateLimit, isClass, parseCls, publicMembers, onlyClass, classCounts, rankList, rankValue, tieRank } = require('./_lib');
 const { badName } = require('./_names');
 const C = require('./_coinlib');
 
 const GAMES = ['run', 'tune10', 'tune5', 'tune2', 'spot', 'bet', 'dalembert', 'gf0', 'gf5', 'gf10', 'gf15'];
 const PAGE_DEFAULT = 10;
 const PAGE_MAX = 100;
-const KEEP = 5000;   // 학교·학년도·게임마다 최대 5000개 (tune은 한 줄이 약 0.4KB예요)
+const KEEP = 1000000;   // 기록은 자동으로 지우지 않아요 (예전엔 5000개가 넘으면 순위 낮은 기록부터 지웠어요). 순위표 쪽수·순위 계산의 안전 상한일 뿐이에요
+
+// 연속 맞추기의 '맞힌 횟수 분포'는 순위표와 따로, 학교·학년도마다 최근 DIST_N번의 결과만 모아서 계산해요.
+// 목록에는 '맞힌 횟수|학년-반' 글자를 최근 것이 앞에 오게 쌓아요. 관리자가 기록을 지우거나 반을 바꾸면 이 목록을 비워 두고, 다음 조회 때 순위표 기록에서 다시 만들어요.
+const DIST_N = 1000;
+const kDist = (y, school) => 'cd:run:' + Number(y) + ':' + school;
+const distItem = (n, c) => n + '|' + (c ? c.gr + '-' + c.cl : '-');
 
 // 저장된 기록(JSON 글자)을 풀어서 돌려줘요. 공개하지 않는 익명 번호(uid)는 빼고, 학년·반을 채워서 내보내요. (api/scores.js와 같은 방식)
 const parseMembers = publicMembers;
@@ -116,11 +122,20 @@ module.exports = async function handler(req, res) {
       const cls = parseCls(req.query.cls);   // 2-3 → 2학년 3반만
       if (req.query.dist === '1') {
         if (g !== 'run') return send(res, 400, { error: 'bad-request' });
-        const counts = new Array(C.MAXRUN + 1).fill(0);
-        let all = parseMembers(await redis(['ZRANGE', key, 0, -1]), school);
-        if (cls) all = onlyClass(all, cls);
-        all.forEach(m => { if (isInt(m.n, 0, C.MAXRUN)) counts[m.n]++; });
-        return send(res, 200, { counts, total: cls ? all.length : total });
+        const counts = new Array(C.MAXRUN + 1).fill(0), dk = kDist(year, school);
+        let items = (await redis(['LRANGE', dk, 0, DIST_N - 1])) || [];
+        if (!items.length) {   // 목록이 없으면(처음이거나 관리자가 기록을 고친 뒤) 순위표 기록 중 최근 DIST_N개로 다시 만들어요
+          const rows = parseMembers(await redis(['ZRANGE', key, 0, -1]), school).filter(m => isInt(m.n, 0, C.MAXRUN)).sort((p, q) => (q.ts || 0) - (p.ts || 0)).slice(0, DIST_N);
+          items = rows.map(m => distItem(m.n, m.gr != null && m.cl != null ? { gr: m.gr, cl: m.cl } : null));
+          if (items.length) await redis(['RPUSH', dk].concat(items));
+        }
+        let used = 0;
+        items.forEach(t => {
+          const [ns, cs] = String(t).split('|'), n = Number(ns);
+          if (cls && cs !== cls.gr + '-' + cls.cl) return;
+          if (isInt(n, 0, C.MAXRUN)) { counts[n]++; used++; }
+        });
+        return send(res, 200, { counts, total: used, recent: items.length });
       }
       const q = String(req.query.q || '').trim();
       if (q) {
@@ -163,9 +178,12 @@ module.exports = async function handler(req, res) {
       const gr = Number(b.gr), cl = Number(b.cl), cls = isClass(gr, cl) ? { gr, cl } : {};   // 학년·반 (번호는 받지 않아요)
       const member = JSON.stringify(Object.assign({ id, name, ts, uid }, cls, built.data));
       await redis(['ZADD', key, built.score, member]);
+      if (g === 'run') {   // 분포용 최근 결과 목록 (순위표가 잘리거나 지워져도 분포는 그대로예요)
+        const dk = kDist(b.year, b.school);
+        await redisMulti([['LPUSH', dk, distItem(built.data.n, isClass(gr, cl) ? { gr, cl } : classOf({}, b.school))], ['LTRIM', dk, 0, DIST_N - 1]]);
+      }
       const rank0 = await redis(['ZRANK', key, member]);
       const myRank = rank0 == null ? KEEP + 1 : await tieRank(redis, key, rankValue(g, built.data));   // 같은 점수는 공동 순위
-      await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
       const total = Number(await redis(['ZCARD', key])) || 0;
       return send(res, 200, { rank: myRank, total });
     }
@@ -175,6 +193,7 @@ module.exports = async function handler(req, res) {
       const { year, school, id } = req.query;
       if (!(await validYearSchool(year, school))) return send(res, 400, { error: 'bad-request' });
       const key = 'cn:' + g + ':' + Number(year) + ':' + school;
+      if (g === 'run') await redis(['DEL', kDist(year, school)]);   // 분포 목록은 다음 조회 때 다시 만들어요
       if (req.query.all === '1') {
         const n = Number(await redis(['ZCARD', key])) || 0;
         await redis(['DEL', key]);

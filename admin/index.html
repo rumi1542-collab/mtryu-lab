@@ -291,11 +291,11 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
     if (S.node === 'settings') return renderSettings();
     if (S.node === 'feedback') return renderFeedback();
     var crumb = n.parent ? '확률 실험실 › ' + BYID[n.parent].label + ' › ' + n.label : (S.node === 'river' || S.node === 'coin' || S.node === 'sim' || S.node === 'dalembert' || S.node === 'gold') ? '확률 실험실 › ' + n.label : '';
-    var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game;
-    var tabs = (hasStats && hasRec) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button><button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button></div>' : '';
+    var hasStats = !!(n.units || S.node === 'overview'), hasRec = !!n.game, hasMng = S.node === 'sim';
+    var tabs = (hasStats && (hasRec || hasMng)) ? '<div class="tabs" role="tablist"><button type="button" class="tab' + (S.tab === 'stats' ? ' on' : '') + '" data-tab="stats" role="tab">접속 분석</button>' + (hasMng ? '<button type="button" class="tab' + (S.tab === 'manage' ? ' on' : '') + '" data-tab="manage" role="tab">실험 관리</button>' : '<button type="button" class="tab' + (S.tab === 'records' ? ' on' : '') + '" data-tab="records" role="tab">기록 관리</button>') + '</div>' : '';
     main.innerHTML = '<section class="card">' + (crumb ? '<p class="crumb">' + esc(crumb) + '</p>' : '') + '<h2>' + esc(n.label) + '</h2>' + tabs + '<div id="body"><p class="empty">불러오는 중…</p></div></section>';
     main.querySelectorAll('[data-tab]').forEach(function (b) { b.onclick = function () { S.tab = b.getAttribute('data-tab'); render(); }; });
-    if (S.tab === 'records' && hasRec) loadRecords(); else if (hasStats) loadStats(n); else $('#body').innerHTML = '<p class="note">이 게임의 접속 분석은 <b>' + esc(BYID[n.parent] ? BYID[n.parent].label : '위쪽') + '</b> 메뉴에서 함께 볼 수 있어요.</p>';
+    if (S.tab === 'manage' && hasMng) renderSimManage(); else if (S.tab === 'records' && hasRec) loadRecords(); else if (hasStats) loadStats(n); else $('#body').innerHTML = '<p class="note">이 게임의 접속 분석은 <b>' + esc(BYID[n.parent] ? BYID[n.parent].label : '위쪽') + '</b> 메뉴에서 함께 볼 수 있어요.</p>';
     if (S.tab === 'records' && !hasStats) return;
   }
 
@@ -322,6 +322,68 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple)}
         });
       };
     }, function (e) { if (my === S.seq) { $('#body').innerHTML = '<p class="empty">불러오지 못했어요.</p>'; fail(e); } });
+  }
+
+  /* ── 확률 실험 시뮬레이터: 조건별 일괄 삭제 (실험은 자동으로 지워지지 않아요. 지우기는 여기서만 해요) ── */
+  function renderSimManage() {
+    ensureCfg().then(function (c) {
+      var body = $('#body'); if (!body) return;
+      var M = { gr: '', cl: '' }, seq = 0, timer = 0;
+      body.innerHTML = '<div style="display:flex;flex-direction:column;gap:14px">' +
+        '<p class="note">실험은 자동으로 지워지지 않고, 학생은 자기가 올린 실험만 지울 수 있어요. 아래에서 조건을 고르면 그 조건에 맞는 실험(판단 결과 포함)을 한꺼번에 지울 수 있어요. 아무것도 고르지 않으면 지울 수 없어요.</p>' +
+        '<div class="flt"><label>학년도<select id="mny" class="in"><option value="">전체</option>' + c.years.map(function (y) { return '<option value="' + y + '">' + y + '학년도</option>'; }).join('') + '</select></label>' +
+        '<label>학교<select id="mns" class="in"><option value="">전체</option>' + c.schools.map(function (x) { return '<option value="' + esc(x) + '">' + esc(x) + '</option>'; }).join('') + '</select></label>' +
+        '<label>반<select id="mnc" class="in"><option value="">전체</option></select></label>' +
+        '<label>올린 날(부터)<input id="mnf" class="in" type="date"></label>' +
+        '<label>올린 날(까지)<input id="mnt" class="in" type="date"></label></div>' +
+        '<div class="bar2"><span id="mninfo" class="crumb">조건을 고르면 개수를 알려 드려요.</span><span style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="bt" id="mnreset">조건 지우기</button><button type="button" class="bt danger" id="mndel" disabled>조건에 맞는 실험 삭제</button></span></div>' +
+        '<p class="note">반은 실험을 만든 친구가 입력한 학년·반 기준이에요. 날짜는 한국 시간으로 하루 전체를 포함해요.</p></div>';
+      function cond() {
+        var o = { act: 'adminbulk', year: $('#mny').value, school: $('#mns').value, from: $('#mnf').value, to: $('#mnt').value };
+        var v = $('#mnc').value; if (v) { var p = v.split('-'); o.gr = Number(p[0]); o.cl = Number(p[1]); }
+        return o;
+      }
+      function hasFilter(o) { return !!(o.year || o.school || o.from || o.to || o.cl !== undefined); }
+      function label(o) {
+        var t = [];
+        if (o.year) t.push(o.year + '학년도'); if (o.school) t.push(o.school);
+        if (o.cl !== undefined) t.push(o.gr + '학년 ' + o.cl + '반');
+        if (o.from || o.to) t.push((o.from || '처음') + ' ~ ' + (o.to || '지금') + ' 사이에 올린');
+        return t.join(' · ');
+      }
+      function refresh() {
+        var my = ++seq, o = cond(); o.dry = true;
+        $('#mninfo').textContent = '세는 중…'; $('#mndel').disabled = true;
+        api('/api/sim', { method: 'POST', body: o }).then(function (j) {
+          if (my !== seq || !$('#mninfo')) return;
+          var cur = $('#mnc').value, opts = '<option value="">전체</option>' + (j.classes || []).map(function (x) { var v = x.gr + '-' + x.cl; return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + esc(clsLabel(x.gr, x.cl)) + ' (' + fmt(x.n) + ')</option>'; }).join('');
+          if (cur && opts.indexOf('value="' + cur + '"') < 0) { $('#mnc').innerHTML = opts; return refresh(); }
+          $('#mnc').innerHTML = opts;
+          var f = hasFilter(cond());
+          $('#mninfo').textContent = (f ? '조건에 맞는 실험 ' : '전체 실험 ') + fmt(j.matched) + '개' + (!f ? ' (조건을 고르면 지울 수 있어요)' : '') + (j.noClass ? ' · 반 정보가 없는 실험 ' + fmt(j.noClass) + '개 포함' : '');
+          $('#mndel').disabled = !f || !j.matched;
+        }, function (e) { if (my === seq) { $('#mninfo').textContent = '개수를 세지 못했어요.'; fail(e); } });
+      }
+      function later() { clearTimeout(timer); timer = setTimeout(refresh, 250); }
+      ['mny', 'mns', 'mnc', 'mnf', 'mnt'].forEach(function (id) { $('#' + id).onchange = later; });
+      $('#mnreset').onclick = function () { ['mny', 'mns', 'mnf', 'mnt'].forEach(function (id) { $('#' + id).value = ''; }); $('#mnc').innerHTML = '<option value="">전체</option>'; refresh(); };
+      $('#mndel').onclick = function () {
+        var o = cond(), n = ($('#mninfo').textContent.match(/([\d,]+)개/) || [0, '0'])[1];
+        ask({ title: '실험 ' + n + '개를 지울까요?', text: '[' + label(o) + '] 조건에 맞는 실험과 그 판단 결과가 모두 지워져요. 되돌릴 수 없어요.', ok: '삭제', danger: true, typed: '삭제' }).then(function (yes) {
+          if (!yes) return;
+          var total = 0; $('#mndel').disabled = true;
+          (function step() {
+            o.dry = false;
+            api('/api/sim', { method: 'POST', body: o }).then(function (j) {
+              total += j.removed || 0;
+              if (j.remaining > 0 && j.removed > 0) { $('#mninfo').textContent = total + '개 지웠어요… (남은 ' + fmt(j.remaining) + '개)'; return step(); }
+              toast(total + '개를 지웠어요.'); refresh();
+            }, function (e) { fail(e, '지우지'); refresh(); });
+          })();
+        });
+      };
+      refresh();
+    }, function (e) { fail(e); });
   }
 
   /* ── 접속 분석 ── */

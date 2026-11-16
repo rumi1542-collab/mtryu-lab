@@ -122,6 +122,7 @@ module.exports = async function handler(req, res) {
         cmds.push(['ZADD', key, flat[i + 1], next]); cmds.push(['ZREM', key, flat[i]]); changed++;
       }
       if (cmds.length) await redisMulti(cmds);
+      if (game === 'run' && changed) await redis(['DEL', 'cd:run:' + y + ':' + school]);   // 연속 맞추기 분포 목록은 다음 조회 때 다시 만들어요
       return send(res, 200, { ok: true, changed, skipped });
     }
 

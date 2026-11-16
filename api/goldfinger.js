@@ -21,7 +21,7 @@ const crypto = require('crypto');
 const { configured, redis, send, getConfig, rateLimit, isClass, tieRank, rankValue } = require('./_lib');
 const { badName } = require('./_names');
 
-const N = 20, PTS = 5, KS = [0, 5, 10, 15], KEEP = 5000;
+const N = 20, PTS = 5, KS = [0, 5, 10, 15], KEEP = 1000000;   // 기록은 자동으로 지우지 않아요 (순위 계산의 안전 상한일 뿐이에요)
 const keyOf = (k, y, s) => 'cn:gf' + k + ':' + Number(y) + ':' + s;
 
 const rnd = n => crypto.randomInt(n);
@@ -129,7 +129,6 @@ module.exports = async function handler(req, res) {
       });
       await redis(['ZADD', key, -ex.score - ts / 1e13, JSON.stringify(rec)]);
       const rank = await tieRank(redis, key, -ex.score);   // 같은 점수는 공동 순위
-      await redis(['ZREMRANGEBYRANK', key, KEEP, -1]);
       const total = Number(await redis(['ZCARD', key])) || 0;
       const best = Math.max(ex.score, ...before.map(o => o.score));
       return send(res, 200, { score: ex.score, key: ex.key, mine: ex.mine, known: ex.known, strat: ex.strat, one: ex.one, best, tries: before.length + 1, rank, total });
