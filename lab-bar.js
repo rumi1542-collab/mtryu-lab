@@ -133,6 +133,7 @@
     if (h === 'dataandstat.vercel.app') return 'stat';
     if (h === 'mancala-tutorial.vercel.app') return 'game';
     if (h === 'mtryu-lab.vercel.app' && p.indexOf('/probability') === 0) return 'prob';
+    if (h === 'mtryu-lab.vercel.app' && p.indexOf('/geometry') === 0) return 'math';   // 회전체 탐구(/geometry/rotation/)도 대수 기하 실험실
     return '';
   }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -145,6 +146,7 @@
     if (h.indexOf('dataandstat') === 0) return 'stat';
     if (h.indexOf('mancala') === 0) return 'game';
     if (h.indexOf('github.io') > 0) return 'math';
+    if (p.indexOf('/geometry') === 0) return 'math';   // 접속 집계에서도 대수 기하 실험실로 세요
     if (p.indexOf('/probability/river') === 0) return 'river';
     if (p.indexOf('/probability/coin') === 0) return 'coin';
     if (p.indexOf('/probability/sim') === 0) return 'sim';
