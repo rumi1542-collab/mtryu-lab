@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>회전체 탐구</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#7719AA">
+<script src="/me-sync.js"></script>
+<script src="https://mtryu-lab.vercel.app/lab-bar.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--p1:#5e3596;--p2:#9b6fd6;--p3:#efe6fb;--p4:#faf6ff;--pink:#e8559f;--pink2:#ffe0ef;--ink:#2b1b40;--ok:#2a9d6c;--bad:#d2504f;--line:#e3d6f4}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Noto Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;background:var(--p4);color:var(--ink);line-height:1.5}
+button{font-family:inherit;cursor:pointer}
+.topbar{background:linear-gradient(90deg,var(--p1),#9a4dbf 62%,var(--pink));color:#fff;display:flex;align-items:center;gap:14px;padding:11px 20px;font-weight:700;flex-wrap:wrap}
+.topbar a{color:#fff;text-decoration:none;font-weight:500;background:rgba(255,255,255,.18);padding:4px 12px;border-radius:99px;font-size:14px}
+.topbar .ttl{font-size:17px}.topbar .sp{flex:1}.topbar .tsub{font-weight:500;font-size:14px;opacity:.92}
+.wrap{max-width:1020px;margin:0 auto;padding:22px 16px 60px}
+h1{font-size:30px;margin:6px 0 4px;color:var(--p1)}
+.lead{color:#6d5a86;margin:0 0 22px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.mcard{background:#fff;border:2px solid var(--line);border-radius:20px;padding:22px 20px;text-align:left;transition:.15s;display:block;width:100%}
+.mcard:not(.dis):hover{border-color:var(--pink);transform:translateY(-3px);box-shadow:0 10px 24px rgba(155,111,214,.22)}
+.mcard .ic{font-size:40px}.mcard .t{font-size:20px;font-weight:800;margin:6px 0 4px;color:var(--p1)}.mcard .d{color:#6d5a86;font-size:14px}
+.mcard.dis{opacity:.55;cursor:default;background:#f6f1fc}
+.soon{display:inline-block;margin-top:10px;background:var(--p3);color:var(--p1);font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.ghost{background:#fff;border:1.5px solid var(--line);color:var(--p1);border-radius:99px;padding:6px 14px;font-weight:700;font-size:14px}
+.ghost:hover{border-color:var(--pink)}
+.primary{background:linear-gradient(90deg,var(--p1),var(--pink));color:#fff;border:0;border-radius:99px;padding:12px 26px;font-size:16px;font-weight:800;box-shadow:0 6px 16px rgba(232,85,159,.3)}
+.primary:disabled{opacity:.4;box-shadow:none;cursor:not-allowed}
+.lvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:16px 0}
+.lvcard{background:#fff;border:2px solid var(--line);border-radius:20px;padding:20px;text-align:left}
+.lvcard:not(.locked):hover{border-color:var(--pink);box-shadow:0 8px 20px rgba(155,111,214,.2)}
+.lvcard .lvname{font-size:13px;font-weight:800;color:#fff;background:var(--pink);display:inline-block;padding:1px 12px;border-radius:99px}
+.lvcard .lvtitle{font-size:19px;font-weight:800;color:var(--p1);margin:8px 0 2px}.lvcard .lvdesc{font-size:14px;color:#6d5a86}
+.lvcard.locked{opacity:.5;cursor:not-allowed;background:#f6f1fc}.lvcard.locked .lvname{background:#b8a6d0}
+.rule{font-size:13.5px;color:#6d5a86;background:var(--p3);border-radius:12px;padding:10px 14px;margin:8px 0 0}
+.tinybtn{background:none;border:0;color:#a08cc0;font-size:12px;text-decoration:underline;margin-top:18px}
+.qhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.chip{background:var(--pink);color:#fff;font-weight:800;border-radius:99px;padding:3px 14px;font-size:14px}
+.qnum{font-weight:700;color:var(--p1)}
+.dots{display:flex;gap:6px}.dot{width:14px;height:14px;border-radius:50%;background:#e3d6f4;border:2px solid #e3d6f4}
+.dot.now{background:#fff;border-color:var(--pink)}.dot.ok{background:var(--ok);border-color:var(--ok)}.dot.bad{background:var(--bad);border-color:var(--bad)}
+.qbody{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:16px;align-items:start}
+@media(max-width:760px){.qbody{grid-template-columns:1fr}}
+.card{background:#fff;border:2px solid var(--line);border-radius:20px;padding:16px}
+.cardtitle{font-weight:800;color:var(--p1);margin-bottom:8px}
+#figCanvas{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line)}
+#figCaption{margin:10px 2px 0;font-size:14.5px}.axtxt{color:#6d5a86}
+.prompt{margin:0 0 12px;font-weight:700;font-size:16.5px}
+.optgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{position:relative;border:2.5px solid var(--line);border-radius:16px;background:linear-gradient(#fff,#f7f1ff);padding:6px;transition:.12s}
+.opt:hover{border-color:var(--p2)}
+.opt.sel{border-color:var(--pink);box-shadow:0 0 0 4px var(--pink2)}
+.opt canvas{width:100%;height:auto;display:block;touch-action:none;cursor:grab}
+.opt canvas:active,.pane canvas:active{cursor:grabbing}
+.badge{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:var(--p1);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:15px;z-index:1}
+.opt.sel .badge{background:var(--pink)}
+.badge.sm{position:static;display:inline-flex;width:24px;height:24px;font-size:13px;vertical-align:middle}
+.hint{font-size:13px;color:#8a76a6;margin:10px 2px}
+.actions{display:flex;justify-content:center;margin-top:8px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:560px){.cmp{grid-template-columns:1fr}}
+.pane{border:2px solid var(--line);border-radius:16px;background:linear-gradient(#fff,#f7f1ff);padding:8px}
+.paneTitle{font-weight:800;font-size:14.5px;color:var(--p1);margin:2px 4px 4px;min-height:26px;display:flex;align-items:center;gap:6px}
+.pane canvas{width:100%;height:auto;display:block;touch-action:none;cursor:grab}
+.ctrl{display:flex;align-items:center;gap:10px;margin:14px 0 6px;flex-wrap:wrap}
+.ctrl input[type=range]{flex:1;min-width:150px;accent-color:var(--pink)}
+.ctrl .ang{font-weight:800;color:var(--pink);min-width:48px;text-align:right}
+.okbox,.badbox{border-radius:14px;padding:12px 16px;margin-top:10px}
+.okbox{background:#e5f6ee;border:2px solid #9fd8bd}.badbox{background:#fdeceb;border:2px solid #f0b3b1}
+.vt{font-weight:800;font-size:18px}.vt.ok{color:var(--ok)}.vt.bad{color:var(--bad)}
+.okbox p,.badbox p{margin:4px 0 0}.sub{font-size:13.5px;color:#6d5a86}
+#btnNext{margin-top:12px}
+.endbox{text-align:center;padding:30px 10px}
+.stars{font-size:46px;color:var(--pink);letter-spacing:4px}
+.endbox h2{font-size:28px;color:var(--p1);margin:6px 0}
+.endbtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+.ghost.big{padding:11px 22px;font-size:15.5px}
+.actions{gap:10px;flex-wrap:wrap}
+.optname{text-align:center;font-weight:700;font-size:13.5px;color:var(--p1);padding:2px 4px 6px}
+.opt.right{border-color:var(--ok);box-shadow:0 0 0 4px #cdeedd}
+.opt.wrong{border-color:var(--bad);box-shadow:0 0 0 4px #f8d4d3}
+.opt.right .badge{background:var(--ok)}.opt.wrong .badge{background:var(--bad)}
+.opt.flat{cursor:pointer;background:#fff}
+.opt.flat canvas{touch-action:auto;cursor:pointer;border-radius:10px}
+#quickBox{margin-top:6px}
+#quickBox .actions{margin-top:12px}
+.solidcv{width:100%;height:auto;display:block;touch-action:none;cursor:grab;border-radius:12px;background:linear-gradient(#fff,#f7f1ff);border:1px solid var(--line)}
+.secpair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.secpair canvas{width:100%;height:auto;display:block;border-radius:10px;touch-action:auto;cursor:default}
+.ctrl .lab{font-weight:700;color:var(--p1);font-size:14px}
+#sVerdict{border-radius:14px;padding:12px 16px;margin-top:10px}
+#sBtnNext{margin-top:12px}
+[hidden]{display:none!important}
+.prompt .note{display:block;font-weight:500;font-size:13.5px;color:var(--pink);margin-top:4px}
+
+.tchip{background:#fff;color:var(--p1);font-weight:800;font-size:13px;padding:3px 12px;border-radius:99px}
+.banner{background:#e5f6ee;border:2px solid #9fd8bd;color:#1f7a53;font-weight:800;border-radius:14px;padding:12px 16px;margin:0 0 14px}
+.lvbox{background:#fff;border:2px solid var(--line);border-radius:20px;padding:16px 18px;margin-bottom:14px}
+.lvbox.locked{background:#f6f1fc;opacity:.7}
+.lvhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lvhead .lvname{font-size:13px;font-weight:800;color:#fff;background:var(--pink);padding:1px 12px;border-radius:99px}
+.lvbox.locked .lvname{background:#b8a6d0}
+.lvhead .lvtitle{font-size:18px;font-weight:800;color:var(--p1)}
+.lvhead .lvprog{margin-left:auto;font-size:13.5px;font-weight:700;color:#6d5a86}
+.lvbox .lvdesc{font-size:14px;color:#6d5a86;margin:4px 0 12px}
+.pbtns{display:flex;gap:10px;flex-wrap:wrap}
+.pbtn{position:relative;width:92px;height:92px;border-radius:16px;border:2.5px solid var(--line);background:#fff;padding:4px;transition:.12s;overflow:hidden}
+.pbtn img{width:100%;height:100%;object-fit:contain;display:block;border-radius:10px}
+.pbtn .pn{position:absolute;top:4px;left:4px;min-width:22px;height:22px;border-radius:11px;background:var(--p1);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.pbtn .ps{position:absolute;right:5px;bottom:2px;font-size:15px;font-weight:800;color:var(--ok)}
+.pbtn.open{border-color:var(--pink);background:#fff7fb}
+.pbtn.open .pn{background:var(--pink)}
+.pbtn.open:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(232,85,159,.3)}
+.pbtn.solved{border-color:var(--ok);background:#f0faf5}
+.pbtn.solved .pn{background:var(--ok)}
+.pbtn.solved:hover{transform:translateY(-2px)}
+.pbtn.locked{background:#f1ecf8;border-color:#e3d9f1;cursor:not-allowed}
+.pbtn.locked img{filter:grayscale(1);opacity:.35}
+.pbtn.locked .pn{background:#b8a6d0}
+.pbtn.locked .ps{font-size:22px;right:50%;bottom:50%;transform:translate(50%,50%)}
+.tools{display:flex;gap:18px;flex-wrap:wrap}
+
+/* 나만의 회전체 만들기 */
+.mkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}.mkbar .sp{flex:1}.mkwho{font-size:14px;font-weight:700;color:#6d5a86}
+.mkbar select{border:1.5px solid var(--line);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;font-weight:700;color:var(--p1);background:#fff}
+.mkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.mkitem{background:#fff;border:2px solid var(--line);border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.mkitem.mine{border-color:#cdb9e6;background:#fbf8ff}.mkitem.won{border-color:#9fd8bd}.mkitem.lost{border-color:#f0c9c8}
+.mkthumb{border:0;background:linear-gradient(#fff,#f7f1ff);border-radius:12px;padding:4px;display:block;width:100%}
+.mkthumb:hover{box-shadow:0 0 0 3px var(--pink2)}
+.mkthumb img{width:100%;height:auto;display:block}
+.mkmeta{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.mkmeta b{color:var(--p1)}.mkmeta span{font-size:12.5px;color:#8a76a6}
+.mkstat{font-size:13px;color:#6d5a86;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mktag{font-size:12px;font-weight:800;padding:1px 9px;border-radius:99px}.mktag.me{background:var(--p3);color:var(--p1)}.mktag.ok{background:#e5f6ee;color:#1f7a53}.mktag.bad{background:#fdeceb;color:#b3382f}
+.mkdel{margin:0;align-self:flex-start}
+.adminbox{display:flex;gap:8px;margin-top:8px}.adminbox input{border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;font:inherit}
+.mkbody{display:grid;grid-template-columns:minmax(280px,400px) 1fr;gap:16px;align-items:start}
+@media(max-width:760px){.mkbody{grid-template-columns:1fr}}
+.padhold canvas{width:100%;height:auto;display:block;margin:0 auto;max-width:420px;border-radius:12px;border:1px solid var(--line);background:#fff}
+.padhold canvas.padcv{cursor:crosshair;touch-action:manipulation}
+.padhold canvas.padcv.ro{cursor:default}
+.padhold canvas.solidcv{max-width:420px;touch-action:none;cursor:grab}
+.padmsg{background:#fdeceb;border:1.5px solid #f0b3b1;color:#b3382f;border-radius:10px;padding:6px 12px;margin:8px 0 0;font-size:13.5px;font-weight:700}
+.howto{margin:0 0 12px;padding-left:22px;color:#4d3a68;font-size:14.5px}.howto li{margin:3px 0}
+.mkstatus{font-weight:800;color:var(--p1);margin:6px 2px 10px;min-height:24px}
+.legend{font-size:13px;color:#6d5a86;margin:6px 2px;min-height:18px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lg{display:inline-block;width:22px;height:0;border-top:4px solid #d63a8c;margin-left:6px}.lg.g{border-top:3px dashed #2a78d6}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#2b1b40;color:#fff;padding:10px 20px;border-radius:99px;font-weight:700;font-size:14.5px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw;text-align:center}
+.prompt .note{display:block;font-weight:500;font-size:13.5px;color:var(--pink);margin-top:4px}
+
+.hintrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.hintrow .hlab{font-weight:800;color:#8a5a00}
+.hbtn{background:#fff8e1;border:1.5px solid #f2c94c;color:#8a5a00;border-radius:99px;padding:5px 14px;font-weight:800;font-size:14px}
+.hbtn:hover:not(:disabled){background:#ffefb0}
+.hbtn:disabled{opacity:.45;cursor:not-allowed}
+.hbtn.used{opacity:1;background:#ffd23f;border-color:#e0a800;color:#5c3b00;cursor:default}
+.hintrow .htxt{flex-basis:100%;font-size:13px;color:#8a76a6}
+
+</style>
+</head>
+<body>
+
+<section id="home" class="view wrap">
+  <h1>회전체 탐구</h1>
+  <p class="lead">평면도형을 한 바퀴 돌리면 어떤 입체도형이 될까요? 직접 돌려 보며 탐구해요.</p>
+  <div class="cards">
+    <button class="mcard" id="cardRot"><div class="ic">🔄</div><div class="t">회전체 문제</div><div class="d">평면도형을 보고 알맞은 입체도형을 골라요. 정말 맞는지 회전시켜 확인하고, 레벨을 올려요.</div></button>
+    <button class="mcard" id="cardSec"><div class="ic">✂️</div><div class="t">단면 문제</div><div class="d">회전체를 평면으로 자르면 어떤 모양이 나올까요? 잘라 보며 확인해요.</div></button>
+    <button class="mcard" id="cardMk"><div class="ic">✏️</div><div class="t">나만의 회전체 만들기</div><div class="d">도형을 그려 회전체를 만들고, 친구들이 원래 도형을 맞혀 보게 해요.</div></button>
+  </div>
+</section>
+
+<section id="levels" class="view wrap" hidden>
+  <button class="ghost" id="btnLvHome">← 회전체 탐구</button>
+  <h1 style="margin-top:14px" id="lvTitle">회전체 문제</h1>
+  <p class="lead">문제는 순서대로 풀어요. 정답을 맞히면 다음 문제가 열리고, 한 레벨을 모두 풀면 다음 레벨이 열려요.</p>
+  <div class="banner" id="banner" hidden></div>
+  <div id="levelList"></div>
+  <p class="rule">입체도형은 마우스로 끌어서 돌려 볼 수 있어요. 점선은 회전축이에요.</p>
+  <div class="tools"><button class="tinybtn" id="btnTeacher">교사 모드 켜기</button><button class="tinybtn" id="btnReset">내 진행 기록 지우기</button></div>
+</section>
+
+<!-- 회전체 문제 -->
+<section id="quiz" class="view wrap" hidden>
+  <div class="qhead"><button class="ghost" id="btnQBack">← 레벨 선택</button><span class="chip" id="qLevel"></span><span class="qnum" id="qNum"></span><span class="dots" id="qDots"></span></div>
+  <div class="qbody">
+    <div class="card"><div class="cardtitle">평면도형</div><canvas id="figCanvas" width="420" height="420"></canvas><p id="figCaption"></p></div>
+    <div class="card">
+      <p class="prompt">이 평면도형을 직선 <i>l</i>을 축으로 1회전시킬 때 생기는 입체도형을 골라 보세요.</p>
+      <div id="phaseChoose">
+        <div class="optgrid" id="optGrid"></div>
+        <p class="hint" id="optHint">보기를 끌어서 돌려 보고, 하나를 눌러 고르세요.</p>
+        <div class="actions" id="chooseActions"><button class="ghost big" id="btnQuick" disabled>바로 채점하기</button><button class="primary" id="btnCheck" disabled>회전시켜 확인하기</button></div>
+        <div id="quickBox" hidden></div>
+      </div>
+      <div id="phaseCheck" hidden>
+        <div class="cmp">
+          <div class="pane"><div class="paneTitle" id="leftTitle"></div><canvas id="cvL" width="400" height="400"></canvas></div>
+          <div class="pane"><div class="paneTitle">평면도형을 회전시켜 만든 입체</div><canvas id="cvR" width="400" height="400"></canvas></div>
+        </div>
+        <div class="ctrl"><button class="ghost" id="btnPlay">▶ 다시 회전</button><input type="range" id="angle" min="0" max="360" value="0"><span class="ang" id="angleVal">0°</span></div>
+        <p class="hint" style="margin:0">분홍색이 평면도형이에요. 끌어서 돌려 보면 두 입체를 같은 방향에서 비교할 수 있어요.</p>
+        <div id="verdict" hidden></div>
+        <button class="primary" id="btnNext">다음 문제 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 단면 문제 -->
+<section id="squiz" class="view wrap" hidden>
+  <div class="qhead"><button class="ghost" id="btnSBack">← 레벨 선택</button><span class="chip" id="sLevel"></span><span class="qnum" id="sNum"></span><span class="dots" id="sDots"></span></div>
+  <div class="qbody">
+    <div class="card"><div class="cardtitle" id="sSolidTitle">입체도형</div><canvas id="scCanvas" width="420" height="420" class="solidcv"></canvas><p id="sCaption"></p></div>
+    <div class="card">
+      <p class="prompt" id="sPrompt"></p>
+      <div id="sPhaseChoose">
+        <div class="optgrid" id="sOptGrid"></div>
+        <p class="hint" id="sHint1">알맞은 보기를 하나 골라 보세요. 입체도형은 끌어서 돌려 볼 수 있어요.</p>
+        <div class="actions"><button class="primary" id="sBtnCheck" disabled>잘라서 확인하기</button></div>
+      </div>
+      <div id="sPhaseCheck" hidden>
+        <div class="secpair">
+          <div class="pane"><div class="paneTitle" id="chosenTitle"></div><canvas id="cvChosen" width="300" height="300"></canvas></div>
+          <div class="pane"><div class="paneTitle" id="actualTitle">실제 단면</div><canvas id="cvActual" width="300" height="300"></canvas></div>
+        </div>
+        <div class="ctrl" id="sSliderRow"><span class="lab">자르는 높이</span><input type="range" id="sSlider" min="0" max="100" value="50" step="1"></div>
+        <p class="hint" id="sHint2" style="margin:0"></p>
+        <div id="sVerdict"></div>
+        <button class="primary" id="sBtnNext">다음 문제 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 나만의 회전체: 목록 -->
+<section id="mkList" class="view wrap" hidden>
+  <button class="ghost" id="btnMkHome">← 회전체 탐구</button>
+  <h1 style="margin-top:14px">나만의 회전체 만들기</h1>
+  <p class="lead">도형을 그려 회전체를 만들어 우리 학교에 올리면, 친구들이 <b>회전체만 보고</b> 원래 도형을 맞혀 봐요. 친구가 올린 회전체의 원래 도형도 맞혀 보세요!</p>
+  <div class="rule" id="mkNote" style="margin:0 0 12px">🧪 체험 모드예요. 이 화면에서 올린 회전체는 이 브라우저에만 저장돼요. (실제 사이트에서는 우리 학교 친구들과 함께 써요)</div>
+  <div class="badbox" id="mkMsg" hidden style="margin:0 0 12px"></div>
+  <div class="mkbar"><button class="primary" id="btnMkNew">✏️ 새 회전체 만들기</button><span class="mkwho" id="mkWho"></span><span class="sp"></span><select id="mkClass" aria-label="보기 범위"></select><button class="ghost" id="btnMkRefresh">새로고침</button></div>
+  <div class="mkgrid" id="mkGrid"></div>
+  <div class="tools"><button class="tinybtn" id="btnMkAdmin">관리자</button></div>
+  <div id="mkAdminBox" class="adminbox" hidden><input type="password" id="mkAdminKey" placeholder="관리자 암호" autocomplete="off"><button class="ghost" id="mkAdminGo">확인</button></div>
+</section>
+
+<!-- 나만의 회전체: 만들기 -->
+<section id="mkDraw" class="view wrap" hidden>
+  <div class="qhead"><button class="ghost" id="btnMkDrawBack">← 목록</button><span class="chip">나만의 회전체 만들기</span></div>
+  <div class="mkbody">
+    <div class="card"><div class="cardtitle">평면도형 그리기</div><div id="mkPadHold" class="padhold"></div>
+      <p class="padmsg" id="mkPadMsg" hidden></p>
+      <div class="actions" id="mkPadBtns"><button class="ghost" id="mkUndo">↶ 한 점 되돌리기</button><button class="ghost" id="mkClear">모두 지우기</button></div>
+    </div>
+    <div class="card">
+      <div id="mkPhaseDraw">
+        <p class="prompt">회전축 <i>l</i>(점선)을 중심으로 돌릴 평면도형을 그려 보세요.</p>
+        <ol class="howto">
+          <li>격자점을 차례로 눌러 도형의 꼭짓점을 찍어요.</li>
+          <li>처음 점을 다시 누르면 도형이 닫혀요.</li>
+          <li>도형은 축의 <b>오른쪽</b>에만 그려요. 축에 닿아도 되고, 축에서 떨어져 있어도 돼요.</li>
+          <li>선이 서로 만나거나 겹치면 안 돼요.</li>
+        </ol>
+        <p class="rule" style="margin:0 0 12px">평면도형은 속이 채워지지 않은 선으로 된 도형이라고 생각해요. 축에서 떨어진 도형을 돌리면 속이 빈 회전체가 돼요.</p>
+        <p class="mkstatus" id="mkStatus"></p>
+        <div class="actions"><button class="primary" id="mkMake" disabled>🔄 회전체 만들기</button></div>
+      </div>
+      <div id="mkPhasePrev" hidden>
+        <p class="prompt">이렇게 회전체가 만들어져요! 입체는 끌어서 돌려 볼 수 있어요.</p>
+        <div id="mkSolidHold" class="padhold"></div>
+        <div class="ctrl"><button class="ghost" id="mkPlayBtn">▶ 다시 회전</button><input type="range" id="mkAngle" min="0" max="360" value="0"><span class="ang" id="mkAngleVal">0°</span></div>
+        <p class="hint" style="margin:0 0 8px">올리면 친구들에게는 <b>이 회전체만</b> 보이고, 원래 도형은 숨겨져요.</p>
+        <div class="badbox" id="mkPubMsg" hidden></div>
+        <div class="actions"><button class="ghost big" id="mkRedo">← 도형 고치기</button><button class="primary" id="mkPublish">우리 학교에 올리기</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 나만의 회전체: 맞히기 -->
+<section id="mkPlay" class="view wrap" hidden>
+  <div class="qhead"><button class="ghost" id="btnMkPlayBack">← 목록</button><span class="chip">원래 도형 맞히기</span><span class="qnum" id="pgWho"></span><span class="sub" id="pgStat"></span></div>
+  <div class="mkbody">
+    <div class="card"><div class="cardtitle">회전체</div><div id="pgSolidHold" class="padhold"></div><p class="hint" style="margin:8px 2px 0">끌어서 돌려 볼 수 있어요. 점선은 회전축 <i>l</i>이에요.</p></div>
+    <div class="card">
+      <p class="prompt" id="pgPrompt"></p>
+      <div id="pgPhaseGuess">
+        <div id="pgPadWrap"><div class="hintrow" id="pgHintRow"><span class="hlab">💡 시작점 힌트</span><button class="hbtn" id="pgHint1">힌트 1</button><button class="hbtn" id="pgHint2">힌트 2</button><button class="hbtn" id="pgHint3">힌트 3</button><span class="htxt" id="pgHintTxt"></span></div>
+          <div id="pgPadHold" class="padhold"></div>
+          <p class="padmsg" id="pgGuessMsg" hidden></p>
+          <p class="mkstatus" id="pgStatus"></p>
+          <div class="actions" id="pgPadBtns"><button class="ghost" id="pgUndo">↶ 한 점 되돌리기</button><button class="ghost" id="pgClear">모두 지우기</button></div>
+        </div>
+        <div class="actions" style="margin-top:14px"><button class="primary" id="pgCheckGuess" disabled>내 추측 확인하기</button><button class="ghost big" id="pgReveal">👀 도형 확인하기</button></div>
+      </div>
+      <div id="pgPhaseRes" hidden>
+        <div id="pgVerdict"></div>
+        <div id="pgAnsHold" class="padhold" style="margin-top:12px"></div>
+        <p class="legend" id="pgLegend"></p>
+        <div class="ctrl"><button class="ghost" id="pgPlayBtn">▶ 회전시켜 보기</button><input type="range" id="pgAngle" min="0" max="360" value="0"><span class="ang" id="pgAngleVal">0°</span></div>
+        <p class="hint" style="margin:0">왼쪽 회전체에서 분홍색 도형이 돌면서 입체를 만드는 모습을 볼 수 있어요.</p>
+        <div class="actions" style="margin-top:12px"><button class="ghost big" id="pgPadAgain">다시 그려 보기</button><button class="primary" id="pgToList">목록으로</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+<div class="toast" id="mkToast" hidden></div>
+
+<script>
+// ===== 회전체 엔진: 픽셀별 레이캐스팅 (외부 라이브러리 없음) =====
+// 평면도형은 (r, z) 좌표의 다각형(r>=0: 축에서의 거리, z: 축 방향)으로 표현하고,
+// 축 둘레로 돌려 만든 입체의 표면을 화면 픽셀마다 계산해 그린다.
+const TAU = Math.PI * 2;
+
+function mat3Mul(A, B) {
+  const C = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    let s = 0; for (let k = 0; k < 3; k++) s += A[i][k] * B[k][j]; C[i][j] = s;
+  }
+  return C;
+}
+function rotX(a) { const c = Math.cos(a), s = Math.sin(a); return [[1, 0, 0], [0, c, -s], [0, s, c]]; }
+function rotY(a) { const c = Math.cos(a), s = Math.sin(a); return [[c, 0, s], [0, 1, 0], [-s, 0, c]]; }
+function orthonormalize(R) {
+  let a = R[0].slice(), b = R[1].slice();
+  let l = Math.hypot(a[0], a[1], a[2]); a = a.map(x => x / l);
+  const d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  b = [b[0] - d * a[0], b[1] - d * a[1], b[2] - d * a[2]];
+  l = Math.hypot(b[0], b[1], b[2]); b = b.map(x => x / l);
+  const c = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  return [a, b, c];
+}
+// 회전축(물체의 z축)이 위를 향하고, 위쪽이 관찰자 쪽으로 tilt도 기울어진 기본 자세
+function rotZ(a) { const c = Math.cos(a), s = Math.sin(a); return [[c, -s, 0], [s, c, 0], [0, 0, 1]]; }
+function initialR(tiltDeg, yawDeg) { return mat3Mul(rotX((tiltDeg - 90) * Math.PI / 180), rotZ((yawDeg || 0) * Math.PI / 180)); }
+
+// pts: [{r,z,n?}] n이 있는 점끼리 이어지는 변은 법선을 부드럽게 보간 (곡면)
+function buildSolid(ptsIn) {
+  const pts0 = ptsIn.map(p => ({ r: Math.abs(p.r) < 1e-9 ? 0 : p.r, z: p.z, n: p.n }));
+  let area = 0;
+  for (let i = 0; i < pts0.length; i++) {
+    const j = (i + 1) % pts0.length;
+    area += pts0[i].r * pts0[j].z - pts0[j].r * pts0[i].z;
+  }
+  const P = area < 0 ? pts0.slice().reverse() : pts0;
+  let zmin = Infinity, zmax = -Infinity, rmax = 0;
+  P.forEach(p => { zmin = Math.min(zmin, p.z); zmax = Math.max(zmax, p.z); rmax = Math.max(rmax, p.r); });
+  const zc = (zmin + zmax) / 2;
+  const pr = P.map(p => p.r), pz = P.map(p => p.z - zc);
+  const edges = [];
+  for (let i = 0; i < P.length; i++) {
+    const v1 = P[i], v2 = P[(i + 1) % P.length];
+    if (v1.r < 1e-9 && v2.r < 1e-9) continue; // 축 위의 변은 면이 되지 않음
+    let n1, n2;
+    if (v1.n && v2.n) { n1 = v1.n; n2 = v2.n; }
+    else {
+      const dx = v2.r - v1.r, dz = v2.z - v1.z, l = Math.hypot(dx, dz);
+      n1 = n2 = [dz / l, -dx / l];
+    }
+    edges.push({ r1: v1.r, z1: v1.z - zc, r2: v2.r, z2: v2.z - zc, n1, n2 });
+  }
+  const n = edges.length;
+  const e = {
+    hor: new Uint8Array(n), Z1: new Float64Array(n), Z2: new Float64Array(n),
+    Aa: new Float64Array(n), Bb: new Float64Array(n),
+    ZMIN: new Float64Array(n), ZMAX: new Float64Array(n),
+    RMIN2: new Float64Array(n), RMAX2: new Float64Array(n),
+    N1r: new Float64Array(n), N1z: new Float64Array(n), N2r: new Float64Array(n), N2z: new Float64Array(n)
+  };
+  edges.forEach((d, k) => {
+    e.Z1[k] = d.z1; e.Z2[k] = d.z2;
+    e.hor[k] = Math.abs(d.z1 - d.z2) < 1e-9 ? 1 : 0;
+    if (!e.hor[k]) { e.Bb[k] = (d.r2 - d.r1) / (d.z2 - d.z1); e.Aa[k] = d.r1 - e.Bb[k] * d.z1; }
+    e.ZMIN[k] = Math.min(d.z1, d.z2); e.ZMAX[k] = Math.max(d.z1, d.z2);
+    const lo = Math.min(d.r1, d.r2), hi = Math.max(d.r1, d.r2);
+    e.RMIN2[k] = lo * lo; e.RMAX2[k] = hi * hi;
+    e.N1r[k] = d.n1[0]; e.N1z[k] = d.n1[1]; e.N2r[k] = d.n2[0]; e.N2z[k] = d.n2[1];
+  });
+  let bound = 0, zext = 0;
+  P.forEach(p => { bound = Math.max(bound, Math.hypot(p.r, p.z - zc)); zext = Math.max(zext, Math.abs(p.z - zc)); });
+  return { n, e, pr, pz, bound2: (bound + 0.02) * (bound + 0.02), zext, zc, rmax, pts: P };
+}
+
+function pip(sol, r, z) {
+  let inside = false; const pr = sol.pr, pz = sol.pz, n = pr.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    if ((pz[i] > z) !== (pz[j] > z) && r < (pr[j] - pr[i]) * (z - pz[i]) / (pz[j] - pz[i]) + pr[i]) inside = !inside;
+  }
+  return inside;
+}
+
+// alpha: null이면 온전한 회전체, 숫자(라디안)이면 0~alpha 만큼만 회전시킨 부분과 평면도형(단면)을 함께 그림
+// cut: {nx,ny,nz,d,mode} 평면 n·p = d. mode 'show' = 반투명 자르는 면을 겹쳐 그림, 'clip' = n·p<=d 쪽만 남기고 단면을 분홍색으로 채움
+function renderSolid(sol, R, half, W, H, alpha, out, cut) {
+  const E = sol.n, e = sol.e;
+  const hor = e.hor, Z1 = e.Z1, Z2 = e.Z2, Aa = e.Aa, Bb = e.Bb, ZMIN = e.ZMIN, ZMAX = e.ZMAX, RMIN2 = e.RMIN2, RMAX2 = e.RMAX2;
+  const r0 = R[0], r1 = R[1], r2 = R[2];
+  const Dx = -r2[0], Dy = -r2[1], Dz = -r2[2];
+  const L0 = 10, Bx = L0 * r2[0], By = L0 * r2[1], Bz = L0 * r2[2];
+  const bound2 = sol.bound2;
+  const sweep = alpha != null && alpha < TAU - 1e-3;
+  const clip = !!cut && cut.mode === 'clip', sheet = !!cut && cut.mode === 'show';
+  const cnx = cut ? cut.nx : 0, cny = cut ? cut.ny : 0, cnz = cut ? cut.nz : 0, cd = cut ? cut.d : 0;
+  const cDen = cnx * Dx + cny * Dy + cnz * Dz;
+  const sheetR2 = bound2 * 1.4;
+  const pl = [[0, 1, 1, 0], [Math.sin(alpha || 0), Math.cos(alpha || 0), Math.cos(alpha || 0), -Math.sin(alpha || 0)]];
+  let lx = -0.4, ly = 0.7, lz = 0.6; const ll = Math.hypot(lx, ly, lz); lx /= ll; ly /= ll; lz /= ll;
+  let hx = lx, hy = ly, hz = lz + 1; const hl = Math.hypot(hx, hy, hz); hx /= hl; hy /= hl; hz /= hl;
+  const A1 = Dx * Dx + Dy * Dy;
+  for (let j = 0; j < H; j++) {
+    const v = (H / 2 - (j + 0.5)) / (H / 2) * half;
+    for (let i = 0; i < W; i++) {
+      const u = ((i + 0.5) - W / 2) / (W / 2) * half;
+      const idx = (j * W + i) * 4;
+      if (u * u + v * v > (sheet ? sheetR2 : bound2)) { out[idx + 3] = 0; continue; }
+      const Px = Bx + u * r0[0] + v * r1[0], Py = By + u * r0[1] + v * r1[1], Pz = Bz + u * r0[2] + v * r1[2];
+      const B1 = Px * Dx + Py * Dy, C1 = Px * Px + Py * Py;
+      let best = 1e30, kind = 0, bi = -1;
+      for (let k = 0; k < E; k++) {
+        if (hor[k]) {
+          if (Math.abs(Dz) < 1e-9) continue;
+          const t = (Z1[k] - Pz) / Dz;
+          if (t < 1e-4 || t >= best) continue;
+          const x = Px + t * Dx, y = Py + t * Dy, rr = x * x + y * y;
+          if (rr < RMIN2[k] - 1e-9 || rr > RMAX2[k] + 1e-9) continue;
+          if (sweep) { let psi = -Math.atan2(y, x); if (psi < 0) psi += TAU; if (psi > alpha) continue; }
+          if (clip && cnx * x + cny * y + cnz * (Pz + t * Dz) > cd) continue;
+          best = t; kind = 1; bi = k;
+        } else {
+          const b = Bb[k], kk = Aa[k] + b * Pz, bd = b * Dz;
+          const qa = A1 - bd * bd, qb = B1 - kk * bd, qc = C1 - kk * kk;
+          let t1, t2;
+          if (Math.abs(qa) < 1e-12) { if (Math.abs(qb) < 1e-12) continue; t1 = -qc / (2 * qb); t2 = 1e30; }
+          else {
+            const disc = qb * qb - qa * qc; if (disc < 0) continue;
+            const sq = Math.sqrt(disc); t1 = (-qb - sq) / qa; t2 = (-qb + sq) / qa;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+          }
+          for (let q = 0; q < 2; q++) {
+            const t = q ? t2 : t1;
+            if (t < 1e-4 || t >= best) continue;
+            const z = Pz + t * Dz;
+            if (z < ZMIN[k] - 1e-9 || z > ZMAX[k] + 1e-9) continue;
+            const x = Px + t * Dx, y = Py + t * Dy;
+            if (sweep) { let psi = -Math.atan2(y, x); if (psi < 0) psi += TAU; if (psi > alpha) continue; }
+            if (clip && cnx * x + cny * y + cnz * z > cd) continue;
+            best = t; kind = 1; bi = k; break;
+          }
+        }
+      }
+      let pnx = 0, pny = 0, pnz = 0, ghost = false;
+      if (sweep) {
+        for (let p = 0; p < 2; p++) {
+          const nx = pl[p][0], ny = pl[p][1], cx = pl[p][2], cy = pl[p][3];
+          const den = nx * Dx + ny * Dy; if (Math.abs(den) < 1e-9) continue;
+          const t = -(nx * Px + ny * Py) / den; if (t < 1e-4) continue;
+          const occluded = t >= best;
+          if (occluded && p === 0) continue;
+          const x = Px + t * Dx, y = Py + t * Dy, z = Pz + t * Dz;
+          const rr = x * cx + y * cy; if (rr < 0) continue;
+          if (!pip(sol, rr, z)) continue;
+          if (occluded) ghost = true; else { best = t; kind = 2; pnx = nx; pny = ny; pnz = 0; }
+        }
+      }
+      let tCut = -1;
+      if (cut && Math.abs(cDen) > 1e-9) tCut = (cd - (cnx * Px + cny * Py + cnz * Pz)) / cDen;
+      let sheetFront = false;
+      if (clip && tCut > 1e-4 && tCut < best) {
+        const x = Px + tCut * Dx, y = Py + tCut * Dy, z = Pz + tCut * Dz;
+        if (pip(sol, Math.hypot(x, y), z)) { best = tCut; kind = 2; pnx = cnx; pny = cny; pnz = cnz; }
+      } else if (sheet && tCut > 1e-4 && tCut < best) {
+        const x = Px + tCut * Dx, y = Py + tCut * Dy, z = Pz + tCut * Dz;
+        if (x * x + y * y + z * z <= sheetR2) sheetFront = true;
+      }
+      if (kind === 0) {
+        if (sheetFront) { out[idx] = 255; out[idx + 1] = 110; out[idx + 2] = 176; out[idx + 3] = 105; }
+        else out[idx + 3] = 0;
+        continue;
+      }
+      let n3x, n3y, n3z;
+      if (kind === 1) {
+        const x = Px + best * Dx, y = Py + best * Dy, z = Pz + best * Dz;
+        let s = 0; if (!hor[bi]) s = (z - Z1[bi]) / (Z2[bi] - Z1[bi]);
+        let nr = e.N1r[bi] + (e.N2r[bi] - e.N1r[bi]) * s, nz = e.N1z[bi] + (e.N2z[bi] - e.N1z[bi]) * s;
+        const nl = Math.hypot(nr, nz) || 1; nr /= nl; nz /= nl;
+        const rho = Math.hypot(x, y);
+        const cs = rho > 1e-6 ? x / rho : 1, sn = rho > 1e-6 ? y / rho : 0;
+        n3x = nr * cs; n3y = nr * sn; n3z = nz;
+      } else { n3x = pnx; n3y = pny; n3z = pnz; }
+      let vx = r0[0] * n3x + r0[1] * n3y + r0[2] * n3z;
+      let vy = r1[0] * n3x + r1[1] * n3y + r1[2] * n3z;
+      let vz = r2[0] * n3x + r2[1] * n3y + r2[2] * n3z;
+      let inner = false;
+      if (vz < 0) { vx = -vx; vy = -vy; vz = -vz; inner = true; }
+      const diff = Math.max(0, vx * lx + vy * ly + vz * lz);
+      const spec = Math.pow(Math.max(0, vx * hx + vy * hy + vz * hz), 28) * 0.35;
+      let R_, G_, B_;
+      if (kind === 2) { R_ = 255; G_ = 112; B_ = 176; }
+      else if (inner) { R_ = 176; G_ = 140; B_ = 226; }
+      else { R_ = 128; G_ = 86; B_ = 214; }
+      const sh = (kind === 2 ? 0.8 : 0.34) + (kind === 2 ? 0.2 : 0.66) * diff;
+      let oR = R_ * sh + spec * 255, oG = G_ * sh + spec * 255, oB = B_ * sh + spec * 255;
+      if (ghost) { oR = oR * 0.6 + 255 * 0.4; oG = oG * 0.6 + 96 * 0.4; oB = oB * 0.6 + 166 * 0.4; }
+      if (sheetFront) { oR = oR * 0.58 + 255 * 0.42; oG = oG * 0.58 + 110 * 0.42; oB = oB * 0.58 + 176 * 0.42; }
+      out[idx] = Math.min(255, oR); out[idx + 1] = Math.min(255, oG); out[idx + 2] = Math.min(255, oB);
+      out[idx + 3] = 255;
+    }
+  }
+}
+
+
+// ===== 평면도형 데이터 (r: 축에서의 거리, z: 축 방향) =====
+function V(r, z) { return { r, z }; }
+function arc(cr, cz, R, a0, a1, n) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const a = (a0 + (a1 - a0) * i / n) * Math.PI / 180;
+    pts.push({ r: cr + R * Math.cos(a), z: cz + R * Math.sin(a), n: [Math.cos(a), Math.sin(a)], arc: true });
+  }
+  return pts;
+}
+const FIGS = {
+  A: { name: '직사각형', axis: '한 변을 축으로', solid: '원기둥', pts: [V(0, 0), V(3, 0), V(3, 4), V(0, 4)] },
+  B: { name: '직각삼각형', axis: '직각을 낀 변 중 길이 4인 변을 축으로', solid: '원뿔', pts: [V(0, 0), V(3, 0), V(0, 4)] },
+  C: { name: '반원', axis: '지름을 축으로', solid: '구', pts: arc(0, 0, 3, -90, 90, 24) },
+  D: { name: '사다리꼴', axis: '밑변에 수직인 변을 축으로', solid: '원뿔대', pts: [V(0, 0), V(4, 0), V(2, 3), V(0, 3)] },
+  E: { name: '직각삼각형', axis: '직각을 낀 변 중 길이 3인 변을 축으로', solid: '원뿔', pts: [V(0, 0), V(4, 0), V(0, 3)] },
+  F: { name: '직사각형', axis: '가로 4, 세로 2인 직사각형의 세로 변을 축으로', solid: '원기둥', pts: [V(0, 0), V(4, 0), V(4, 2), V(0, 2)] },
+  G: { name: '직각삼각형', axis: '직각을 낀 변 중 길이 3인 변을 축으로', solid: '꼭짓점이 아래로 향한 원뿔', pts: [V(0, 0), V(4, 3), V(0, 3)] },
+  H: { name: '사분원', axis: '한 반지름을 축으로', solid: '반구', pts: [V(0, 0)].concat(arc(0, 0, 3, 0, 90, 12)) },
+  I: { name: '이등변삼각형', axis: '밑변을 축으로', solid: '원뿔 두 개를 맞붙인 모양', pts: [V(0, 0), V(3, 2), V(0, 4)] },
+  J: { name: '직사각형', axis: '한 변과 평행하고 도형에서 떨어진 직선을 축으로', solid: '속이 빈 원기둥', pts: [V(1, 0), V(3, 0), V(3, 4), V(1, 4)] },
+  K: { name: '사다리꼴', axis: '평행한 두 변 중 긴 변을 축으로', solid: '원기둥 위에 원뿔을 올린 모양', pts: [V(0, 0), V(3, 0), V(3, 2), V(0, 4)] },
+  L: { name: '직사각형과 사분원을 붙인 도형', axis: '한쪽 곧은 변을 축으로', solid: '원기둥 위에 반구를 올린 모양', pts: [V(0, 0), V(2, 0)].concat(arc(0, 3, 2, 0, 90, 12)) },
+  M: { name: '직각삼각형', axis: '수직인 변과 평행하고 도형에서 떨어진 직선을 축으로', solid: '가운데가 뚫린 원뿔 모양', pts: [V(1, 0), V(4, 0), V(1, 3)] },
+  N: { name: '원', axis: '지름과 평행하고 원에서 떨어진 직선을 축으로', solid: '도넛 모양', pts: arc(3, 2, 1, 0, 360, 24).slice(0, 24) },
+  P: { name: '사다리꼴', axis: '평행한 두 변 중 짧은 변을 축으로', solid: '윗면이 원뿔 모양으로 파인 원기둥', pts: [V(0, 0), V(3, 0), V(3, 4), V(0, 2)] }
+};
+// 오답 보기 (비슷한 모양 위주)
+const DISTRACT = {
+  A: ['B', 'C', 'D'], B: ['A', 'D', 'C'], C: ['H', 'A', 'B'], D: ['A', 'B', 'I'],
+  E: ['B', 'G', 'F'], F: ['A', 'E', 'D'], G: ['E', 'B', 'D'], H: ['C', 'E', 'G'], I: ['B', 'D', 'K'],
+  J: ['A', 'M', 'P'], K: ['A', 'P', 'I'], L: ['K', 'A', 'C'], M: ['J', 'B', 'D'], N: ['J', 'M', 'C'], P: ['K', 'A', 'J']
+};
+const LEVELS = [
+  { name: 'Lv1', title: '기본 회전체', desc: '직사각형·직각삼각형·반원·사다리꼴을 돌려 봐요', items: ['A', 'B', 'D', 'C'] },
+  { name: 'Lv2', title: '축과 방향 바꾸기', desc: '같은 도형도 축이 바뀌면 달라져요', items: ['F', 'E', 'G', 'H', 'I'] },
+  { name: 'Lv3', title: '복합 도형 · 속이 빈 도형', desc: '붙어 있거나 축에서 떨어진 도형을 돌려 봐요', items: ['K', 'J', 'L', 'P', 'M', 'N'] }
+];
+
+// ===== 단면 문제 =====
+const AXIAL_NAME = { A: '직사각형', B: '이등변삼각형', C: '원', D: '등변사다리꼴', E: '이등변삼각형', F: '직사각형', G: '이등변삼각형', H: '반원', I: '마름모', J: '직사각형 두 개', K: '집 모양 오각형', L: '직사각형 위에 반원을 올린 모양', M: '직각삼각형 두 개', N: '원 두 개', P: '윗변이 V자로 파인 직사각형' };
+const PERP_NAME = { disc: '원 하나', ring: '크기가 다른 두 원(동심원)', rect: '직사각형', tri: '삼각형', ellipse: '타원' };
+const P_ = (id, type) => ({ id, type });
+const SEC_LEVELS = [
+  { name: 'Lv1', title: '축에 수직으로 자르기', desc: '회전축에 수직인 평면으로 자르면 어떤 모양일까요?',
+    items: [P_('A', 'perp'), P_('B', 'perp'), P_('D', 'perp'), P_('C', 'perp'), P_('H', 'perp'), P_('J', 'perp'), P_('M', 'perp')] },
+  { name: 'Lv2', title: '축을 포함하는 평면으로 자르기', desc: '회전축을 지나는 평면으로 자른 단면을 찾아요',
+    items: [P_('A', 'axial'), P_('B', 'axial'), P_('C', 'axial'), P_('D', 'axial'), P_('F', 'axial'), P_('H', 'axial'), P_('I', 'axial')] },
+  { name: 'Lv3', title: '복합 도형 · 섞어서', desc: '복합 도형과 속이 빈 도형을 두 가지 방법으로 잘라 봐요',
+    items: [P_('I', 'perp'), P_('K', 'axial'), P_('L', 'axial'), P_('J', 'axial'), P_('M', 'axial'), P_('N', 'axial'), P_('P', 'axial'), P_('P', 'perp')] }
+];
+const SOLID_CACHE = {};
+function solidOf(id) { return SOLID_CACHE[id] || (SOLID_CACHE[id] = buildSolid(FIGS[id].pts)); }
+
+
+// 나만의 회전체 만들기 — 도형 검사·비교 (화면과 서버(api/_rotlib.js)가 같은 코드를 써요)
+// 도형 = 격자점 [r, z] 들을 차례로 이은 닫힌 다각형 (r ≥ 0: 회전축에서 떨어진 거리, z: 축 방향). 속은 채우지 않은 선으로 된 도형으로 봐요.
+const ROT_GRID = { R: 5, Z: 8 };          // r는 0~5, z는 0~8 (정수 격자점)
+const ROT_MIN_V = 3, ROT_MAX_V = 14;
+
+const _cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+const _sg = v => (v > 0) - (v < 0);
+const _onSeg = (a, b, c) => Math.min(a[0], b[0]) <= c[0] && c[0] <= Math.max(a[0], b[0]) && Math.min(a[1], b[1]) <= c[1] && c[1] <= Math.max(a[1], b[1]);
+// 두 선분 ab, cd가 한 점이라도 만나는가 (끝점이 닿는 경우 포함)
+function rotSegTouch(a, b, c, d) {
+  const d1 = _sg(_cr(a, b, c)), d2 = _sg(_cr(a, b, d)), d3 = _sg(_cr(c, d, a)), d4 = _sg(_cr(c, d, b));
+  if (d1 !== d2 && d3 !== d4) return true;
+  if (d1 === 0 && _onSeg(a, b, c)) return true;
+  if (d2 === 0 && _onSeg(a, b, d)) return true;
+  if (d3 === 0 && _onSeg(c, d, a)) return true;
+  if (d4 === 0 && _onSeg(c, d, b)) return true;
+  return false;
+}
+const _eq = (p, q) => p[0] === q[0] && p[1] === q[1];
+
+// 선이 서로 겹치거나 꼬이지 않는지 본다. closed가 false이면 지금까지 이은 선(열린 경로)만 본다.
+// 돌려주는 값: '' (괜찮음) 또는 'dup'(같은 점 두 번) | 'cross'(선이 만남·겹침)
+function rotPathProblem(pts, closed) {
+  const n = pts.length;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (_eq(pts[i], pts[j])) return 'dup';
+  const m = closed ? n : n - 1;           // 변의 수
+  const E = i => [pts[i], pts[(i + 1) % n]];
+  for (let i = 0; i < m; i++) {
+    for (let j = i + 1; j < m; j++) {
+      const adj = j === i + 1 || (closed && i === 0 && j === m - 1);
+      const [a, b] = E(i), [c, d] = E(j);
+      if (adj) {
+        // 이웃한 두 변은 한 끝점에서만 만나야 해요 (같은 직선 위에서 되돌아가면 겹쳐요)
+        const s = (j === i + 1) ? b : a;            // 공통 끝점
+        const o1 = _eq(s, b) ? a : b, o2 = _eq(s, c) ? d : c;
+        if (_cr(s, o1, o2) === 0) {
+          const dot = (o1[0] - s[0]) * (o2[0] - s[0]) + (o1[1] - s[1]) * (o2[1] - s[1]);
+          if (dot > 0) return 'cross';
+        }
+      } else if (rotSegTouch(a, b, c, d)) return 'cross';
+    }
+  }
+  return '';
+}
+function rotArea2(pts) { let s = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; s += p[0] * q[1] - q[0] * p[1]; } return s; }
+
+// 올릴 수 있는 도형인지 검사 → '' 또는 오류 이름
+function rotCheck(pts) {
+  if (!Array.isArray(pts) || pts.length < ROT_MIN_V || pts.length > ROT_MAX_V) return 'count';
+  for (const p of pts) {
+    if (!Array.isArray(p) || p.length !== 2 || !Number.isInteger(p[0]) || !Number.isInteger(p[1])) return 'point';
+    if (p[0] < 0 || p[0] > ROT_GRID.R || p[1] < 0 || p[1] > ROT_GRID.Z) return 'range';
+  }
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (_eq(pts[i], pts[j])) return 'dup';
+  if (pts.every(p => _cr(pts[0], pts[1], p) === 0)) return 'flat';   // 모든 점이 한 직선 위
+  const pr = rotPathProblem(pts, true); if (pr) return pr;
+  if (rotArea2(pts) === 0) return 'flat';
+  return '';
+}
+
+// 회전시켜 같은 입체가 되는 도형인지 비교하기 위한 '단위 선분 집합'
+//   · 회전축 위의 변은 면이 되지 않으니 빼고, 변을 격자 한 칸 단위로 쪼개서 이어 붙은 변도 같게 봐요
+//   · 입체는 위아래로 옮겨도 모양이 같으니 가장 낮은 점의 높이를 0으로 맞춰요
+function rotSteps(pts) {
+  const zmin = Math.min.apply(null, pts.map(p => p[1])), set = new Set(), n = pts.length;
+  const gcd = (a, b) => b ? gcd(b, a % b) : a;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], q = pts[(i + 1) % n];
+    if (p[0] === 0 && q[0] === 0) continue;
+    const dr = q[0] - p[0], dz = q[1] - p[1], g = gcd(Math.abs(dr), Math.abs(dz)), sr = dr / g, sz = dz / g;
+    for (let k = 0; k < g; k++) {
+      const a = [p[0] + k * sr, p[1] - zmin + k * sz], b = [a[0] + sr, a[1] + sz];
+      const A = a[0] + ',' + a[1], B = b[0] + ',' + b[1];
+      set.add(A < B ? A + '|' + B : B + '|' + A);
+    }
+  }
+  return set;
+}
+// 같은 크기·같은 모양인가 (위아래로 옮긴 것은 같게 봐요)
+function rotSameSize(a, b) {
+  const x = rotSteps(a), y = rotSteps(b);
+  if (x.size !== y.size) return false;
+  for (const k of x) if (!y.has(k)) return false;
+  return true;
+}
+
+// ── 크기는 달라도 모양이 같은지 ──
+// 회전체만 보고는 실제 길이를 알 수 없으니, 가로·세로 길이의 비가 같아서 닮은 도형(회전축 기준 같은 비율로 키우거나 줄인 것)이면 같은 입체로 봐요.
+// 회전축 위의 변을 빼고 변을 선분으로 모은 뒤, 가장 먼 거리를 같게 맞춰 비교해요 (정수 계산이라 오차가 없어요).
+function rotSegs(pts) {
+  const segs = [], n = pts.length;
+  for (let i = 0; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; if (!(p[0] === 0 && q[0] === 0)) segs.push([p[0], p[1], q[0], q[1]]); }
+  let zmin = Infinity, rmax = 0;
+  segs.forEach(g => { zmin = Math.min(zmin, g[1], g[3]); rmax = Math.max(rmax, g[0], g[2]); });
+  return { segs: segs.map(g => [g[0], g[1] - zmin, g[2], g[3] - zmin]), rmax };
+}
+function rotCanon(segs, k) { // 좌표를 k배 하고, 한 직선 위에서 이어지거나 겹친 선분을 하나로 합쳐 글자로 만들어요
+  const gcd = (a, b) => b ? gcd(b, a % b) : a, lines = new Map();
+  segs.forEach(g => {
+    let dr = (g[2] - g[0]) * k, dz = (g[3] - g[1]) * k; const e = gcd(Math.abs(dr), Math.abs(dz)); dr /= e; dz /= e;
+    if (dr < 0 || (dr === 0 && dz < 0)) { dr = -dr; dz = -dz; }
+    const c = dz * g[0] * k - dr * g[1] * k, key = dz + ',' + (-dr) + ',' + c;
+    const t1 = dr * g[0] * k + dz * g[1] * k, t2 = dr * g[2] * k + dz * g[3] * k;
+    if (!lines.has(key)) lines.set(key, []); lines.get(key).push([Math.min(t1, t2), Math.max(t1, t2)]);
+  });
+  const out = [];
+  lines.forEach((iv, key) => {
+    iv.sort((p, q) => p[0] - q[0]); const m = [];
+    iv.forEach(v => { const l = m[m.length - 1]; if (l && v[0] <= l[1]) l[1] = Math.max(l[1], v[1]); else m.push([v[0], v[1]]); });
+    out.push(key + ':' + m.map(v => v[0] + '~' + v[1]).join(';'));
+  });
+  return out.sort().join('|');
+}
+function rotSame(a, b) {
+  const A = rotSegs(a), B = rotSegs(b);
+  if (!(A.rmax > 0) || !(B.rmax > 0)) return false;
+  return rotCanon(A.segs, B.rmax) === rotCanon(B.segs, A.rmax);
+}
+
+// ===== 화면 & 퀴즈 =====
+const $ = s => document.querySelector(s);
+const SWEEP_YAW = -35, TILT = 22, HALF = 4.8;
+
+function jp(word, pair) { // 조사만 돌려줌: '이가' '은는' '을를'
+  const last = word[word.length - 1], ch = word.charCodeAt(word.length - 1);
+  const has = /[0-9]/.test(last) ? '013678'.includes(last) : (ch >= 0xAC00 && ch <= 0xD7A3 && ((ch - 0xAC00) % 28) !== 0);
+  return has ? pair[0] : pair[1];
+}
+function cop(word) { const w = word.replace(/\([^)]*\)$/, ''); return jp(w, '이예') === '이' ? '이에요' : '예요'; }
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mkRng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function shuffleR(a, rnd) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// 정답 위치는 문제 번호에 따라 정해 두고, 나머지 보기는 고정된 순서로 섞는다 (모든 학생에게 같은 문제)
+function placeOpts(correct, distractors, ansPos, rnd) { const d = shuffleR(distractors, rnd), o = []; for (let i = 0, k = 0; i < 4; i++) o.push(i === ansPos ? correct : d[k++]); return o; }
+
+// ---------- 입체 보기 (캔버스 + 드래그로 돌려 보기) ----------
+class SolidView {
+  constructor(canvas, id, o = {}) {
+    this.c = canvas; this.ctx = canvas.getContext('2d');
+    this.sol = typeof id === 'object' ? id : solidOf(id); this.half = o.half || HALF;
+    this.res = o.res || 300; this.dragRes = o.dragRes || 170;
+    this.R = initialR(TILT, o.yaw || 0);
+    this.alpha = null; this.cut = o.cut || null; this.pending = false;
+    this.onRotate = null; this.onRelease = null; this.onClick = null;
+    this.attach();
+  }
+  attach() {
+    const c = this.c; let down = false, lx = 0, ly = 0, moved = 0;
+    c.addEventListener('pointerdown', e => { down = true; lx = e.clientX; ly = e.clientY; moved = 0; try { c.setPointerCapture(e.pointerId); } catch (_) { } });
+    c.addEventListener('pointermove', e => {
+      if (!down) return;
+      const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
+      if (moved < 4) return;
+      this.rotate(dx * 0.012, dy * 0.012);
+    });
+    const up = () => { if (!down) return; down = false; if (moved >= 4) { this.render(false); if (this.onRelease) this.onRelease(this); } else if (this.onClick) this.onClick(); };
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', () => { down = false; });
+  }
+  setR(R) { this.R = R.map(r => r.slice()); }
+  rotate(ay, ax) {
+    this.R = orthonormalize(mat3Mul(rotY(ay), mat3Mul(rotX(ax), this.R)));
+    this.schedule(); if (this.onRotate) this.onRotate(this);
+  }
+  schedule() { if (this.pending) return; this.pending = true; requestAnimationFrame(() => { this.pending = false; this.render(true); }); }
+  render(fast) {
+    const res = fast ? this.dragRes : this.res;
+    if (!this.off || this.off.width !== res) {
+      this.off = document.createElement('canvas'); this.off.width = this.off.height = res;
+      this.octx = this.off.getContext('2d'); this.img = this.octx.createImageData(res, res);
+    }
+    renderSolid(this.sol, this.R, this.half, res, res, this.alpha, this.img.data, this.cut);
+    this.octx.putImageData(this.img, 0, 0);
+    const W = this.c.width, H = this.c.height, ctx = this.ctx;
+    ctx.clearRect(0, 0, W, H); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(this.off, 0, 0, W, H);
+    this.drawAxis();
+  }
+  drawAxis() {
+    const ctx = this.ctx, W = this.c.width, H = this.c.height, R = this.R;
+    const zl = this.sol.zext + 0.9, a = [R[0][2], R[1][2]];
+    const X = z => W / 2 + a[0] * z / this.half * W / 2, Y = z => H / 2 - a[1] * z / this.half * H / 2;
+    ctx.save(); ctx.setLineDash([W / 55, W / 70]); ctx.lineWidth = Math.max(1.5, W / 190);
+    ctx.strokeStyle = 'rgba(70,30,110,.8)'; ctx.beginPath(); ctx.moveTo(X(-zl), Y(-zl)); ctx.lineTo(X(zl), Y(zl)); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = 'rgba(70,30,110,.9)'; ctx.font = `italic 700 ${Math.round(W / 15)}px "Noto Sans KR",serif`;
+    const top = a[1] >= 0 ? zl : -zl; ctx.fillText('l', X(top) + W / 45, Y(top) + (a[1] >= 0 ? W / 22 : -W / 60));
+    ctx.restore();
+  }
+}
+
+// ---------- 평면도형 그리기 ----------
+function gridBg(ctx, W, H, span, k) {
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#eadff7'; ctx.lineWidth = 1;
+  for (let i = 0; i <= span; i++) { ctx.beginPath(); ctx.moveTo(i * k, 0); ctx.lineTo(i * k, H); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0, i * k); ctx.lineTo(W, i * k); ctx.stroke(); }
+}
+function drawFigure(canvas, id, bare) {
+  const f = FIGS[id], ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+  const span = 7, k = W / span, sol = solidOf(id);
+  const zc = sol.zc, X = r => (r + 1.5) * k, Y = z => H / 2 - (z - zc) * k;
+  gridBg(ctx, W, H, span, k);
+  ctx.beginPath(); f.pts.forEach((p, i) => { const x = X(p.r), y = Y(p.z); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.closePath();
+  ctx.fillStyle = 'rgba(236,95,168,.55)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#d63a8c'; ctx.lineJoin = 'round'; ctx.stroke();
+  f.pts.forEach(p => { if (p.arc) return; ctx.beginPath(); ctx.arc(X(p.r), Y(p.z), 4.5, 0, TAU); ctx.fillStyle = '#b02a70'; ctx.fill(); });
+  ctx.save(); ctx.setLineDash([9, 6]); ctx.lineWidth = 3; ctx.strokeStyle = '#4a2480';
+  ctx.beginPath(); ctx.moveTo(X(0), 6); ctx.lineTo(X(0), H - 6); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#4a2480'; ctx.font = `italic 700 ${Math.round(W / 14)}px "Noto Sans KR",serif`; ctx.fillText('l', X(0) + 8, 28);
+  if (!bare) { ctx.font = `500 ${Math.round(W / 26)}px "Noto Sans KR",sans-serif`; ctx.fillStyle = '#8a6bb0'; ctx.fillText('눈금 한 칸 = 1', 8, H - 9); }
+}
+
+// ---------- 상태 ----------
+const MODES = {
+  rot: { levels: LEVELS, title: '회전체 문제' },
+  sec: { levels: SEC_LEVELS, title: '단면 문제' }
+};
+const st = { mode: 'rot', level: 0, qi: 0, q: null, sel: -1, views: [], cmp: null, anim: null, answered: false, lastOk: false, secView: null, secAnim: null, solved: new Set(), teacher: false, banner: '' };
+try { st.solved = new Set(JSON.parse(localStorage.getItem('rot.solved') || '[]')); st.teacher = localStorage.getItem('rot.teacher') === '1'; } catch (_) { }
+function saveProgress() { try { localStorage.setItem('rot.solved', JSON.stringify(Array.from(st.solved))); localStorage.setItem('rot.teacher', st.teacher ? '1' : '0'); } catch (_) { } }
+const keyOf = (m, l, i) => `${m}:${l}-${i}`;
+const isSolved = (m, l, i) => st.solved.has(keyOf(m, l, i));
+const levelItems = (m, l) => MODES[m].levels[l].items;
+const levelOpen = (m, l) => st.teacher || l === 0 || levelItems(m, l - 1).every((_, i) => isSolved(m, l - 1, i));
+const probOpen = (m, l, i) => st.teacher || (levelOpen(m, l) && (i === 0 || isSolved(m, l, i - 1)));
+function stopAnim() { if (window.mkStop) window.mkStop();  if (st.anim) { cancelAnimationFrame(st.anim.raf); st.anim = null; } if (st.secAnim) { cancelAnimationFrame(st.secAnim.raf); st.secAnim = null; } }
+function show(id) { document.querySelectorAll('.view').forEach(v => v.hidden = v.id !== id); window.scrollTo(0, 0); stopAnim(); }
+function dotsHtml() {
+  return levelItems(st.mode, st.level).map((_, i) => {
+    const c = isSolved(st.mode, st.level, i) ? 'ok' : (i === st.qi ? (st.answered && !st.lastOk ? 'bad' : 'now') : '');
+    return `<span class="dot ${c}"></span>`;
+  }).join('');
+}
+function updateTeacherUI() { const tc = $('#teacherChip'); if (tc) tc.hidden = !st.teacher; const b = $('#btnTeacher'); if (b) b.textContent = st.teacher ? '교사 모드 끄기 (켜짐: 모든 문제 열림)' : '교사 모드 켜기 (모든 문제 열기)'; }
+
+// ---------- 문제 번호 버튼용 그림 ----------
+const THUMB = {};
+function solidThumb(id) { // 회전체 모양만
+  const k = 's' + id; if (THUMB[k]) return THUMB[k];
+  const S = 150, c = document.createElement('canvas'); c.width = c.height = S;
+  const ctx = c.getContext('2d'), img = ctx.createImageData(S, S);
+  renderSolid(solidOf(id), initialR(TILT, 0), HALF * 0.92, S, S, null, img.data, null);
+  ctx.putImageData(img, 0, 0); return (THUMB[k] = c.toDataURL());
+}
+function figThumb(id) { // 평면도형 (정답을 알려 주지 않도록 회전체 문제의 풀기 전 버튼에 사용)
+  const k = 'f' + id; if (THUMB[k]) return THUMB[k];
+  const c = document.createElement('canvas'); c.width = c.height = 280; drawFigure(c, id, true);
+  return (THUMB[k] = c.toDataURL());
+}
+function thumbFor(mode, li, i, solved) {
+  const it = levelItems(mode, li)[i];
+  if (mode === 'sec') return solidThumb(it.id);
+  return solved ? solidThumb(it) : figThumb(it);
+}
+
+// ---------- 레벨 · 문제 선택 ----------
+function renderLevels() {
+  const M = MODES[st.mode], box = $('#levelList'); box.innerHTML = '';
+  $('#lvTitle').textContent = M.title; updateTeacherUI();
+  const bn = $('#banner'); bn.hidden = !st.banner; bn.textContent = st.banner; st.banner = '';
+  M.levels.forEach((lv, li) => {
+    const open = levelOpen(st.mode, li), n = lv.items.length, done = lv.items.filter((_, i) => isSolved(st.mode, li, i)).length;
+    const card = document.createElement('div'); card.className = 'lvbox' + (open ? '' : ' locked');
+    card.innerHTML = `<div class="lvhead"><span class="lvname">${lv.name}</span><span class="lvtitle">${lv.title}</span><span class="lvprog">${done} / ${n} 해결</span></div>
+      <div class="lvdesc">${open ? lv.desc : '앞 레벨의 모든 문제를 풀면 열려요'}</div><div class="pbtns"></div>`;
+    const row = card.querySelector('.pbtns');
+    lv.items.forEach((_, i) => {
+      const solved = isSolved(st.mode, li, i), po = probOpen(st.mode, li, i), b = document.createElement('button');
+      b.className = 'pbtn' + (solved ? ' solved' : po ? ' open' : ' locked'); b.disabled = !po;
+      b.innerHTML = `<img alt="" src="${thumbFor(st.mode, li, i, solved)}"><span class="pn">${i + 1}</span><span class="ps">${solved ? '✓' : po ? '' : '🔒'}</span>`;
+      b.title = po ? `${lv.name} ${i + 1}번 문제` : '앞 문제를 풀면 열려요';
+      b.onclick = () => startProblem(st.mode, li, i); row.appendChild(b);
+    });
+    box.appendChild(card);
+  });
+}
+function openLevels(mode) { st.mode = mode; renderLevels(); show('levels'); }
+function startProblem(mode, li, qi) {
+  if (!probOpen(mode, li, qi)) return;
+  st.mode = mode; st.level = li; st.qi = qi; st.answered = false; st.lastOk = false;
+  const it = levelItems(mode, li)[qi], rnd = mkRng(hashStr(`${mode}-${li}-${qi}`)), ansPos = (qi * 3 + li + 1) % 4;
+  if (mode === 'rot') {
+    const opts = placeOpts(it, DISTRACT[it], ansPos, rnd);
+    st.q = { id: it, opts, ans: ansPos };
+    show('quiz'); showQuestion();
+  } else {
+    st.q = makeSecQ(it.id, it.type, rnd, ansPos);
+    show('squiz'); showSecQ();
+  }
+}
+function finishOrNext() { // 정답을 맞힌 뒤: 다음 문제로, 마지막이면 목록으로
+  const n = levelItems(st.mode, st.level).length;
+  if (st.qi < n - 1) { startProblem(st.mode, st.level, st.qi + 1); return; }
+  const M = MODES[st.mode], lv = M.levels[st.level], last = st.level === M.levels.length - 1;
+  st.banner = last ? `🎉 ${lv.name}의 모든 문제를 풀었어요! 정말 잘했어요.` : `🎉 ${lv.name} 완료! ${M.levels[st.level + 1].name}${jp(M.levels[st.level + 1].name, '이가')} 열렸어요.`;
+  openLevels(st.mode);
+}
+function retryProblem() { stopAnim(); st.answered = false; st.lastOk = false; st.mode === 'rot' ? showQuestion() : showSecQ(); }
+function nextLabel() { const n = levelItems(st.mode, st.level).length; return !st.answered || st.lastOk ? (st.qi === n - 1 ? '문제 목록으로 ✓' : '다음 문제 →') : '다시 풀기'; }
+
+// =====================================================================
+//  회전체 문제
+// =====================================================================
+function showQuestion() {
+  stopAnim(); st.sel = -1; st.answered = false;
+  const q = st.q, f = FIGS[q.id], n = levelItems('rot', st.level).length;
+  $('#qLevel').textContent = `${LEVELS[st.level].name} · ${LEVELS[st.level].title}`;
+  $('#qNum').textContent = `문제 ${st.qi + 1} / ${n}`;
+  $('#qDots').innerHTML = dotsHtml();
+  drawFigure($('#figCanvas'), q.id);
+  $('#figCaption').innerHTML = `<b>${f.name}</b> · <span class="axtxt">${f.axis} 1회전</span>`;
+  $('#phaseChoose').hidden = false; $('#phaseCheck').hidden = true;
+  $('#chooseActions').hidden = false; $('#quickBox').hidden = true; $('#optHint').hidden = false;
+  const grid = $('#optGrid'); grid.innerHTML = ''; st.views = [];
+  q.opts.forEach((oid, i) => {
+    const d = document.createElement('div'); d.className = 'opt';
+    d.innerHTML = `<span class="badge">${'가나다라'[i]}</span><canvas width="340" height="340"></canvas><div class="optname" hidden></div>`;
+    grid.appendChild(d);
+    const v = new SolidView(d.querySelector('canvas'), oid, { res: 340, dragRes: 150 });
+    v.onClick = () => selectOpt(i); v.render(true); st.views.push(v);
+    setTimeout(() => { if (st.views.includes(v)) v.render(false); }, 40 + 60 * i);
+  });
+  $('#btnCheck').disabled = true; $('#btnQuick').disabled = true;
+}
+function selectOpt(i) {
+  if (st.answered) return;
+  st.sel = i; document.querySelectorAll('#optGrid .opt').forEach((d, k) => d.classList.toggle('sel', k === i));
+  $('#btnCheck').disabled = false; $('#btnQuick').disabled = false;
+}
+function judgeRot() {
+  if (st.answered) return st.lastOk;
+  const q = st.q, ok = q.opts[st.sel] === q.id;
+  st.answered = true; st.lastOk = ok; if (ok) { st.solved.add(keyOf('rot', st.level, st.qi)); saveProgress(); }
+  $('#qDots').innerHTML = dotsHtml(); updateNextLabel();
+  return ok;
+}
+function verdictHtmlRot() {
+  const q = st.q, chosen = q.opts[st.sel], ok = chosen === q.id, f = FIGS[q.id], fc = FIGS[chosen];
+  if (ok) return `<div class="vt ok">정답이에요! 🎉</div><p><b>${f.name}</b>${jp(f.name, '을를')} ${f.axis} 1회전시키면 <b>${f.solid}</b>${jp(f.solid, '이가')} 만들어져요.</p>`;
+  const same = fc.solid === f.solid;
+  return `<div class="vt bad">아쉬워요. 다시 살펴볼까요?</div><p>이 도형을 회전시키면 <b>${f.solid}</b>${jp(f.solid, '이가')} 만들어져요. (고른 입체: <b>${fc.solid}</b>)</p>` +
+    (same ? `<p class="sub">이름은 같아도 높이와 밑면의 크기가 달라요. 축으로 삼은 변이 어느 변인지 다시 확인해 보세요.</p>` : '');
+}
+function updateNextLabel() { const t = nextLabel(); const a = $('#btnNext'), b = $('#btnQNext'), c = $('#sBtnNext'); if (a) a.textContent = t; if (b) b.textContent = t; if (c) c.textContent = t; }
+
+// 바로 채점 (회전시키지 않고)
+function quickJudge() {
+  if (st.sel < 0) return;
+  const ok = judgeRot(), q = st.q;
+  document.querySelectorAll('#optGrid .opt').forEach((d, i) => {
+    d.classList.remove('sel'); d.classList.toggle('right', i === q.ans); d.classList.toggle('wrong', i === st.sel && !ok);
+    const nm = d.querySelector('.optname'); nm.hidden = false; nm.textContent = FIGS[q.opts[i]].solid;
+  });
+  $('#optHint').hidden = true; $('#chooseActions').hidden = true;
+  const b = $('#quickBox'); b.hidden = false;
+  b.innerHTML = `<div class="${ok ? 'okbox' : 'badbox'}">${verdictHtmlRot()}</div><div class="actions"><button class="ghost big" id="btnQCheck">회전시켜 확인해 보기</button><button class="primary" id="btnQNext">${nextLabel()}</button></div>`;
+  $('#btnQNext').onclick = onNext; $('#btnQCheck').onclick = startCheck;
+}
+
+// 회전시켜 확인
+function startCheck() {
+  const q = st.q, chosen = q.opts[st.sel];
+  $('#phaseChoose').hidden = true; $('#phaseCheck').hidden = false;
+  $('#verdict').hidden = true; $('#angle').value = 0; $('#angleVal').textContent = '0°';
+  updateNextLabel();
+  $('#leftTitle').innerHTML = `내가 고른 입체 <span class="badge sm">${'가나다라'[st.sel]}</span>`;
+  const L = new SolidView($('#cvL'), chosen, { res: 400, dragRes: 200, yaw: SWEEP_YAW });
+  const Rv = new SolidView($('#cvR'), q.id, { res: 400, dragRes: 200, yaw: SWEEP_YAW });
+  Rv.alpha = 0; L.render(false); Rv.render(false);
+  const sync = (a, b) => { a.onRotate = () => { b.setR(a.R); b.schedule(); }; a.onRelease = () => { b.setR(a.R); b.render(false); }; };
+  sync(L, Rv); sync(Rv, L);
+  st.cmp = { L, Rv, q, chosen };
+  if (st.answered) { showVerdictRot(); }
+  playSweep(0);
+}
+function setAngle(deg, fast) {
+  const { Rv } = st.cmp; Rv.alpha = deg * Math.PI / 180; Rv.render(fast);
+  $('#angle').value = Math.round(deg); $('#angleVal').textContent = Math.round(deg) + '°';
+}
+function playSweep(from) {
+  stopAnim(); const dur = 4600 * (360 - from) / 360, t0 = performance.now();
+  const a = { raf: 0 }; st.anim = a;
+  const step = now => {
+    if (st.anim !== a) return;
+    const p = Math.min(1, (now - t0) / dur), deg = from + (360 - from) * p;
+    if (p < 1) { setAngle(deg, true); a.raf = requestAnimationFrame(step); }
+    else { st.anim = null; setAngle(360, false); reveal(); }
+  };
+  a.raf = requestAnimationFrame(step);
+}
+function showVerdictRot() {
+  const ok = st.lastOk, v = $('#verdict'); v.innerHTML = verdictHtmlRot(); v.className = ok ? 'okbox' : 'badbox'; v.hidden = false;
+}
+function reveal() { judgeRot(); showVerdictRot(); }
+// 다음 문제 / 다시 풀기 (정답을 맞혀야 다음으로 넘어감)
+function onNext() {
+  if (!st.answered) {
+    if (st.sel < 0) return;
+    judgeRot();
+    if (!st.lastOk) { showVerdictRot(); return; }
+  } else if (!st.lastOk) { retryProblem(); return; }
+  finishOrNext();
+}
+
+// =====================================================================
+//  단면 문제
+// =====================================================================
+function sectionIntervals(sol, z) { // 높이 z에서 평면도형이 차지하는 r 구간들
+  const xs = [], n = sol.pr.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const z1 = sol.pz[i], z2 = sol.pz[j];
+    if ((z1 > z) !== (z2 > z)) xs.push(sol.pr[i] + (z - z1) * (sol.pr[j] - sol.pr[i]) / (z2 - z1));
+  }
+  xs.sort((a, b) => a - b); const iv = [];
+  for (let i = 0; i + 1 < xs.length; i += 2) iv.push([Math.max(0, xs[i]), xs[i + 1]]);
+  return iv;
+}
+function cornerZs(sol) { return sol.pts.filter(p => !p.n).map(p => p.z - sol.zc); }
+function isMixed(id) { // 자르는 높이에 따라 원과 고리가 둘 다 나오는 입체인가
+  const sol = solidOf(id), lo = Math.min.apply(null, sol.pz), hi = Math.max.apply(null, sol.pz), kinds = {};
+  for (let k = 1; k < 80; k++) { const iv = sectionIntervals(sol, lo + (hi - lo) * k / 80); if (iv.length) kinds[iv[0][0] < 1e-6 ? 'd' : 'r'] = 1; }
+  return Object.keys(kinds).length > 1;
+}
+function pickZ0(sol, rnd) {
+  const lo = Math.min.apply(null, sol.pz), hi = Math.max.apply(null, sol.pz), cz = cornerZs(sol);
+  for (let t = 0; t < 120; t++) {
+    const z = lo + (hi - lo) * (0.18 + 0.64 * rnd());
+    if (cz.every(v => Math.abs(v - z) > 0.4) && sectionIntervals(sol, z).length) return z;
+  }
+  return (lo + hi) / 2;
+}
+function makeSecQ(id, type, rnd, ansPos) {
+  const sol = solidOf(id); let opts, ansObj, z0 = 0, dis;
+  if (type === 'perp') {
+    z0 = pickZ0(sol, rnd);
+    const iv = sectionIntervals(sol, z0)[0], s = Math.max(1.2, iv[1]);
+    const rect = { kind: 'rect', w: 1.9 * s, h: 1.3 * s }, ell = { kind: 'ellipse', rx: s, ry: 0.62 * s }, tri = { kind: 'tri', base: 2 * s, h: 1.8 * s };
+    if (iv[0] < 1e-6) { ansObj = { kind: 'disc', R: iv[1] }; dis = [rect, tri, ell]; }
+    else { ansObj = { kind: 'ring', rin: iv[0], rout: iv[1] }; dis = [{ kind: 'disc', R: iv[1] }, rect, ell]; }
+  } else {
+    ansObj = { kind: 'axial', fig: id }; dis = DISTRACT[id].map(f => ({ kind: 'axial', fig: f }));
+  }
+  opts = placeOpts(ansObj, dis, ansPos, rnd);
+  return { id, type, z0, opts, ans: ansPos, zcur: z0 };
+}
+function secName(o) { return o.kind === 'axial' ? AXIAL_NAME[o.fig] : PERP_NAME[o.kind === 'intervals' ? (o.iv[0][0] < 1e-6 ? 'disc' : 'ring') : o.kind]; }
+function drawSecOption(canvas, o) {
+  const ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height, span = 9, k = W / span;
+  const X = r => W / 2 + r * k, Y = z => H / 2 - z * k;
+  gridBg(ctx, W, H, span, k);
+  ctx.fillStyle = 'rgba(236,95,168,.55)'; ctx.strokeStyle = '#d63a8c'; ctx.lineWidth = 3.5; ctx.lineJoin = 'round'; // 단면은 모두 경계(테두리)만 그림 (속이 채워지지 않은 평면도형 기준)
+  const circ = (r) => { ctx.moveTo(X(r), Y(0)); ctx.arc(X(0), Y(0), r * k, 0, TAU); };
+  if (o.kind === 'disc') { ctx.beginPath(); circ(o.R); ctx.stroke(); }
+  else if (o.kind === 'ring') { ctx.beginPath(); circ(o.rout); circ(o.rin); ctx.stroke(); }
+  else if (o.kind === 'intervals') {
+    o.iv.forEach(([a, b]) => { ctx.beginPath(); circ(b); if (a > 1e-6) circ(a); ctx.stroke(); });
+  } else if (o.kind === 'rect') { ctx.beginPath(); ctx.rect(X(-o.w / 2), Y(o.h / 2), o.w * k, o.h * k); ctx.stroke(); }
+  else if (o.kind === 'tri') { ctx.beginPath(); ctx.moveTo(X(-o.base / 2), Y(-o.h / 2)); ctx.lineTo(X(o.base / 2), Y(-o.h / 2)); ctx.lineTo(X(0), Y(o.h / 2)); ctx.closePath(); ctx.stroke(); }
+  else if (o.kind === 'ellipse') { ctx.beginPath(); ctx.ellipse(X(0), Y(0), o.rx * k, o.ry * k, 0, 0, TAU); ctx.stroke(); }
+  else if (o.kind === 'axial') {
+    const sol = solidOf(o.fig), pts = sol.pts, n = pts.length;
+    [1, -1].forEach(sg => {
+      for (let i = 0; i < n; i++) {
+        const a = pts[i], b = pts[(i + 1) % n]; if (a.r < 1e-9 && b.r < 1e-9) continue;
+        ctx.beginPath(); ctx.moveTo(X(sg * a.r), Y(a.z - sol.zc)); ctx.lineTo(X(sg * b.r), Y(b.z - sol.zc)); ctx.stroke();
+      }
+    });
+  }
+}
+function secPlane(q) { return q.type === 'perp' ? { nx: 0, ny: 0, nz: 1, d: q.zcur } : { nx: 0, ny: -1, nz: 0, d: 0 }; }
+function showSecQ() {
+  stopAnim(); st.sel = -1; st.answered = false;
+  const q = st.q, lv = SEC_LEVELS[st.level], perp = q.type === 'perp', nn = lv.items.length;
+  q.zcur = q.z0;
+  $('#sLevel').textContent = `${lv.name} · ${lv.title}`;
+  $('#sNum').textContent = `문제 ${st.qi + 1} / ${nn}`; $('#sDots').innerHTML = dotsHtml();
+  $('#sSolidTitle').textContent = '입체도형 (분홍색 면으로 자를 거예요)';
+  $('#sCaption').innerHTML = perp ? '회전축에 <b>수직</b>인 평면으로 자릅니다.' : '회전축을 <b>포함하는</b> 평면으로 자릅니다.';
+  const mixed = perp && isMixed(q.id);
+  $('#sPrompt').innerHTML = perp
+    ? `이 입체도형을 회전축에 수직인 <b>분홍색 평면</b>으로 자를 때, <b>단면의 경계</b>가 되는 도형을 골라 보세요.` +
+      (mixed ? `<span class="note">※ 이 입체는 자르는 높이에 따라 경계가 원 하나일 때도, 원 두 개일 때도 있어요. 분홍색 면의 높이를 잘 살펴보세요.</span>` : '')
+    : `이 입체도형을 회전축을 포함하는 <b>분홍색 평면</b>으로 자를 때, 생기는 <b>단면의 모양</b>을 골라 보세요.`;
+  $('#sPhaseChoose').hidden = false; $('#sPhaseCheck').hidden = true;
+  const v = new SolidView($('#scCanvas'), q.id, { res: 400, dragRes: 200, yaw: perp ? 0 : 40, cut: Object.assign({ mode: 'show' }, secPlane(q)) });
+  v.render(false); st.secView = v;
+  const grid = $('#sOptGrid'); grid.innerHTML = '';
+  q.opts.forEach((o, i) => {
+    const d = document.createElement('div'); d.className = 'opt flat';
+    d.innerHTML = `<span class="badge">${'가나다라'[i]}</span><canvas width="300" height="300"></canvas><div class="optname" hidden></div>`;
+    grid.appendChild(d); drawSecOption(d.querySelector('canvas'), o);
+    d.onclick = () => { st.sel = i; grid.querySelectorAll('.opt').forEach((x, k) => x.classList.toggle('sel', k === i)); $('#sBtnCheck').disabled = false; };
+  });
+  $('#sBtnCheck').disabled = true;
+}
+function actualOpt(q) {
+  if (q.type === 'axial') return { kind: 'axial', fig: q.id };
+  return { kind: 'intervals', iv: sectionIntervals(solidOf(q.id), q.zcur) };
+}
+function nowShort(q) { const iv = sectionIntervals(solidOf(q.id), q.zcur)[0]; return iv && iv[0] < 1e-6 ? PERP_NAME.disc : PERP_NAME.ring; }
+function secVerdictHtml(q, ok, chosen) {
+  const act = actualOpt(q), an = secName(act), cn = secName(chosen);
+  let rule;
+  if (q.type === 'axial') rule = '회전축을 포함하는 평면으로 자른 단면은 회전축을 대칭축으로 하는 선대칭도형이에요. 어느 방향으로 잘라도 단면은 모두 합동이에요.';
+  else if (isMixed(q.id)) rule = `회전축에 수직인 평면으로 자른 단면의 경계는 항상 원이에요. 이 입체는 높이에 따라 경계가 원 하나일 때도, 크기가 다른 두 원일 때도 있어요. 슬라이더로 직접 확인해 보세요.`;
+  else rule = '회전축에 수직인 평면으로 자른 단면의 경계는 항상 원이에요. 자르는 위치에 따라 원의 크기만 달라져요.';
+  const head = ok ? '<div class="vt ok">정답이에요! 🎉</div>' : '<div class="vt bad">아쉬워요. 다시 살펴볼까요?</div>';
+  const an0 = q.type === 'perp' ? nowShort({ id: q.id, zcur: q.z0 }) : an;
+  const what = q.type === 'perp' ? '단면의 경계' : '단면', pick = q.type === 'perp' ? '고른 경계' : '고른 단면';
+  const body = ok ? `<p>${what}${jp(what, '은는')} <b>${an0}</b>${cop(an0)}.</p>` : `<p>실제 ${what}${jp(what, '은는')} <b>${an0}</b>${cop(an0)}. (${pick}: <b>${cn}</b>)</p>`;
+  return head + body + `<p class="sub">${rule}</p>`;
+}
+function startSecCheck() {
+  if (st.sel < 0) return;
+  const q = st.q, chosen = q.opts[st.sel], ok = st.sel === q.ans, v = st.secView, perp = q.type === 'perp';
+  st.answered = true; st.lastOk = ok; if (ok) { st.solved.add(keyOf('sec', st.level, st.qi)); saveProgress(); }
+  $('#sDots').innerHTML = dotsHtml();
+  $('#sPhaseChoose').hidden = true; $('#sPhaseCheck').hidden = false;
+  $('#sSolidTitle').textContent = '잘라 낸 입체도형';
+  $('#chosenTitle').innerHTML = `내가 고른 ${st.q.type === 'perp' ? '경계' : '단면'} <span class="badge sm">${'가나다라'[st.sel]}</span>`;
+  drawSecOption($('#cvChosen'), chosen); drawSecOption($('#cvActual'), actualOpt(q)); setActualTitle(q);
+  const vd = $('#sVerdict'); vd.innerHTML = secVerdictHtml(q, ok, chosen); vd.className = ok ? 'okbox' : 'badbox';
+  updateNextLabel();
+  v.cut = Object.assign({ mode: 'clip' }, secPlane(q));
+  const row = $('#sSliderRow'); row.hidden = !perp;
+  $('#sHint2').textContent = perp ? (isMixed(q.id) ? '슬라이더로 자르는 높이를 바꿔 보세요. 높이에 따라 경계가 원 하나가 되기도 하고 크기가 다른 두 원이 되기도 해요.' : '슬라이더로 자르는 높이를 바꿔 보세요. 경계인 원의 크기만 달라지고 모양은 그대로예요.') : '입체도형을 끌어서 돌려 보면 단면이 어느 방향에서나 같은 모양이라는 걸 확인할 수 있어요.';
+  if (perp) {
+    const sol = solidOf(q.id), lo = Math.min.apply(null, sol.pz), hi = Math.max.apply(null, sol.pz);
+    const sl = $('#sSlider'); sl.min = (lo + 0.04).toFixed(3); sl.max = (hi - 0.04).toFixed(3); sl.step = '0.01'; sl.value = q.zcur;
+    v.render(false);
+  } else {
+    // 비스듬히 보던 자르는 면을 정면으로 돌려서 보여 줌
+    const a = { raf: 0 }; st.secAnim = a; const t0 = performance.now();
+    const step = now => {
+      if (st.secAnim !== a) return;
+      const p = Math.min(1, (now - t0) / 800), e = 1 - Math.pow(1 - p, 3);
+      v.R = initialR(TILT, 40 * (1 - e));
+      if (p < 1) { v.render(true); a.raf = requestAnimationFrame(step); } else { st.secAnim = null; v.render(false); }
+    };
+    a.raf = requestAnimationFrame(step);
+  }
+}
+function setActualTitle(q) { $('#actualTitle').textContent = q.type === 'perp' ? `실제 단면의 경계 (지금 높이: ${nowShort(q) === PERP_NAME.disc ? '원 하나' : '원 두 개'})` : '실제 단면'; }
+function secNext() { if (st.answered && !st.lastOk) retryProblem(); else finishOrNext(); }
+
+// ---------- 이벤트 ----------
+$('#cardRot').onclick = () => openLevels('rot');
+$('#cardSec').onclick = () => openLevels('sec');
+$('#btnLvHome').onclick = () => show('home');
+$('#btnQBack').onclick = () => openLevels('rot');
+$('#btnSBack').onclick = () => openLevels('sec');
+$('#btnCheck').onclick = () => { if (st.sel >= 0) startCheck(); };
+$('#btnQuick').onclick = quickJudge;
+$('#btnNext').onclick = onNext;
+$('#btnPlay').onclick = () => { const from = +$('#angle').value; playSweep(from >= 360 ? 0 : from); };
+$('#angle').addEventListener('input', e => { stopAnim(); setAngle(+e.target.value, true); });
+$('#angle').addEventListener('change', e => { setAngle(+e.target.value, false); if (+e.target.value >= 360) reveal(); });
+$('#sBtnCheck').onclick = startSecCheck;
+$('#sBtnNext').onclick = secNext;
+$('#sSlider').addEventListener('input', e => {
+  const q = st.q; q.zcur = +e.target.value; st.secView.cut.d = q.zcur; st.secView.render(true); drawSecOption($('#cvActual'), actualOpt(q)); setActualTitle(q);
+});
+$('#sSlider').addEventListener('change', () => st.secView.render(false));
+$('#btnTeacher').onclick = () => { st.teacher = !st.teacher; saveProgress(); renderLevels(); };
+let resetTimer = 0;
+$('#btnReset').onclick = () => {
+  const b = $('#btnReset');
+  if (!b.dataset.arm) { b.dataset.arm = '1'; b.textContent = '정말 지울까요? 한 번 더 누르세요'; resetTimer = setTimeout(() => { delete b.dataset.arm; b.textContent = '내 진행 기록 지우기'; }, 4000); return; }
+  clearTimeout(resetTimer); delete b.dataset.arm; b.textContent = '내 진행 기록 지우기';
+  st.solved = new Set(); saveProgress(); renderLevels();
+};
+updateTeacherUI();
+show('home');
+
+// =====================================================================
+//  나만의 회전체 만들기  (도형을 그려 회전체를 만들고, 친구들이 원래 도형을 맞혀 봐요)
+// =====================================================================
+const DEPLOY = true;
+const MK = { me: null, year: 2026, items: [], filter: 'class', adminKey: '', cur: null, anim: null, padDraw: null, padGuess: null, viewDraw: null, viewPlay: null, listErr: '' };
+try { MK.adminKey = sessionStorage.getItem('mtryu.adminkey') || ''; } catch (_) { }
+
+// ---------- 서버 연결 (클로드 안에서는 이 브라우저에만 저장하는 체험용 서버를 써요) ----------
+const MK_ERR = {
+  'bad-request': '학교 정보가 맞지 않아요. 위쪽 이름표에서 학교를 다시 골라 주세요.',
+  'bad-figure': '이 도형은 올릴 수 없어요. 선이 겹치지 않는 닫힌 도형인지 확인해 주세요.',
+  'bad-name': '별명에 쓸 수 없는 말이 들어 있어요. 이름표에서 별명을 고쳐 주세요.',
+  'too-many-mine': '한 기기에서 올릴 수 있는 회전체는 10개까지예요. 내가 올린 것을 하나 지우고 다시 올려 주세요.',
+  'own-figure': '내가 만든 회전체는 맞히기에 도전할 수 없어요.',
+  'too-many': '요청이 너무 많아요. 잠시 뒤에 다시 해 주세요.',
+  'not-found': '이 회전체는 이미 지워졌어요.',
+  'unauthorized': '관리자 암호가 맞지 않아요.'
+};
+const mkErrText = e => (e && MK_ERR[e.code]) || '서버와 연결하지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.';
+async function realApi(body) {
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 15000);
+  try {
+    const h = { 'Content-Type': 'application/json' }; if (MK.adminKey) h['x-admin-key'] = MK.adminKey;
+    const r = await fetch('/api/rot', { method: 'POST', headers: h, body: JSON.stringify(body), signal: ctl.signal });
+    let j = null; try { j = await r.json(); } catch (e) { }
+    if (!r.ok) { const er = new Error('http ' + r.status); er.code = (j && j.error) || ''; er.status = r.status; throw er; }
+    return j;
+  } finally { clearTimeout(t); }
+}
+// 체험용 서버: 서버가 하는 일(검사·비교·한 사람 한 번 도전·기기당 10개)을 같은 규칙으로 흉내 내요
+const MOCK_SEEDS = [
+  { nick: '하늘', gr: 2, cl: 2, pts: [[0, 0], [4, 0], [0, 5]] },
+  { nick: '모모', gr: 2, cl: 2, pts: [[2, 0], [5, 0], [5, 3], [2, 3]] },
+  { nick: '별빛', gr: 2, cl: 3, pts: [[0, 0], [3, 0], [3, 2], [1, 4], [0, 4]] },
+  { nick: '수학왕', gr: 2, cl: 2, pts: [[1, 0], [4, 2], [1, 4]] }
+];
+function mockLoad() {
+  let db = null; try { db = JSON.parse(localStorage.getItem('rot.mock')); } catch (_) { }
+  if (!db || !Array.isArray(db.items)) {
+    db = { items: MOCK_SEEDS.map((s, i) => ({ id: ('seed' + i + '000000000').slice(0, 10).replace(/[^a-f0-9]/g, 'a'), uid: 'e'.repeat(31) + i, nick: s.nick, gr: s.gr, cl: s.cl, pts: s.pts, ts: Date.now() - (i + 1) * 3600e3 })), g: {} };
+    db.items.forEach((it, i) => { it.id = 'a1b2c3d4e' + i; });
+  }
+  return db;
+}
+function mockSave(db) { try { localStorage.setItem('rot.mock', JSON.stringify(db)); } catch (_) { } }
+function mockUid() { let u = ''; try { u = localStorage.getItem('rot.mock.uid') || ''; } catch (_) { } if (!/^[a-f0-9]{32}$/.test(u)) { u = ''; for (let i = 0; i < 32; i++) u += '0123456789abcdef'[Math.floor(Math.random() * 16)]; try { localStorage.setItem('rot.mock.uid', u); } catch (_) { } } return u; }
+function mockErr(code) { const e = new Error(code); e.code = code; return e; }
+async function mockApi(b) {
+  const db = mockLoad(), uid = b.uid || '';
+  const gOf = id => db.g[id] || (db.g[id] = {});
+  const toItem = e => {
+    const g = gOf(e.id), vals = Object.keys(g).map(k => g[k]), mine = e.uid === uid, my = g[uid] != null ? { ok: g[uid] === '1' } : null;
+    const it = { id: e.id, pts: e.pts, nick: e.nick, ts: e.ts, gr: e.gr, cl: e.cl, mine, n: vals.length, my };
+    if (mine) it.okN = vals.filter(v => v === '1').length;
+    return it;
+  };
+  if (b.act === 'list') return { items: db.items.slice().sort((a, c) => c.ts - a.ts).map(toItem) };
+  if (b.act === 'get') { const e = db.items.find(x => x.id === b.id); if (!e) throw mockErr('not-found'); return { item: toItem(e) }; }
+  if (b.act === 'publish') {
+    if (rotCheck(b.pts)) throw mockErr('bad-figure');
+    if (db.items.filter(x => x.uid === uid).length >= 10) throw mockErr('too-many-mine');
+    const id = 'm' + Math.random().toString(16).slice(2, 11);
+    db.items.push({ id, uid, nick: b.nick, gr: b.gr, cl: b.cl, pts: b.pts, ts: Date.now() }); mockSave(db); return { id };
+  }
+  if (b.act === 'guess') {
+    const e = db.items.find(x => x.id === b.id); if (!e) throw mockErr('not-found');
+    if (e.uid === uid) throw mockErr('own-figure');
+    if (rotCheck(b.pts)) throw mockErr('bad-figure');
+    const g = gOf(e.id), ok = rotSame(b.pts, e.pts), already = g[uid] != null;
+    if (!already) { g[uid] = ok ? '1' : '0'; mockSave(db); }
+    return { ok, already };   // ok = 이번에 그린 도형이 맞는지 (기록에는 처음 도전한 결과만 남아요)
+  }
+  if (b.act === 'remove') {
+    const i = db.items.findIndex(x => x.id === b.id); if (i < 0) throw mockErr('not-found');
+    if (db.items[i].uid !== uid && !MK.adminKey) throw mockErr('unauthorized');
+    db.items.splice(i, 1); mockSave(db); return { ok: true };
+  }
+  if (b.act === 'adminping') return { ok: true };
+  throw mockErr('bad-request');
+}
+const mkApi = DEPLOY ? realApi : mockApi;
+
+// ---------- 내 정보 · 학교 · 학년도 (확률 시뮬레이터와 같은 방식) ----------
+const MK_LIST = { years: [2026], schools: ['선운중학교'], regions: {} };
+const mkSchoolYear = () => { const d = new Date(Date.now() + 9 * 3600e3); return d.getUTCMonth() >= 2 ? d.getUTCFullYear() : d.getUTCFullYear() - 1; };
+const mkOkList = c => c && Array.isArray(c.years) && Array.isArray(c.schools) && c.years.length && c.schools.length;
+function mkTakeList(j) { MK_LIST.years = j.years.slice(); MK_LIST.schools = j.schools.slice(); MK_LIST.regions = j.regions || {}; const sy = mkSchoolYear(); MK.year = MK_LIST.years.includes(sy) ? sy : MK_LIST.years[0]; }
+const mkCleanNick = s => String(s || '').replace(/[<>\s\u0000-\u001f]/g, '').slice(0, 8);
+async function mkSyncMe() {
+  if (!DEPLOY) { MK.me = { nick: '체험이', uid: mockUid(), label: '선운중학교', gr: 2, cl: 2 }; MK.year = mkSchoolYear(); return; }
+  MK.me = null;
+  const m = window.MtryuMeSync && MtryuMeSync.read();
+  if (!m) return;
+  let r; try { r = await MtryuMeSync.resolve(MK_LIST.schools, MK_LIST.regions, '/api/config'); } catch (e) { r = null; }
+  if (r && r.list && mkOkList(r.list)) mkTakeList(r.list);
+  if (r && r.label) MK.me = { nick: mkCleanNick(m.nick), uid: m.uid, label: r.label, gr: m.gr, cl: m.cl };
+}
+async function mkReady() { // 서버와 내 정보를 확인해요. 문제가 있으면 안내 글을 돌려줘요.
+  if (DEPLOY && location.protocol === 'file:') return '이 기능은 인터넷에 올라간 주소에서만 써요.';
+  if (!MK.me) {
+    if (DEPLOY) { try { const r = await fetch('/api/config'); if (r.ok) { const j = await r.json(); if (mkOkList(j)) mkTakeList(j); } } catch (e) { } }
+    await mkSyncMe();
+  }
+  return MK.me ? '' : '내 정보(학교·별명)가 필요해요. 위쪽 이름표에서 학교를 나이스로 검색해 골라 주세요.';
+}
+
+// ---------- 도형 그리기판 (격자점을 눌러 도형을 그려요) ----------
+const PK = 60, PW = Math.round((ROT_GRID.R + 1.3) * PK), PH = Math.round((ROT_GRID.Z + 1.2) * PK);
+const PX = r => (r + 0.9) * PK, PY = z => PH - (z + 0.6) * PK;
+const PAD_MSG = {
+  dup: '이미 찍은 점이에요.', cross: '선이 다른 선과 만나거나 겹쳐요. 다른 점을 골라 보세요.',
+  flat: '한 직선 위의 점만으로는 도형이 안 돼요.', max: `점은 최대 ${ROT_MAX_V}개까지 찍을 수 있어요.`,
+  closecross: '이 점으로 닫으면 선이 겹쳐요. 점을 더 찍어서 돌아와 보세요.', few: '점을 3개 이상 찍어야 닫을 수 있어요.'
+};
+function padBase(ctx) {
+  ctx.clearRect(0, 0, PW, PH); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
+  ctx.strokeStyle = '#eadff7'; ctx.lineWidth = 1;
+  for (let r = 0; r <= ROT_GRID.R; r++) { ctx.beginPath(); ctx.moveTo(PX(r), PY(-0.4)); ctx.lineTo(PX(r), PY(ROT_GRID.Z + 0.4)); ctx.stroke(); }
+  for (let z = 0; z <= ROT_GRID.Z; z++) { ctx.beginPath(); ctx.moveTo(PX(-0.4), PY(z)); ctx.lineTo(PX(ROT_GRID.R + 0.4), PY(z)); ctx.stroke(); }
+  ctx.fillStyle = '#cdb9e6';
+  for (let r = 0; r <= ROT_GRID.R; r++) for (let z = 0; z <= ROT_GRID.Z; z++) { ctx.beginPath(); ctx.arc(PX(r), PY(z), 3, 0, TAU); ctx.fill(); }
+  ctx.save(); ctx.setLineDash([9, 6]); ctx.lineWidth = 3; ctx.strokeStyle = '#4a2480';
+  ctx.beginPath(); ctx.moveTo(PX(0), 8); ctx.lineTo(PX(0), PH - 8); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#4a2480'; ctx.font = `italic 700 ${Math.round(PW / 14)}px "Noto Sans KR",serif`; ctx.fillText('l', PX(0) - 26, 30);
+  ctx.font = `500 ${Math.round(PW / 28)}px "Noto Sans KR",sans-serif`; ctx.fillStyle = '#8a6bb0'; ctx.fillText('눈금 한 칸 = 1', 8, PH - 8);
+}
+function padShape(ctx, pts, o) { // o: {closed, fill, stroke, width, dash, dots}
+  if (!pts.length) return;
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = o.width || 3.5; ctx.strokeStyle = o.stroke; if (o.dash) ctx.setLineDash(o.dash);
+  ctx.beginPath(); pts.forEach((p, i) => { const x = PX(p[0]), y = PY(p[1]); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  if (o.closed) ctx.closePath();
+  if (o.closed && o.fill) { ctx.fillStyle = o.fill; ctx.fill(); }
+  ctx.stroke(); ctx.restore();
+  if (o.dots) { ctx.fillStyle = o.stroke; pts.forEach(p => { ctx.beginPath(); ctx.arc(PX(p[0]), PY(p[1]), 5.5, 0, TAU); ctx.fill(); }); }
+}
+// 도형 하나를 읽기 전용으로 그려요 (정답 공개에 쓰고, guess가 있으면 내 추측을 점선으로 겹쳐요)
+function padPaintFixed(canvas, pts, guess) {
+  const ctx = canvas.getContext('2d'); padBase(ctx);
+  padShape(ctx, pts, { closed: true, fill: 'rgba(236,95,168,.45)', stroke: '#d63a8c', dots: true });
+  if (guess) padShape(ctx, guess, { closed: true, stroke: '#2a78d6', width: 3, dash: [9, 7], dots: false });
+}
+// 힌트: 원래 도형의 꼭짓점 3개를 차례로 알려 줘요.
+//  ① 시작점 = 축에서 떨어진 꼭짓점 중 가장 아래쪽 (크기·위치를 잡기 쉬워요)  ② 그 점에서 가장 먼 꼭짓점  ③ 앞의 두 점에서 가장 멀리 떨어진 꼭짓점
+function mkHintPoints(pts) {
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2, off = pts.filter(p => p[0] > 0);
+  const first = (off.length ? off : pts).slice().sort((a, b) => a[1] - b[1] || a[0] - b[0])[0], out = [first];
+  while (out.length < 3 && out.length < pts.length) {
+    const rest = pts.filter(p => !out.some(q => q[0] === p[0] && q[1] === p[1]));
+    if (!rest.length) break;
+    rest.sort((a, b) => Math.min.apply(null, out.map(q => d2(b, q))) - Math.min.apply(null, out.map(q => d2(a, q))) || a[1] - b[1] || a[0] - b[0]);
+    out.push(rest[0]);
+  }
+  return out;
+}
+function padSparkle(ctx, p, i, t) { // 반짝이는 별 모양 점
+  const x = PX(p[0]), y = PY(p[1]), s = 0.5 + 0.5 * Math.sin(t / 240 + i * 1.9), R = 11 + 6 * s;
+  ctx.save();
+  ctx.globalAlpha = 0.18 + 0.4 * s; ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(x, y, R * 1.9, 0, TAU); ctx.fill();
+  ctx.globalAlpha = 1; ctx.beginPath();
+  for (let k = 0; k < 8; k++) { const a = -Math.PI / 2 + k * Math.PI / 4, r = k % 2 ? R * 0.42 : R * 1.35; k ? ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)) : ctx.moveTo(x + r * Math.cos(a), y + r * Math.sin(a)); }
+  ctx.closePath(); ctx.fillStyle = '#ffb800'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+  ctx.font = '800 15px "Noto Sans KR",sans-serif'; ctx.textAlign = 'left'; ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.fillStyle = '#8a5a00';
+  const label = i === 0 ? '시작' : String(i + 1), lx = x > PW - 56 ? x - 16 - ctx.measureText(label).width : x + 14; ctx.strokeText(label, lx, y - 12); ctx.fillText(label, lx, y - 12);
+  ctx.restore();
+}
+class FigPad {
+  constructor(canvas, o = {}) {
+    this.c = canvas; this.ctx = canvas.getContext('2d'); this.pts = []; this.closed = false; this.hover = null; this.locked = false; this.hints = []; this.hintN = 0; this.tw = 0;
+    this.onChange = o.onChange || (() => { }); this.onMsg = o.onMsg || (() => { });
+    canvas.addEventListener('pointermove', e => { if (this.locked || this.closed) return; const p = this.toPt(e); if (!this.hover || !p || this.hover[0] !== p[0] || this.hover[1] !== p[1]) { this.hover = p; this.draw(); } });
+    canvas.addEventListener('pointerleave', () => { this.hover = null; this.draw(); });
+    canvas.addEventListener('pointerdown', e => { const p = this.toPt(e); this.hover = p; this.click(p); });
+    this.draw();
+  }
+  toPt(e) {
+    const b = this.c.getBoundingClientRect(), x = (e.clientX - b.left) * PW / b.width, y = (e.clientY - b.top) * PH / b.height;
+    const r = Math.round(x / PK - 0.9), z = Math.round((PH - y) / PK - 0.6);
+    return (r < 0 || r > ROT_GRID.R || z < 0 || z > ROT_GRID.Z) ? null : [r, z];
+  }
+  msg(k) { this.onMsg(k ? (PAD_MSG[k] || k) : ''); }
+  click(p) {
+    if (this.locked || this.closed || !p) return;
+    const n = this.pts.length;
+    if (n >= 1 && p[0] === this.pts[0][0] && p[1] === this.pts[0][1]) {
+      if (n < 3) { this.msg('few'); return; }
+      const bad = rotCheck(this.pts); if (bad) { this.msg(bad === 'cross' ? 'closecross' : bad); return; }
+      this.closed = true; this.hover = null; this.msg(''); this.draw(); this.onChange(this); return;
+    }
+    if (n >= ROT_MAX_V) { this.msg('max'); return; }
+    const bad = rotPathProblem(this.pts.concat([p]), false); if (bad) { this.msg(bad); return; }
+    this.pts.push(p); this.msg(''); this.draw(); this.onChange(this);
+  }
+  undo() { if (this.locked) return; if (this.closed) this.closed = false; else this.pts.pop(); this.msg(''); this.draw(); this.onChange(this); }
+  clear() { if (this.locked) return; this.pts = []; this.closed = false; this.hover = null; this.msg(''); this.draw(); this.onChange(this); }
+  showHints(n) { this.hintN = Math.min(n, this.hints.length); this.draw(); if (this.hintN && !this.tw) this.twinkle(); }
+  twinkle() { // 힌트 점이 보이는 동안 반짝반짝 (화면에서 없어지면 멈춰요)
+    const step = () => { if (!this.c.isConnected || !this.hintN) { this.tw = 0; return; } this.draw(); this.tw = requestAnimationFrame(step); };
+    this.tw = requestAnimationFrame(step);
+  }
+  draw() {
+    const ctx = this.ctx, pts = this.pts; padBase(ctx);
+    if (pts.length) padShape(ctx, pts, { closed: this.closed, fill: 'rgba(236,95,168,.45)', stroke: '#d63a8c', dots: true });
+    if (!this.closed && !this.locked && pts.length >= 3) { // 처음 점을 다시 누르면 닫혀요
+      ctx.save(); ctx.strokeStyle = '#2a9d6c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(PX(pts[0][0]), PY(pts[0][1]), 11, 0, TAU); ctx.stroke(); ctx.restore();
+    }
+    for (let i = 0; i < this.hintN; i++) padSparkle(ctx, this.hints[i], i, performance.now());
+    if (!this.closed && !this.locked && this.hover) {
+      const h = this.hover, last = pts[pts.length - 1];
+      const isFirst = pts.length >= 3 && h[0] === pts[0][0] && h[1] === pts[0][1];
+      let bad = '';
+      if (!isFirst) { if (pts.some(q => q[0] === h[0] && q[1] === h[1])) bad = 'dup'; else bad = rotPathProblem(pts.concat([h]), false); }
+      else bad = rotCheck(pts);
+      ctx.save(); ctx.strokeStyle = bad ? '#d2504f' : '#9b6fd6'; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 2.5; ctx.setLineDash([7, 6]);
+      if (last) { ctx.beginPath(); ctx.moveTo(PX(last[0]), PY(last[1])); ctx.lineTo(PX(h[0]), PY(h[1])); ctx.stroke(); }
+      ctx.setLineDash([]); ctx.beginPath(); ctx.arc(PX(h[0]), PY(h[1]), 7, 0, TAU); ctx.globalAlpha = .55; ctx.fill(); ctx.restore();
+    }
+  }
+}
+function freshCanvas(holder, w, h, cls) { const c = document.createElement('canvas'); c.width = w; c.height = h; if (cls) c.className = cls; holder.replaceChildren(c); return c; }
+
+// ---------- 내가 그린 도형 → 입체 ----------
+const MK_SOL = {};
+function mkSolid(pts) {
+  const k = JSON.stringify(pts); if (MK_SOL[k]) return MK_SOL[k];
+  const sol = buildSolid(pts.map(p => ({ r: p[0], z: p[1] })));
+  sol.half = Math.max(HALF, Math.sqrt(sol.bound2) * 1.12 + 0.3);
+  const keys = Object.keys(MK_SOL); if (keys.length > 80) delete MK_SOL[keys[0]];
+  return (MK_SOL[k] = sol);
+}
+const MK_THUMB = {};
+function mkThumb(pts) {
+  const k = JSON.stringify(pts); if (MK_THUMB[k]) return MK_THUMB[k];
+  const S = 150, c = document.createElement('canvas'); c.width = c.height = S;
+  const ctx = c.getContext('2d'), img = ctx.createImageData(S, S), sol = mkSolid(pts);
+  renderSolid(sol, initialR(TILT, 0), sol.half * 0.95, S, S, null, img.data, null);
+  ctx.putImageData(img, 0, 0); return (MK_THUMB[k] = c.toDataURL());
+}
+function mkView(holder, pts, o) { // 새 캔버스에 회전체 보기를 만들어요
+  const sol = mkSolid(pts), c = freshCanvas(holder, 420, 420, 'solidcv');
+  const v = new SolidView(c, sol, Object.assign({ res: 400, dragRes: 200, yaw: SWEEP_YAW, half: sol.half }, o || {}));
+  v.render(false); return v;
+}
+
+// ---------- 회전 애니메이션 (평면도형이 돌면서 입체를 만들어요) ----------
+window.mkStop = () => { if (MK.anim) { cancelAnimationFrame(MK.anim.raf); MK.anim = null; } };
+function mkAngle(view, deg, fast, sliderId, valId) {
+  view.alpha = deg * Math.PI / 180; view.render(fast);
+  $(sliderId).value = Math.round(deg); $(valId).textContent = Math.round(deg) + '°';
+}
+function mkSweep(view, from, sliderId, valId) {
+  window.mkStop(); const dur = 4600 * (360 - from) / 360, t0 = performance.now(), a = { raf: 0 }; MK.anim = a;
+  const step = now => {
+    if (MK.anim !== a) return;
+    const p = Math.min(1, (now - t0) / dur), deg = from + (360 - from) * p;
+    if (p < 1) { mkAngle(view, deg, true, sliderId, valId); a.raf = requestAnimationFrame(step); }
+    else { MK.anim = null; mkAngle(view, 360, false, sliderId, valId); }
+  };
+  a.raf = requestAnimationFrame(step);
+}
+
+// ---------- 안내 말풍선 ----------
+let mkToastT = 0;
+function mkToast(t) { const b = $('#mkToast'); b.textContent = t; b.hidden = false; clearTimeout(mkToastT); mkToastT = setTimeout(() => { b.hidden = true; }, 3600); }
+const mkEsc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// =====================================================================
+//  목록
+// =====================================================================
+async function openMkList() {
+  show('mkList'); $('#mkNote').hidden = DEPLOY; $('#mkGrid').innerHTML = '<p class="hint">불러오는 중…</p>';
+  const why = await mkReady();
+  if (why) { $('#mkGrid').innerHTML = ''; $('#mkMsg').hidden = false; $('#mkMsg').textContent = why; $('#btnMkNew').disabled = true; return; }
+  $('#mkMsg').hidden = true; $('#btnMkNew').disabled = false;
+  $('#mkWho').textContent = `${MK.me.label} · ${MK.me.nick}`;
+  $('#mkClass').innerHTML = `<option value="class">우리 반 (${MK.me.gr}학년 ${MK.me.cl}반)</option><option value="all">우리 학교 전체</option>`;
+  $('#mkClass').value = MK.filter;
+  await mkLoadItems();
+}
+async function mkLoadItems() {
+  try { const j = await mkApi({ act: 'list', year: MK.year, school: MK.me.label, uid: MK.me.uid }); MK.items = j.items || []; MK.listErr = ''; }
+  catch (e) { MK.items = []; MK.listErr = mkErrText(e); }
+  mkRenderList();
+}
+function mkRenderList() {
+  const box = $('#mkGrid'); box.innerHTML = '';
+  if (MK.listErr) { box.innerHTML = `<p class="hint">${mkEsc(MK.listErr)}</p>`; return; }
+  const items = MK.items.filter(it => MK.filter === 'all' || (it.gr === MK.me.gr && it.cl === MK.me.cl) || it.mine);
+  if (!items.length) { box.innerHTML = `<p class="hint">${MK.filter === 'all' ? '아직 올라온 회전체가 없어요.' : '우리 반에 올라온 회전체가 아직 없어요.'} 첫 번째로 만들어 올려 보세요!</p>`; return; }
+  items.forEach(it => {
+    const d = document.createElement('div'); d.className = 'mkitem' + (it.my ? (it.my.ok ? ' won' : ' lost') : '') + (it.mine ? ' mine' : '');
+    const cls = it.gr != null ? `${it.gr}학년 ${it.cl}반` : '';
+    let tag = '';
+    if (it.mine) tag = `<span class="mktag me">내가 만든 것</span>`;
+    else if (it.my) tag = it.my.ok ? `<span class="mktag ok">✓ 맞혔어요</span>` : `<span class="mktag bad">도전했어요</span>`;
+    d.innerHTML = `<button class="mkthumb" title="이 회전체의 원래 도형 맞혀 보기"><img alt="회전체" src="${mkThumb(it.pts)}"></button>
+      <div class="mkmeta"><b>${mkEsc(it.nick)}</b><span>${cls}</span></div>
+      <div class="mkstat">${tag}<span>도전 ${it.n}명${it.mine ? ` · 맞힌 친구 ${it.okN || 0}명` : ''}</span></div>`;
+    d.querySelector('.mkthumb').onclick = () => openMkPlay(it);
+    if (it.mine || MK.adminKey) {
+      const del = document.createElement('button'); del.className = 'tinybtn mkdel'; del.textContent = it.mine ? '내 회전체 지우기' : '지우기(관리자)';
+      let arm = 0;
+      del.onclick = async () => {
+        if (!arm) { del.textContent = '한 번 더 누르면 지워요'; arm = setTimeout(() => { arm = 0; del.textContent = it.mine ? '내 회전체 지우기' : '지우기(관리자)'; }, 3000); return; }
+        clearTimeout(arm);
+        try { await mkApi({ act: 'remove', id: it.id, uid: MK.me.uid }); mkToast('지웠어요.'); await mkLoadItems(); } catch (e) { mkToast(mkErrText(e)); }
+      };
+      d.appendChild(del);
+    }
+    box.appendChild(d);
+  });
+}
+
+// =====================================================================
+//  만들기: 그리기 → 회전체 만들기(미리보기) → 올리기
+// =====================================================================
+function openMkDraw() {
+  window.mkStop(); show('mkDraw');
+  const cv = freshCanvas($('#mkPadHold'), PW, PH, 'padcv');
+  MK.padDraw = new FigPad(cv, { onChange: mkDrawChanged, onMsg: t => { $('#mkPadMsg').textContent = t; $('#mkPadMsg').hidden = !t; } });
+  $('#mkPhaseDraw').hidden = false; $('#mkPhasePrev').hidden = true; $('#mkPadMsg').hidden = true;
+  $('#mkPadBtns').hidden = false; MK.viewDraw = null;
+  mkDrawChanged(MK.padDraw);
+}
+function mkDrawChanged(p) {
+  const n = p.pts.length;
+  $('#mkStatus').textContent = p.closed ? `도형이 완성됐어요! (꼭짓점 ${n}개)` : n === 0 ? '격자점을 눌러 도형을 그려 보세요.' : n < 3 ? `점 ${n}개 — 계속 눌러 이어 가세요.` : `점 ${n}개 — 처음 점(초록 동그라미)을 누르면 도형이 닫혀요.`;
+  $('#mkMake').disabled = !p.closed; $('#mkUndo').disabled = n === 0; $('#mkClear').disabled = n === 0;
+}
+function mkMakeSolid() {
+  const p = MK.padDraw; if (!p.closed) return;
+  p.locked = true; p.hover = null; p.draw();
+  $('#mkPhaseDraw').hidden = true; $('#mkPhasePrev').hidden = false; $('#mkPadBtns').hidden = true; $('#mkPadMsg').hidden = true;
+  MK.viewDraw = mkView($('#mkSolidHold'), p.pts, { yaw: SWEEP_YAW }); MK.viewDraw.alpha = 0; MK.viewDraw.render(false);
+  mkAngle(MK.viewDraw, 0, false, '#mkAngle', '#mkAngleVal'); mkSweep(MK.viewDraw, 0, '#mkAngle', '#mkAngleVal');
+  $('#mkPubMsg').hidden = true; $('#mkPublish').disabled = false;
+}
+function mkBackToDraw() { window.mkStop(); const p = MK.padDraw; p.locked = false; p.draw(); $('#mkPhaseDraw').hidden = false; $('#mkPhasePrev').hidden = true; $('#mkPadBtns').hidden = false; mkDrawChanged(p); }
+async function mkPublish() {
+  const p = MK.padDraw, why = await mkReady(), m = $('#mkPubMsg');
+  if (why) { m.hidden = false; m.textContent = why; return; }
+  $('#mkPublish').disabled = true;
+  try {
+    await mkApi({ act: 'publish', year: MK.year, school: MK.me.label, uid: MK.me.uid, nick: MK.me.nick, gr: MK.me.gr, cl: MK.me.cl, pts: p.pts });
+    window.mkStop(); MK.filter = 'class'; await openMkList(); mkToast('우리 학교에 올렸어요! 친구들이 맞혀 볼 거예요.');
+  } catch (e) { m.hidden = false; m.textContent = mkErrText(e); $('#mkPublish').disabled = false; }
+}
+
+// =====================================================================
+//  맞히기: 회전체만 보고 원래 도형을 그려 보거나, ‘도형 확인하기’
+// =====================================================================
+function openMkPlay(it) {
+  window.mkStop(); show('mkPlay'); MK.cur = { it, guess: null };
+  const cls = it.gr != null ? ` · ${it.gr}학년 ${it.cl}반` : '';
+  $('#pgWho').innerHTML = `<b>${mkEsc(it.nick)}</b>${cls}`;
+  $('#pgStat').textContent = `도전 ${it.n}명` + (it.mine ? ` · 맞힌 친구 ${it.okN || 0}명` : '');
+  MK.viewPlay = mkView($('#pgSolidHold'), it.pts, { yaw: -35 });
+  $('#pgPhaseGuess').hidden = false; $('#pgPhaseRes').hidden = true;
+  $('#pgGuessMsg').hidden = true;
+  if (it.mine) { // 내가 만든 회전체는 도전할 수 없고 원래 도형만 볼 수 있어요
+    $('#pgPadWrap').hidden = true; $('#pgCheckGuess').hidden = true; $('#pgPadBtns').hidden = true; $('#pgHintRow').hidden = true;
+    $('#pgPrompt').innerHTML = '내가 만든 회전체예요. 친구들이 이 회전체를 보고 원래 도형을 맞혀 보고 있어요.';
+    return;
+  }
+  $('#pgPadWrap').hidden = false; $('#pgCheckGuess').hidden = false; $('#pgPadBtns').hidden = false; $('#pgHintRow').hidden = false;
+  $('#pgPrompt').innerHTML = '이 회전체를 만든 <b>원래 평면도형</b>(회전시키기 전의 모양)은 어떤 모양일까요? 입체를 끌어서 돌려 보고, 아래 격자에 도형을 그려 맞혀 보세요.<span class="note">실제 길이는 알 수 없으니 <b>크기는 달라도 돼요.</b> 가로·세로 길이의 비가 같으면 정답이에요.</span>';
+  const cv = freshCanvas($('#pgPadHold'), PW, PH, 'padcv');
+  MK.padGuess = new FigPad(cv, { onChange: pgChanged, onMsg: t => { $('#pgGuessMsg').textContent = t; $('#pgGuessMsg').hidden = !t; } });
+  MK.padGuess.hints = mkHintPoints(it.pts); MK.hintUsed = 0; pgHintUi();
+  pgChanged(MK.padGuess);
+  if (it.my) { MK.cur.guess = null; $('#pgPrompt').innerHTML += `<span class="note">이미 도전한 회전체예요 (${it.my.ok ? '맞혔어요' : '아쉽게 틀렸어요'}). 다시 그려 보거나 도형을 확인해 보세요.</span>`; }
+}
+function pgHintUi() {
+  const n = MK.hintUsed || 0;
+  [1, 2, 3].forEach(k => { const b = $('#pgHint' + k); b.disabled = k !== n + 1; b.classList.toggle('used', k <= n); });
+  $('#pgHintTxt').textContent = n === 0 ? '막막하면 힌트를 눌러 보세요. 원래 도형의 꼭짓점이 있는 자리가 반짝여요.' : n < 3 ? `힌트 ${n}개를 봤어요. 반짝이는 점은 원래 도형의 꼭짓점 자리예요.` : '힌트 3개를 모두 봤어요. 점들을 이어 도형을 완성해 보세요!';
+}
+function pgHint(k) { if (!MK.padGuess || k !== (MK.hintUsed || 0) + 1) return; MK.hintUsed = k; MK.padGuess.showHints(k); pgHintUi(); }
+function pgChanged(p) {
+  const n = p.pts.length;
+  $('#pgStatus').textContent = p.closed ? '도형을 완성했어요. ‘내 추측 확인하기’를 눌러 보세요.' : n === 0 ? '추측한 도형을 격자점을 눌러 그려 보세요. (그리지 않고 바로 확인해도 돼요)' : n < 3 ? `점 ${n}개 — 계속 이어 가세요.` : `점 ${n}개 — 처음 점(초록 동그라미)을 누르면 닫혀요.`;
+  $('#pgCheckGuess').disabled = !p.closed; $('#pgUndo').disabled = n === 0; $('#pgClear').disabled = n === 0;
+}
+function pgReveal(guessPts, res) {
+  const { it } = MK.cur; window.mkStop();
+  $('#pgPhaseGuess').hidden = true; $('#pgPhaseRes').hidden = false;
+  const box = $('#pgVerdict');
+  if (res) {
+    box.className = res.ok ? 'okbox' : 'badbox';
+    box.innerHTML = res.ok
+      ? `<div class="vt ok">정답이에요! 🎉</div><p>그린 도형을 회전시키면 이 회전체와 같은 모양의 입체가 만들어져요.</p>` + (res.exact ? '' : `<p class="sub">원래 도형과 크기는 다르지만 가로·세로 길이의 비가 같아서 정답이에요. 회전체만 보고는 실제 길이를 알 수 없으니까요.</p>`)
+      : `<div class="vt bad">아쉬워요!</div><p>내가 그린 도형(파란 점선)은 이 회전체와 모양이 달라요. 원래 도형(분홍색)과 비교해 보세요.</p><p class="sub">크기가 달라도 가로·세로 길이의 비가 같으면 정답이에요.</p>`;
+    if (res.already) box.innerHTML += `<p class="sub">이 회전체에는 이미 도전한 적이 있어서 이번 결과는 기록에 넣지 않았어요.</p>`;
+  } else {
+    box.className = 'okbox'; box.innerHTML = `<div class="vt ok">원래 평면도형이에요</div><p>이 도형을 축 <i>l</i>을 중심으로 1회전시키면 회전체가 만들어져요. 아래 슬라이더로 직접 돌려 보세요.</p>`;
+  }
+  const cv = freshCanvas($('#pgAnsHold'), PW, PH, 'padcv ro'); padPaintFixed(cv, it.pts, guessPts);
+  $('#pgLegend').innerHTML = guessPts ? '<span class="lg a"></span>원래 도형 <span class="lg g"></span>내가 그린 도형' : '';
+  $('#pgPadAgain').hidden = !!it.mine;
+  MK.viewPlay.alpha = 0; mkAngle(MK.viewPlay, 0, false, '#pgAngle', '#pgAngleVal'); mkSweep(MK.viewPlay, 0, '#pgAngle', '#pgAngleVal');
+}
+async function pgCheckGuess() {
+  const p = MK.padGuess, { it } = MK.cur; if (!p || !p.closed) return;
+  $('#pgCheckGuess').disabled = true;
+  try {
+    const why = await mkReady(); if (why) throw Object.assign(new Error(why), { code: '' });
+    const res = await mkApi({ act: 'guess', id: it.id, uid: MK.me.uid, pts: p.pts });
+    if (!res.already) { it.n += 1; it.my = { ok: !!res.ok }; }
+    MK.cur.guess = p.pts.map(q => q.slice()); pgReveal(MK.cur.guess, { ok: !!res.ok, already: !!res.already, exact: rotSameSize(MK.cur.guess, it.pts) });
+  } catch (e) { $('#pgGuessMsg').hidden = false; $('#pgGuessMsg').textContent = mkErrText(e); $('#pgCheckGuess').disabled = false; }
+}
+
+// ---------- 이벤트 ----------
+$('#cardMk').onclick = openMkList;
+$('#btnMkHome').onclick = () => show('home');
+$('#btnMkNew').onclick = openMkDraw;
+$('#mkClass').onchange = e => { MK.filter = e.target.value; mkRenderList(); };
+$('#btnMkRefresh').onclick = () => { if (MK.me) mkLoadItems(); };
+$('#mkUndo').onclick = () => MK.padDraw && MK.padDraw.undo();
+$('#mkClear').onclick = () => MK.padDraw && MK.padDraw.clear();
+$('#mkMake').onclick = mkMakeSolid;
+$('#btnMkDrawBack').onclick = () => openMkList();
+$('#mkRedo').onclick = mkBackToDraw;
+$('#mkPublish').onclick = mkPublish;
+$('#mkPlayBtn').onclick = () => { const from = +$('#mkAngle').value; mkSweep(MK.viewDraw, from >= 360 ? 0 : from, '#mkAngle', '#mkAngleVal'); };
+$('#mkAngle').addEventListener('input', e => { window.mkStop(); mkAngle(MK.viewDraw, +e.target.value, true, '#mkAngle', '#mkAngleVal'); });
+$('#mkAngle').addEventListener('change', e => mkAngle(MK.viewDraw, +e.target.value, false, '#mkAngle', '#mkAngleVal'));
+$('#btnMkPlayBack').onclick = () => openMkList();
+[1, 2, 3].forEach(k => { $('#pgHint' + k).onclick = () => pgHint(k); });
+$('#pgUndo').onclick = () => MK.padGuess && MK.padGuess.undo();
+$('#pgClear').onclick = () => MK.padGuess && MK.padGuess.clear();
+$('#pgCheckGuess').onclick = pgCheckGuess;
+$('#pgReveal').onclick = () => pgReveal(MK.cur.guess, null);
+$('#pgPadAgain').onclick = () => openMkPlay(MK.cur.it);
+$('#pgToList').onclick = () => openMkList();
+$('#pgPlayBtn').onclick = () => { const from = +$('#pgAngle').value; mkSweep(MK.viewPlay, from >= 360 ? 0 : from, '#pgAngle', '#pgAngleVal'); };
+$('#pgAngle').addEventListener('input', e => { window.mkStop(); mkAngle(MK.viewPlay, +e.target.value, true, '#pgAngle', '#pgAngleVal'); });
+$('#pgAngle').addEventListener('change', e => mkAngle(MK.viewPlay, +e.target.value, false, '#pgAngle', '#pgAngleVal'));
+// 관리자: 암호를 넣으면 목록에서 모든 회전체를 지울 수 있어요
+$('#btnMkAdmin').onclick = () => { $('#mkAdminBox').hidden = !$('#mkAdminBox').hidden; };
+$('#mkAdminGo').onclick = async () => {
+  const k = $('#mkAdminKey').value.trim(); if (!k) return;
+  MK.adminKey = k;
+  try { await mkApi({ act: 'adminping' }); try { sessionStorage.setItem('mtryu.adminkey', k); } catch (_) { } $('#mkAdminBox').hidden = true; mkToast('관리자 보기를 켰어요. (이 탭에서만 유지돼요)'); mkRenderList(); }
+  catch (e) { MK.adminKey = ''; mkToast(mkErrText(e)); }
+};
+if (DEPLOY && window.MtryuMeSync) MtryuMeSync.watch(async () => { await mkSyncMe(); if (!$('#mkList').hidden) openMkList(); });
+
+
+</script>
+</body>
+</html>
