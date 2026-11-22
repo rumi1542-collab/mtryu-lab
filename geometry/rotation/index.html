@@ -1302,8 +1302,9 @@ function padShape(ctx, pts, o) { // o: {closed, fill, stroke, width, dash, dots}
   if (o.dots) { ctx.fillStyle = o.stroke; pts.forEach(p => { ctx.beginPath(); ctx.arc(PX(p[0]), PY(p[1]), 5.5, 0, TAU); ctx.fill(); }); }
 }
 // 도형 하나를 읽기 전용으로 그려요 (정답 공개에 쓰고, guess가 있으면 내 추측을 점선으로 겹쳐요)
-function padPaintFixed(canvas, pts, guess) {
-  PG = G0; const ctx = canvas.getContext('2d'); padBase(ctx);
+function padPaintFixed(canvas, pts, guess, geom) {
+  PG = geom || G0; if (geom) { const zmin = Math.min.apply(null, pts.map(q => q[1])); pts = pts.map(q => [q[0], q[1] - zmin]); }   // 맞히기 화면과 같은 좌표(바닥 = 0번 줄)
+  const ctx = canvas.getContext('2d'); padBase(ctx);
   padShape(ctx, pts, { closed: true, fill: 'rgba(236,95,168,.45)', stroke: '#d63a8c', dots: true });
   if (guess) padShape(ctx, guess, { closed: true, stroke: '#2a78d6', width: 3, dash: [9, 7], dots: false });
 }
@@ -1582,7 +1583,7 @@ function pgReveal(guessPts, res) {
   } else {
     box.className = 'okbox'; box.innerHTML = `<div class="vt ok">원래 평면도형이에요</div><p>이 도형을 축 <i>l</i>을 중심으로 1회전시키면 회전체가 만들어져요. 아래 슬라이더로 직접 돌려 보세요.</p>`;
   }
-  const cv = freshCanvas($('#pgAnsHold'), PW, PH, 'padcv ro'); padPaintFixed(cv, it.pts, guessPts);
+  const geom = mkGuessGeom(it.pts), cv = freshCanvas($('#pgAnsHold'), geom.W, geom.H, 'padcv ro'); padPaintFixed(cv, it.pts, guessPts, geom);
   $('#pgLegend').innerHTML = guessPts ? '<span class="lg a"></span>원래 도형 <span class="lg g"></span>내가 그린 도형' : '';
   $('#pgPadAgain').hidden = !!it.mine && !MK.cur.practice;
   MK.viewPlay.alpha = 0; mkAngle(MK.viewPlay, 0, false, '#pgAngle', '#pgAngleVal'); mkSweep(MK.viewPlay, 0, '#pgAngle', '#pgAngleVal');
